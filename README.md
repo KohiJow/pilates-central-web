@@ -322,23 +322,27 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 
 - Sem servidor próprio: o site é estático (GitHub Pages) e os dados do estúdio ficam no Firestore,
   protegidos por [regras](firestore.rules) com menor privilégio, esquema e tamanho em tudo e o
-  resto negado. 174 testes no emulador cobrem cada papel em cada coleção e as tentativas de
+  resto negado. 203 testes no emulador cobrem cada papel em cada coleção e as tentativas de
   escalada (professor lendo pagamentos, aluno lendo outro aluno, aluno em aula cheia, convite
-  forjado, e-mail não confirmado, mexer na posse do estúdio).
+  forjado, e-mail não confirmado, mexer na posse do estúdio). Uma revisão de segurança tentou
+  quebrar as regras como cada papel e como anônimo; o que passou (desfazer o aviso ficando com a
+  reposição, repor na própria turma, ler a posse sem ser da equipe) virou teste e correção.
 - O papel vem de convite para o e-mail confirmado; desativar alguém corta o acesso na hora.
 - Login com mensagens que não dizem se o e-mail tem conta; senha nova por e-mail.
 - Política de segurança de conteúdo em todas as páginas: scripts, estilos, fontes e imagens só do
-  próprio site; conexões só com o próprio site e, com projeto, com o login e o Firestore. Sem
-  Google Analytics, sem rastreamento.
+  próprio site, sem `unsafe-inline` em script; conexões só com o próprio site e, com projeto, com
+  o login e o Firestore. Sem Google Analytics, sem rastreamento. Nenhum texto do banco vira HTML, e
+  a página pública confere cada horário do documento público antes de mostrar.
 - A configuração web do Firebase fica fora do repositório (variáveis do GitHub Actions); na
   demonstração nada sai do aparelho.
-- Os dados de exemplo são fictícios: nomes genéricos, e-mails em example.com, telefones
-  55 11 90000-00xx. As fotos do espaço no repositório não têm pessoas.
+- Os dados de exemplo são fictícios: nomes genéricos, endereços inventados, e-mails em
+  example.com, telefones 55 11 90000-00xx. As fotos do espaço no repositório não têm pessoas.
 - Observação do aluno é texto livre que só a equipe vê; não há ficha de saúde estruturada.
 - A planilha exportada não deixa nome de aluno virar fórmula no Excel (`=`, `+`, `-` e `@` no
   começo ganham um apóstrofo).
 - LGPD: [aviso de privacidade](https://kohijow.github.io/pilates-central-web/privacidade/),
-  exportação dos dados de um aluno e exclusão com confirmação.
+  exportação dos dados de um aluno e exclusão com confirmação (o cadastro, o acesso ao app e os
+  créditos saem; a conta de login é apagada no console).
 
 ## Estrutura
 
@@ -374,7 +378,8 @@ Etapa 1: fundação, agenda e presença. Etapa 2: gestão do estúdio (alunos, t
 presença, financeiro, unidades, equipe e configurações). Etapa 3: Firebase com papéis e
 convites, regras do Firestore testadas, app do aluno, página de aula experimental e LGPD. Depois,
 uma revisão de produto comparou o app, pedido por pedido, com o que o estúdio precisa, e contou
-os toques de cada tarefa (a tabela acima). Detalhes
+os toques de cada tarefa (a tabela acima), e uma revisão de segurança e privacidade atacou as
+regras e o site. Detalhes
 e o que falta (publicar as regras e fazer o primeiro acesso no projeto real) em
 [docs/roteiro.md](docs/roteiro.md).
 

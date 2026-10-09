@@ -169,12 +169,12 @@ Um projeto Firebase é um estúdio. "Administração" = titular ou administrador
 
 | Coleção | Documento | Quem lê | Quem escreve |
 |---|---|---|---|
-| `estudio` | `posse` (`titularUid`, `titularMembroId`) | contas com e-mail confirmado | primeiro acesso (uma vez); depois só o titular, para passar a conta |
+| `estudio` | `posse` (`titularUid`, `titularMembroId`) | equipe e a conta do e-mail do primeiro acesso | primeiro acesso (uma vez); depois só o titular, para passar a conta |
 | `configuracao` | `estudio` | equipe e aluno | administração |
 | `unidades` | id | equipe e aluno | administração |
 | `equipe` | id do membro (com `uid` depois do aceite) | equipe | administração para professores; titular para administradores; cada um o próprio contato; o convidado só grava o próprio `uid` ao aceitar |
 | `convites` | e-mail da pessoa | administração e o dono do e-mail | administração (professor e aluno), titular (administrador); o convidado apaga ao aceitar |
-| `acessos` | uid da conta | a própria conta | a própria conta, a partir de um convite ou do primeiro acesso |
+| `acessos` | uid da conta | a própria conta; a administração acha os de aluno | a própria conta, a partir de um convite ou do primeiro acesso; a administração apaga o de aluno na exclusão |
 | `alunos` | id | equipe | administração |
 | `financeiroDosAlunos` | id do aluno | administração | administração |
 | `turmas` | id | equipe | administração |

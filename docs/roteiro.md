@@ -172,6 +172,37 @@ professor num iPhone SE (375 x 667, uma mão), e contando os toques (`e2e/toques
 - [x] O aluno remarca a própria aula: 5
 - [x] Visitante até o pedido no WhatsApp: 1 (sem escolher horário) a 3
 
+## Revisão de segurança e privacidade (feita)
+
+As regras foram atacadas no emulador como cada papel e como anônimo (`testes-de-regras/ataques.test.ts`),
+o site foi conferido no navegador (política de segurança, console, cache, armazenamento) e cada
+imagem versionada foi aberta e olhada.
+
+### Achado e corrigido
+- [x] O aluno desfazia o aviso de falta e ficava com o crédito: voltava para a aula e ainda repunha outra, até com o crédito já usado. Agora o crédito do aviso sai no mesmo lote (regra da vaga)
+- [x] O aluno fixo se encaixava na própria turma, ocupando dois lugares com um crédito
+- [x] Qualquer conta com e-mail confirmado lia `estudio/posse` (uid do titular e se o estúdio já tinha dono); agora só a equipe e o e-mail do primeiro acesso. Quem não tem convite cai direto em "Ainda não dá para entrar"
+- [x] Um horário torto no documento público (o professor grava os horários, e as regras não conferem item por item) derrubava a página de aula experimental: sem horários e sem o botão do WhatsApp. A página agora confere cada horário e unidade
+- [x] Excluir o aluno deixava `acessos/{uid}` com o e-mail dele; agora a administração acha e apaga o acesso de aluno (nunca o da equipe) na mesma gravação
+- [x] O endereço de verdade do estúdio estava nos dados fictícios da demonstração, no teste e no passo a passo; trocado por um inventado (banco de demonstração versão 4) e a captura refeita
+- [x] O aviso de privacidade não dizia que a sessão de login fica no celular nem que a conta de login também é apagada
+- [x] Teste da administração no emulador dependia da hora: à noite o primeiro crédito da lista já não tinha aula com vaga
+
+### Conferido sem defeito
+- [x] Sem `innerHTML`/`dangerouslySetInnerHTML`; links para fora (WhatsApp, mapa) montados pelo app com `noopener`; telefone só com dígitos
+- [x] Política de segurança sem `unsafe-inline` em script (dois scripts embutidos por hash); com projeto, `connect-src` só ganha login, token e Firestore; a política não libera `apis.google.com`, Analytics nem reCAPTCHA
+- [x] Emulador inerte fora de `localhost` (código e política de segurança); `?agora=` e `?atraso=` só na demonstração
+- [x] Console vazio entrando como responsável, professor e aluno; cache do service worker só com arquivos do site; no aparelho só o modo, a sessão de login (IndexedDB do SDK) e preferências
+- [x] `npm audit --omit=dev`: 0 vulnerabilidades; dependências de produção: Preact, signals, Firebase e as duas fontes
+- [x] Fotos do espaço (5, nos dois tamanhos) abertas uma a uma e as 22 capturas em folhas de contato: sem pessoas, sem metadados; a etiqueta da planta segue ilegível
+- [x] Planilha CSV não deixa célula virar fórmula (`=`, `+`, `-`, `@`, tabulação)
+
+### Ficou para depois
+- [ ] App Check do Firebase: hoje qualquer pessoa lê o documento público, e a cota diária do plano gratuito pode ser gasta de propósito. Pede o script do reCAPTCHA na página e na política de segurança
+- [ ] Margem do teto de 1000 expressões na regra do registro escrito pelo aluno (encaixe aguenta só mais 8 a 15 comparações). Dá para ganhar folga levando mais conferências para a regra da vaga ou simplificando `registroValido` para o caso do aluno
+- [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console, passo em [firebase.md](firebase.md)); sem Cloud Functions não há como apagar pelo app
+- [ ] Itens de listas gravadas pela equipe (horários públicos, alunos fixos, unidades, reposições) só têm o tamanho da lista conferido nas regras
+
 ## Notas para quem continuar
 
 - **Rodar os testes de ponta a ponta no servidor ARM:** o WebKit não roda direto no Oracle Linux. Com o `npm run preview` no ar (porta 8887), rodar o contêiner do Playwright 1.60:
@@ -184,6 +215,7 @@ professor num iPhone SE (375 x 667, uma mão), e contando os toques (`e2e/toques
 - **Conteúdo do repositório:** sem travessão, sem ponto médio, sem nomes reais, sem trechos de conversa com a cliente, sem fotos com pessoas. E-mails só `@example.com`, telefones `55119000000xx` (exemplos na tela usam `(19) 90000-0000`).
 - **Papéis:** no código `titular`, `administrador` e `professor` (mais o aluno, fora da equipe); na tela "Responsável", "Administração" e "Professor". Toda regra de equipe recebe quem está agindo (`src/dominio/equipe.ts`); `firestore.rules` repete as mesmas recusas e `testes-de-regras/` testa cada uma no emulador.
 - **Financeiro separado:** `FinanceiroDoAluno` (coleção `financeiroDosAlunos`) só é pedido por quem pode ver financeiro (`carregarFinanceiro` em `src/dados/estado.ts`); o teste com o emulador confere que o app do professor nem pede.
+- **Teto de 1000 expressões nas regras do aluno:** a regra do registro que o aluno grava já anda perto do teto. Conferência nova do aluno vai na regra da vaga (`alunoMexeNaVaga`, folga larga), não em `encaixeValido`/`avisoValido`. Para medir, some `&& 1 == 1` repetido na função e rode o teste legítimo correspondente com o emulador no ar: o ponto em que ele passa a falhar é a folga (o motivo aparece em `firestore-debug.log` como "maximum of 1000 expressions"). Recusa por teto também aparece em casos negados de propósito; isso não muda o resultado, mas não prova a lógica.
 - **Regras do Firestore:** calcule quem pede uma vez (`quemSou`) e passe adiante; funções que relêem o papel estouram o teto de 1000 expressões por pedido. Leia documento com `dados(caminho, padrao)` (um `get` que trata o documento ausente), não `exists` mais `get`: há teto de 10 leituras por operação e 20 por lote. Rode `npm run regras` (sobe o emulador sozinho) ou, com o emulador já no ar, `FIRESTORE_EMULATOR_HOST=127.0.0.1:8824 npx vitest run --config vitest.regras.config.ts`.
 - **Ponta a ponta com o Firebase:** com os emuladores no ar (`firebase emulators:start --only auth,firestore --project demo-pilates`) e a prévia rodando, `EMULADOR=1` faz o Playwright limpar os emuladores, criar as contas e gravar a demonstração de hoje (`e2e/firebase/preparar.ts`) e rodar `e2e/firebase.spec.ts`. Cada motor usa um aluno diferente (os dois podem rodar juntos no mesmo emulador) e um projeto vazio próprio para o primeiro acesso (`?emulador=demo-pilates-vazio-<motor>`). O emulador de login guarda todas as contas no projeto padrão (o SDK não manda o projeto no login); o Firestore separa os dados por projeto, por isso `singleProjectMode` fica desligado em `firebase.json`. No Chromium, `bypassCSP` deixa o app falar com o emulador; no WebKit a `<meta>` da política sai do HTML servido no teste (servir a página pelo teste no Chromium faz o navegador bloquear o endereço local).
 - **Trava do Firebase real:** importe `test` e `expect` de `e2e/base.ts`, nunca de `@playwright/test`: a trava corta e reprova qualquer pedido para domínios do Google.

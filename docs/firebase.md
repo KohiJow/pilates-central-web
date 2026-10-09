@@ -28,6 +28,11 @@ verdade) e **Ver demonstração**.
      mostra mensagens que não dizem se um e-mail tem conta.
    - **Ações do usuário:** "Ativar a criação" fica ligada: quem é convidado cria a própria conta.
      Quem não tem convite até cria uma conta, mas não vê nada (as regras do banco negam).
+   - **Política de senha:** comprimento mínimo **8** e "Exigir". O app já pede 8 ao criar a conta,
+     mas a tela de senha nova do Firebase aceita 6 sem essa política.
+   - **reCAPTCHA (proteção de e-mail e senha):** deixe desligado. Se for ligar, a política de
+     segurança do site (`scripts/plugin-offline.ts`) precisa liberar o script do reCAPTCHA, senão o
+     login para de funcionar.
 3. Authentication, Modelos: escolha o idioma **português** para os e-mails de confirmação e de
    senha nova.
 
@@ -100,6 +105,9 @@ Em **Mais**:
    pronta, com o endereço e o e-mail).
 5. **Passar a conta:** Equipe, a pessoa, **Passar a conta**. Ela precisa ser da administração e já
    ter entrado com o e-mail confirmado.
+6. **Pedido de exclusão (LGPD):** na ficha do aluno, **Excluir o cadastro** apaga o cadastro e o
+   que liga a conta dele ao estúdio. Se ele tinha conta no app, apague também a conta de login: no
+   console, Authentication, Usuários, procure o e-mail e exclua.
 
 A página pública fica em `https://kohijow.github.io/pilates-central-web/experimental/`. Ela só
 lê um documento com horários e vagas (sem nomes), que o app da equipe atualiza sozinho a cada
