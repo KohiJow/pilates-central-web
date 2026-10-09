@@ -717,15 +717,16 @@ button.card:disabled {
   align-items: center;
   gap: 6px;
   min-height: var(--toque);
-  padding: 0 4px 0 10px;
+  /* estreito o bastante para o nome do estúdio caber inteiro ao lado num celular de 360px */
+  padding: 0 0 0 6px;
   color: var(--brand);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .selo-demo span {
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: var(--raio-pilula);
   background: var(--surface-accent);
   color: var(--text-on-accent);

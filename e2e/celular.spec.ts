@@ -169,6 +169,25 @@ test.describe('celular', () => {
     await expect(page.locator('.cartao-aula').first()).toBeVisible()
   })
 
+  test.describe('no iPhone SE', () => {
+    test.use({ viewport: { width: 375, height: 667 } })
+
+    test('trocar de dia não mexe a faixa de dias (o título não quebra linha)', async ({ page }) => {
+      await entrarComoAdministracao(page)
+      await irParaAba(page, 'Agenda')
+      const topoDaFaixa = () => page.evaluate(() => Math.round(document.querySelector('.faixa')?.getBoundingClientRect().top ?? -1))
+      const antes = await topoDaFaixa()
+      // dias com nome comprido e o botão "Hoje" aparecendo: nada abaixo do título se mexe
+      for (const dia of ['2026-10-10', '2026-10-14', '2026-10-05', '2026-09-27', '2026-10-09']) {
+        await page.locator(`[data-dia="${dia}"]`).click()
+        await expect(page.locator(`[data-dia="${dia}"]`)).toHaveAttribute('aria-pressed', 'true')
+        expect(await topoDaFaixa(), dia).toBe(antes)
+        const cortado = await page.locator('#titulo-agenda').evaluate((h) => h.scrollWidth > h.clientWidth)
+        expect(cortado, dia).toBe(false)
+      }
+    })
+  })
+
   test('a folha desce com o conteúdo que tinha, e não responde enquanto sai', async ({ page }) => {
     await abrirApp(page)
     await page.getByRole('button', { name: 'Explorar como professor' }).click()

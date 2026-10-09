@@ -51,21 +51,22 @@ export function Agenda() {
   return (
     <section class="tela" aria-labelledby="titulo-agenda">
       <header class="cabecalho-de-tela">
+        {/* o "Hoje" fica na linha de cima e o título tem a largura toda: com os dois lado a lado,
+            no iPhone o título quebrava em duas linhas nos outros dias e a faixa de dias descia
+            bem quando a pessoa tocava nela */}
         <div class="agenda-topo">
-          <div>
-            <p class="micro">
-              Agenda, {nomeDoMes(dia)} de {dia.slice(0, 4)}
-            </p>
-            <h1 id="titulo-agenda" class="titulo">
-              {maiuscula(dataPorExtenso(dia))}
-            </h1>
-          </div>
+          <p class="micro">
+            Agenda, {nomeDoMes(dia)} de {dia.slice(0, 4)}
+          </p>
           {dia !== diaDeHoje && (
-            <Botao variante="terciario" onClick={() => trocarDia(diaDeHoje)}>
+            <Botao variante="terciario" class="agenda-hoje" onClick={() => trocarDia(diaDeHoje)}>
               Hoje
             </Botao>
           )}
         </div>
+        <h1 id="titulo-agenda" class="titulo agenda-titulo">
+          {maiuscula(dataPorExtenso(dia))}
+        </h1>
       </header>
 
       {(unidadesVisiveis.length > 1 || !ehAdm) && (
