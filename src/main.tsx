@@ -1,0 +1,36 @@
+import './estilos/fontes.css'
+import './estilos/tokens.css'
+import './estilos/base.css'
+import './estilos/movimento.css'
+import './estilos/componentes.css'
+import './estilos/telas.css'
+import { render } from 'preact'
+import { App } from './app/App'
+import { acompanharInstalacao } from './app/instalacao'
+import { fixarAgora, hoje, iniciarRelogio, lerAgoraDaUrl } from './app/relogio'
+import { acompanharTemaDoSistema } from './app/tema'
+import { criarRepositorio } from './dados/criar'
+import { carregar } from './dados/estado'
+import { movimentoReduzido, suportaTransicaoDeVista } from './movimento/preferencias'
+import { ativarRetornoDeToque } from './movimento/toque'
+
+fixarAgora(lerAgoraDaUrl(location.search))
+iniciarRelogio()
+acompanharTemaDoSistema()
+acompanharInstalacao()
+ativarRetornoDeToque()
+if (suportaTransicaoDeVista && !movimentoReduzido.peek()) {
+  document.documentElement.classList.add('com-transicao-de-vista')
+}
+
+const repositorio = criarRepositorio(location.search)
+void carregar(repositorio, hoje.peek())
+
+const raiz = document.getElementById('app')
+if (raiz) render(<App repositorio={repositorio} />, raiz)
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+  })
+}
