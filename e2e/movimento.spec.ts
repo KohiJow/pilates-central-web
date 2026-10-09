@@ -175,7 +175,8 @@ test.describe('fluidez das transições', () => {
 
   test('folha, troca de dia, troca de aba e aviso', async ({ page }, info) => {
     test.setTimeout(90_000)
-    await entrarComoAdministracao(page)
+    // 17h45: a chamada das 18h já abriu (abre meia hora antes) e dá para marcar presença
+    await entrarComoAdministracao(page, '2026-10-09T17:45')
     await page.waitForTimeout(500)
     const referencia = await medirReferencia(page)
     await info.attach('regua-do-ambiente', { body: JSON.stringify({ navegador: info.project.name, cpuLenta: LENTO, p95: referencia }), contentType: 'application/json' })

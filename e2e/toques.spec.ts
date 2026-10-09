@@ -94,7 +94,7 @@ test.describe('toques por tarefa no iPhone SE', () => {
   test('aluno avisou: tirar do dia e encaixar em outro horário em 5 toques, pela chamada', async ({ page }) => {
     await entrarComoAdministracao(page)
     const dedo = new Dedo(page)
-    await dedo.tocar(page.getByRole('button', { name: 'Abrir chamada', exact: true }))
+    await dedo.tocar(page.getByRole('button', { name: 'Ver quem vem', exact: true }))
     await esperarFolhaParada(page)
     const linha = folha(page).locator('[data-aluno]').nth(1)
     await dedo.tocar(linha.getByRole('button', { name: 'Avisou' }))

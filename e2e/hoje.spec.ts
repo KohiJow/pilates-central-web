@@ -21,7 +21,7 @@ test.describe('hoje', () => {
     await entrarComoAdministracao(page)
     const esperados = await numero(page, /alunos esperados/)
     const avisos = await numero(page, /avisaram/)
-    await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
+    await page.getByRole('button', { name: 'Ver quem vem', exact: true }).click()
     await esperarFolhaParada(page)
     const linha = folha(page).locator('[data-aluno]').nth(1)
     await linha.getByRole('button', { name: 'Avisou' }).click()
@@ -52,10 +52,33 @@ test.describe('hoje', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Bom dia/)
   })
 
+  test('aula que acabou sem a chamada completa aparece no hoje e se resolve dali', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    await expect(page.getByRole('heading', { name: 'Chamada por fazer' })).toHaveCount(0)
+    // apaga uma presença da aula das 7h (já terminou): ela passa a ter alguém sem marcação
+    await irParaAba(page, 'Agenda')
+    await page.locator('.cartao-aula').first().click()
+    await esperarFolhaParada(page)
+    await folha(page).locator('[data-aluno]').first().getByRole('button', { name: 'Presente' }).click()
+    await expect(page.getByRole('status').filter({ hasText: /apagada/ })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(folha(page)).toHaveCount(0)
+    await irParaAba(page, 'Hoje')
+    const porFazer = page.getByRole('button', { name: /Aula das 7h, Centro.*1 aluno está sem marcação/ })
+    await expect(porFazer).toBeVisible()
+    await porFazer.click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('button', { name: 'Todos presentes (1)' }).click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('heading', { name: 'Chamada por fazer' })).toHaveCount(0)
+  })
+
   test('domingo: estado vazio leva para a agenda', async ({ page }) => {
     await abrirApp(page, '2026-10-11T10:00')
     await page.getByRole('button', { name: 'Explorar como administração' }).click()
     await expect(page.getByText('Sem aulas hoje')).toBeVisible()
+    // segunda é feriado (aulas canceladas): a próxima é terça cedo
+    await expect(page.getByText('A próxima é terça, 7h.', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Ver a agenda' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Domingo, 11 de outubro')
   })

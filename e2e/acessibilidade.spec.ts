@@ -145,7 +145,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
 
   test('com a folha aberta, o resto do app fica inerte e o foco começa na folha', async ({ page }) => {
     await entrarComoAdministracao(page)
-    await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
+    await page.getByRole('button', { name: 'Ver quem vem', exact: true }).click()
     await esperarFolhaParada(page)
     await expect(page.locator('#app')).toHaveAttribute('inert', '')
     const foco = await page.evaluate(() => document.activeElement?.closest('.folha') !== null)
@@ -157,7 +157,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
   test('com "reduzir movimento", nada desliza', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await entrarComoAdministracao(page)
-    await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
+    await page.getByRole('button', { name: 'Ver quem vem', exact: true }).click()
     // com 1 ms de duração, uma animação pode aparecer como "rodando" até o próximo quadro;
     // o que importa é que nenhuma dure de verdade
     const longas = await page.evaluate(() =>

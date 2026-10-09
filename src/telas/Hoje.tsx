@@ -11,6 +11,7 @@ import { Icone } from '../componentes/Icone'
 import { Vagas } from '../componentes/Vagas'
 import { ausenciasPorAluno } from '../dados/consultas'
 import { alunosPorId, aulasNoDia, base, cargaRecente, creditos, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
+import { chamadaAberta, contarMarcacoes } from '../dominio/presenca'
 import { resumoDeCreditos } from '../dominio/reposicao'
 import { faseDaAula } from '../dominio/agenda'
 import { ehAdministracao } from '../dominio/permissoes'
@@ -54,6 +55,8 @@ export function Hoje() {
   const resumo = resumoDoDia(aulas, agora)
   const proxima = resumo.emAndamento ?? resumo.proximas[0]
   const depois = resumo.proximas.filter((a) => a !== proxima)
+  // aula que já acabou sem chamada completa: entre uma aula e outra, é o que o professor resolve
+  const porFazer = aulas.filter((a) => !a.cancelamento && faseDaAula(a, agora) === 'encerrada' && contarMarcacoes(a).pendente > 0)
 
   return (
     <section class="tela" aria-labelledby="titulo-hoje">
@@ -86,6 +89,35 @@ export function Hoje() {
               <p class="titulo">As aulas de hoje acabaram.</p>
               <p>{plural(resumo.presentes, 'presença registrada', 'presenças registradas')}.</p>
             </Card>
+          )}
+
+          {porFazer.length > 0 && (
+            <section class="secao" aria-labelledby="titulo-por-fazer">
+              <h2 id="titulo-por-fazer" class="micro">
+                Chamada por fazer
+              </h2>
+              <ul class="lista">
+                {porFazer.map((a) => (
+                  <li key={a.id}>
+                    <button type="button" class="lista-item tocavel" onClick={() => abrirAula(a.id)}>
+                      <span class="item-icone" aria-hidden="true">
+                        <Icone nome="relogio" tamanho={22} />
+                      </span>
+                      <span class="lista-item-texto">
+                        <span class="lista-item-titulo">
+                          Aula das {horaFalada(a.inicio)}
+                          {ehAdm ? `, ${nomeDaUnidade(a.unidadeId)}` : ''}
+                        </span>
+                        <span class="lista-item-sub">
+                          Já terminou e {plural(contarMarcacoes(a).pendente, 'aluno está', 'alunos estão')} sem marcação
+                        </span>
+                      </span>
+                      <Icone nome="avancar" tamanho={20} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           <div class={`numeros${cargaRecente.value ? ' cascata' : ''}`}>
@@ -236,7 +268,8 @@ function ProximaAula({ aula, minutosAte, mostrarUnidade }: { aula: Aula; minutos
       <div class="destaque-linha">
         <Vagas ocupadas={aula.ocupadas} capacidade={aula.capacidade} />
         <button type="button" class="botao botao--sobre-marca tocavel" onClick={() => abrirAula(aula.id)}>
-          Abrir chamada
+          {/* antes de a chamada abrir, a folha serve para ver a turma e registrar avisos */}
+          {chamadaAberta(aula, momento.value) ? 'Abrir chamada' : 'Ver quem vem'}
         </button>
       </div>
     </Card>
@@ -259,7 +292,7 @@ function LinhaDeAula({ aula, mostrarUnidade }: { aula: Aula; mostrarUnidade: boo
             {primeiroNome(nomeDaEquipe(aula.professorId))}
             {mostrarUnidade ? `, ${nomeDaUnidade(aula.unidadeId)}` : ''}
           </span>
-          <span class="linha-aula-sub">
+          <span class="linha-aula-sub linha-aula-sub--quebra">
             {plural(aula.ocupadas, 'aluno', 'alunos')}
             {avisos > 0 ? `, ${plural(avisos, 'avisou', 'avisaram')}` : ''}
           </span>

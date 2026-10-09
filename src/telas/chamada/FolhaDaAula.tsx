@@ -28,9 +28,9 @@ import {
   tirarReposicao,
 } from '../../dados/estado'
 import { faseDaAula } from '../../dominio/agenda'
-import { dataCurta, horaFalada } from '../../dominio/datas'
+import { dataCurta, horaDe, horaFalada, minutosDe } from '../../dominio/datas'
 import { pode } from '../../dominio/permissoes'
-import { contarMarcacoes, idDoCredito } from '../../dominio/presenca'
+import { ABERTURA_DA_CHAMADA_MIN, chamadaAberta, contarMarcacoes, idDoCredito } from '../../dominio/presenca'
 import { normalizar, plural, primeiroNome } from '../../dominio/texto'
 import type { Aula, Marcacao, MotivoCancelamento, Papel, Participante } from '../../dominio/tipos'
 import { abrirEm } from '../../app/navegacao'
@@ -64,8 +64,7 @@ export function FolhaDaAula() {
 
   const fase = faseDaAula(aula, momento.value)
   const contagem = contarMarcacoes(aula)
-  const antesDoDia = momento.value.data < aula.data
-  const podeTodos = !aula.cancelamento && !antesDoDia && contagem.pendente > 0
+  const podeTodos = !aula.cancelamento && chamadaAberta(aula, momento.value) && contagem.pendente > 0
   const podeEncaixar = !aula.cancelamento && aula.vagas > 0 && fase !== 'encerrada'
   const podeCancelar = pode(papel, 'cancelar-aula') && !aula.cancelamento && fase === 'futura'
 
@@ -187,7 +186,7 @@ export function FolhaDaAula() {
 function Chamada({ aula, papel, aoRemarcar }: { aula: Aula; papel: Papel; aoRemarcar: (creditoId: string) => void }) {
   const fase = faseDaAula(aula, momento.value)
   const contagem = contarMarcacoes(aula)
-  const antesDoDia = momento.value.data < aula.data
+  const fechada = !chamadaAberta(aula, momento.value)
 
   if (aula.cancelamento) {
     return (
@@ -204,10 +203,14 @@ function Chamada({ aula, papel, aoRemarcar }: { aula: Aula; papel: Papel; aoRema
 
   return (
     <>
-      {antesDoDia && (
+      {fechada && (
         <p class="chamada-nota">
           <Icone nome="info" tamanho={20} />
-          <span>A chamada abre no dia da aula. Antes disso, dá para registrar quem avisou que não vem.</span>
+          <span>
+            A chamada abre meia hora antes da aula
+            {momento.value.data === aula.data ? `, às ${horaFalada(horaDe(minutosDe(aula.inicio) - ABERTURA_DA_CHAMADA_MIN))}` : ''}. Antes
+            disso, dá para registrar quem avisou que não vem.
+          </span>
         </p>
       )}
       {fase === 'encerrada' && contagem.pendente > 0 && (
@@ -242,7 +245,7 @@ interface PropsAluno {
 function AlunoNaChamada({ aula, participante: p, indice, papel, aoRemarcar }: PropsAluno) {
   const nome = alunosPorId.value.get(p.alunoId)?.nome ?? 'Aluno removido'
   const fase = faseDaAula(aula, momento.value)
-  const antesDoDia = momento.value.data < aula.data
+  const fechada = !chamadaAberta(aula, momento.value)
   const creditoDoAviso =
     p.marcacao === 'avisou' ? creditos.value.get(idDoCredito(p.alunoId, aula.turmaId, aula.data)) : undefined
 
@@ -317,8 +320,8 @@ function AlunoNaChamada({ aula, participante: p, indice, papel, aoRemarcar }: Pr
         {p.marcacao === 'avisou' && !creditoDoAviso && <Pilula tom="alerta">sem reposição</Pilula>}
       </div>
       <div class="segmentado" role="group" aria-label={`Presença de ${nome}`}>
-        {segmento('presente', 'Presente', antesDoDia)}
-        {segmento('faltou', 'Faltou', antesDoDia)}
+        {segmento('presente', 'Presente', fechada)}
+        {segmento('faltou', 'Faltou', fechada)}
         {p.origem === 'fixo' ? (
           segmento('avisou', 'Avisou', fase === 'encerrada' && p.marcacao !== 'avisou')
         ) : (

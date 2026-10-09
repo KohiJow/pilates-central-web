@@ -164,7 +164,7 @@
   text-overflow: ellipsis;
 }
 
-/* na grade de turmas a frequência não pode sumir em reticências no celular estreito */
+/* no celular estreito, a frequência da turma e o "1 avisou" da aula não podem sumir em reticências */
 .linha-aula-sub--quebra {
   white-space: normal;
 }

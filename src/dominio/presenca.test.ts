@@ -24,6 +24,20 @@ describe('marcar presença', () => {
     expect(r).toMatchObject({ ok: false, codigo: 'aula-no-futuro' })
   })
 
+  it('a chamada abre meia hora antes: de manhã não marca a turma da noite, mas o aviso de falta vale', () => {
+    const noite = turma({ id: 't-sex-18', inicio: '18:00' })
+    const aula = montarAula(noite, SEXTA)
+    expect(marcar(aula, undefined, 'a1', 'presente', semCreditos, contexto(SEXTA, '10:00'))).toMatchObject({
+      ok: false,
+      codigo: 'aula-no-futuro',
+    })
+    expect(marcar(aula, undefined, 'a1', 'faltou', semCreditos, contexto(SEXTA, '17:29'))).toMatchObject({ ok: false, codigo: 'aula-no-futuro' })
+    expect(marcar(aula, undefined, 'a1', 'presente', semCreditos, contexto(SEXTA, '17:30')).ok).toBe(true)
+    expect(marcar(aula, undefined, 'a1', 'avisou', semCreditos, contexto(SEXTA, '10:00')).ok).toBe(true)
+    expect(marcarTodosPresentes(aula, undefined, contexto(SEXTA, '10:00'))).toMatchObject({ ok: false, codigo: 'aula-no-futuro' })
+    expect(marcarTodosPresentes(aula, undefined, contexto(SEXTA, '17:45')).ok).toBe(true)
+  })
+
   it('recusa aluno que não está na aula e aula cancelada', () => {
     const aula = montarAula(turma(), SEXTA)
     expect(marcar(aula, undefined, 'zz', 'presente', semCreditos, contexto(SEXTA, '07:00'))).toMatchObject({

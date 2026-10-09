@@ -3,10 +3,11 @@ import type { Page } from '@playwright/test'
 import { arrastar, entrarComoAdministracao, entrarComoProfessor, esperarFolhaParada, folha, irParaAba } from './apoio'
 
 const titulo = (page: Page) => page.getByRole('heading', { level: 1 })
+const CHAMADA_DAS_18H_ABERTA = '2026-10-09T17:45'
 const cartao = (page: Page, hora: string) => page.locator('.cartao-aula', { has: page.locator('strong', { hasText: new RegExp(`^${hora}$`) }) })
 
-async function abrirAgenda(page: Page) {
-  await entrarComoAdministracao(page)
+async function abrirAgenda(page: Page, agora?: string) {
+  await entrarComoAdministracao(page, agora)
   await irParaAba(page, 'Agenda')
   await expect(titulo(page)).toHaveText('Sexta, 9 de outubro')
 }
@@ -76,7 +77,8 @@ test.describe('agenda', () => {
 
 test.describe('chamada', () => {
   test('marca presente com retorno na hora e desfaz pelo aviso', async ({ page }) => {
-    await abrirAgenda(page)
+    // a chamada das 18h abre às 17h30
+    await abrirAgenda(page, CHAMADA_DAS_18H_ABERTA)
     await abrirAula(page, '18h')
     const linha = folha(page).locator('[data-aluno]').nth(1)
     const presente = linha.getByRole('button', { name: 'Presente' })
@@ -89,7 +91,7 @@ test.describe('chamada', () => {
   })
 
   test('todos presentes num toque, sem mexer em quem avisou', async ({ page }) => {
-    await abrirAgenda(page)
+    await abrirAgenda(page, CHAMADA_DAS_18H_ABERTA)
     await abrirAula(page, '18h')
     const botao = folha(page).getByRole('button', { name: /Todos presentes/ })
     await botao.click()
@@ -129,7 +131,7 @@ test.describe('chamada', () => {
     await abrirAgenda(page)
     await page.locator('[data-dia="2026-10-10"]').click()
     await abrirAula(page, '9h')
-    await expect(folha(page).getByText('A chamada abre no dia da aula.', { exact: false })).toBeVisible()
+    await expect(folha(page).getByText('A chamada abre meia hora antes da aula.', { exact: false })).toBeVisible()
     const linha = folha(page).locator('[data-aluno]').first()
     await expect(linha.getByRole('button', { name: 'Presente' })).toBeDisabled()
     await expect(linha.getByRole('button', { name: 'Faltou' })).toBeDisabled()
@@ -172,7 +174,18 @@ test.describe('chamada', () => {
     await expect(page.getByRole('status').filter({ hasText: /Aula cancelada/ })).toBeVisible()
     await expect(folha(page).getByText('Cancelada pelo estúdio')).toBeVisible()
     await page.getByRole('button', { name: 'Desfazer' }).click()
-    await expect(folha(page).getByRole('button', { name: /Todos presentes/ })).toBeVisible()
+    await expect(folha(page).getByRole('button', { name: 'Cancelar esta aula' })).toBeVisible()
+    await expect(folha(page).getByText('Cancelada pelo estúdio')).toHaveCount(0)
+  })
+
+  test('de manhã, a turma da noite: dá para ver quem vem e registrar aviso, mas a chamada só abre meia hora antes', async ({ page }) => {
+    await abrirAgenda(page)
+    await abrirAula(page, '18h')
+    await expect(folha(page).getByText('A chamada abre meia hora antes da aula, às 17h30.', { exact: false })).toBeVisible()
+    await expect(folha(page).getByRole('button', { name: /Todos presentes/ })).toHaveCount(0)
+    const linha = folha(page).locator('[data-aluno]').nth(1)
+    await expect(linha.getByRole('button', { name: 'Presente' })).toBeDisabled()
+    await expect(linha.getByRole('button', { name: 'Avisou' })).toBeEnabled()
   })
 
   test('professor não cancela aula', async ({ page }) => {

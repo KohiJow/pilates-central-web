@@ -79,6 +79,17 @@ export function antecedenciaEmMinutos(aula: Pick<Aula, 'data' | 'inicio'>, agora
   return minutosEntre(agora, momentoDaAula(aula.data, aula.inicio))
 }
 
+/**
+ * A chamada abre meia hora antes do início: dá para marcar quem já chegou, mas não dá para
+ * marcar de manhã a turma da noite (um "Todos presentes" sem querer contaria presença de quem
+ * ainda nem veio). Antes disso só o aviso de falta vale.
+ */
+export const ABERTURA_DA_CHAMADA_MIN = 30
+
+export function chamadaAberta(aula: Pick<Aula, 'data' | 'inicio'>, agora: Momento): boolean {
+  return antecedenciaEmMinutos(aula, agora) <= ABERTURA_DA_CHAMADA_MIN
+}
+
 export function avisoNoPrazo(aula: Pick<Aula, 'data' | 'inicio'>, ctx: Contexto): boolean {
   return antecedenciaEmMinutos(aula, ctx.agora) >= ctx.config.antecedenciaAvisoHoras * 60
 }
@@ -126,8 +137,8 @@ export function marcar(
   const anterior = participante.marcacao ?? null
   if (anterior === nova) return recusado('nada-a-fazer', 'Nada mudou.')
 
-  if ((nova === 'presente' || nova === 'faltou') && ctx.agora.data < aula.data) {
-    return recusado('aula-no-futuro', 'Presença e falta só podem ser marcadas a partir do dia da aula.')
+  if ((nova === 'presente' || nova === 'faltou') && !chamadaAberta(aula, ctx.agora)) {
+    return recusado('aula-no-futuro', 'A chamada abre meia hora antes da aula. Antes disso, só o aviso de falta.')
   }
   if (nova === 'avisou') {
     if (participante.origem === 'reposicao') {
@@ -203,8 +214,8 @@ export function marcarTodosPresentes(
   ctx: Contexto,
 ): Resultado<{ alteracoes: Alteracoes; quantidade: number; alunos: Id[] }> {
   if (aula.cancelamento) return recusado('aula-cancelada', 'Esta aula foi cancelada.')
-  if (ctx.agora.data < aula.data) {
-    return recusado('aula-no-futuro', 'Presença só pode ser marcada a partir do dia da aula.')
+  if (!chamadaAberta(aula, ctx.agora)) {
+    return recusado('aula-no-futuro', 'A chamada abre meia hora antes da aula.')
   }
   const pendentes = aula.participantes.filter((p) => p.marcacao === undefined).map((p) => p.alunoId)
   if (pendentes.length === 0) return recusado('nada-a-fazer', 'Todo mundo já está marcado.')
