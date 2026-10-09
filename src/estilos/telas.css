@@ -1,0 +1,491 @@
+/* ---------- Entrar ---------- */
+
+.entrar {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: calc(env(safe-area-inset-top) + 24px) var(--margem) calc(env(safe-area-inset-bottom) + 24px);
+}
+
+.entrar-miolo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.entrar-logo {
+  align-self: center;
+  color: var(--brand);
+  margin: 12px 0 4px;
+}
+
+.entrar-textos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  align-items: center;
+}
+
+.entrar-textos .vazio-texto {
+  max-width: 34ch;
+}
+
+.escolha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 96px;
+  padding: 18px 16px 18px 18px;
+}
+
+.escolha-texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.escolha-titulo {
+  font-family: var(--fonte-display);
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.escolha-desc {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.card--marca .escolha-desc {
+  color: var(--text-on-brand);
+  opacity: 0.92;
+}
+
+.card--marca .chevrons {
+  color: var(--text-on-brand);
+}
+
+.entrar-rodape {
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+/* ---------- Hoje ---------- */
+
+.destaque {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+}
+
+.destaque .titulo {
+  font-size: 32px;
+}
+
+.destaque .vagas-ponto {
+  box-shadow: inset 0 0 0 1.5px var(--text-on-brand);
+}
+.destaque .vagas-ponto--ocupado {
+  background: var(--text-on-brand);
+}
+.destaque .vagas-texto {
+  color: var(--text-on-brand);
+}
+
+.destaque-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.botao--sobre-marca {
+  background: var(--text-on-brand);
+  color: var(--brand);
+  min-height: 48px;
+}
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.numero-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  min-height: 112px;
+}
+
+.numero-rotulo {
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text-secondary);
+}
+
+.linha-aula {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.linha-aula-hora {
+  flex: none;
+  width: 64px;
+  font-family: var(--fonte-display);
+  font-size: 24px;
+  line-height: 1;
+  color: var(--brand-strong);
+}
+
+.linha-aula-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linha-aula-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Agenda ---------- */
+
+.agenda-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agenda-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.agenda-dia {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+
+.agenda-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agenda-grupo + .agenda-grupo {
+  margin-top: 20px;
+}
+
+.agenda-grupo-cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cartao-aula {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'hora info'
+    'hora rodape';
+  column-gap: 16px;
+  row-gap: 8px;
+  padding: 16px;
+}
+
+.cartao-aula-hora {
+  grid-area: hora;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 60px;
+}
+
+.cartao-aula-hora strong {
+  font-family: var(--fonte-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--brand-strong);
+}
+
+.cartao-aula-hora span {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.cartao-aula-info {
+  grid-area: info;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cartao-aula-professor {
+  font-weight: 600;
+}
+
+.cartao-aula-alunos {
+  font-size: 15px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cartao-aula-rodape {
+  grid-area: rodape;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cartao-aula--cancelada .cartao-aula-hora strong {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.dica-deslizar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.esqueleto-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- Chamada (folha da aula) ---------- */
+
+.chamada-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.chamada-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chamada-aluno {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--raio-card);
+  background: var(--surface);
+}
+
+.chamada-nome {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.chamada-nome .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+
+.segmentado {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.segmento {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--toque);
+  padding: 0 6px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--brand-soft);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.segmento:disabled {
+  opacity: 0.45;
+}
+
+.segmento[aria-pressed='true'] {
+  box-shadow: none;
+}
+
+.segmento[aria-pressed='true'] svg {
+  animation: marcou var(--dur-longa) var(--mola-viva);
+}
+
+.segmento--presente[aria-pressed='true'] {
+  background: var(--success-surface);
+  color: var(--success);
+  box-shadow: inset 0 0 0 1.5px var(--success);
+}
+
+.segmento--faltou[aria-pressed='true'] {
+  background: var(--danger-surface);
+  color: var(--danger);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+
+.segmento--avisou[aria-pressed='true'] {
+  background: var(--warning-surface);
+  color: var(--warning);
+  box-shadow: inset 0 0 0 1.5px var(--warning);
+}
+
+.chamada-nota {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.chamada-nota svg {
+  flex: none;
+  color: var(--brand-muted);
+}
+
+.encaixe-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.encaixe-item + .encaixe-item {
+  border-top: 1px solid var(--brand-ghost);
+}
+
+.encaixe-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.encaixe-item .botao {
+  min-height: 48px;
+  padding: 0 18px;
+}
+
+.pilha {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.linha-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+.linha-acoes > * {
+  flex: 1;
+}
+
+/* ---------- Mais ---------- */
+
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.perfil .avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 19px;
+}
+
+.passos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  counter-reset: passo;
+}
+
+.passo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.passo-numero {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+
+.rodape-versao {
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.icone-em-linha {
+  display: inline-block;
+  vertical-align: -4px;
+  color: var(--brand);
+}
+
+.botao--fim {
+  margin-top: 16px;
+}
+
+.botao--alinhado {
+  align-self: flex-start;
+  margin-left: -12px;
+}

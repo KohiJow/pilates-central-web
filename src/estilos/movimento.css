@@ -1,0 +1,159 @@
+/* Sistema de movimento. Regras da casa:
+   - só transform e opacity (nada que force layout a cada quadro);
+   - durações de 180 a 320 ms;
+   - mola com linear() onde existe, cubic-bezier parecido onde não existe (iOS 16);
+   - nada depende de hover; com "reduzir movimento", troca deslocamento por troca simples. */
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* geradas por src/movimento/mola.ts (o teste mola.test.ts confere que batem) */
+    --mola-suave: linear(0, 0.0474, 0.1434, 0.2607, 0.3728, 0.4798, 0.57, 0.6501, 0.7146, 0.77, 0.8153, 0.8508, 0.8806, 0.9038, 0.9232, 0.9383, 0.9508, 0.9605, 0.9685, 0.9747, 0.9799, 0.984, 0.9871, 0.9898, 0.9918, 0.9935, 0.9948, 0.9958, 0.9966, 0.9973, 0.9979, 0.9983, 0.9986, 0.9989, 0.9991, 0.9993, 0.9994, 0.9996, 0.9996, 0.9997, 1);
+    --mola-viva: linear(0, 0.0433, 0.14, 0.2738, 0.4195, 0.5618, 0.6845, 0.7957, 0.8858, 0.9518, 1.0024, 1.036, 1.0549, 1.0643, 1.0655, 1.0613, 1.0542, 1.045, 1.0354, 1.0267, 1.0185, 1.0115, 1.0063, 1.0021, 0.9991, 0.9972, 0.9961, 0.9957, 0.9957, 0.9961, 0.9966, 0.9972, 0.9978, 0.9984, 0.9989, 0.9994, 0.9997, 0.9999, 1.0001, 1.0002, 1);
+  }
+}
+
+/* retorno de toque: afunda e volta com mola. A curva de entrada chega a quase todo o
+   deslocamento nos primeiros quadros, então parece imediato mesmo durando 180 ms. */
+.tocavel {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform var(--dur-curta) var(--mola-viva);
+}
+.tocavel:active:not(:disabled) {
+  transform: scale(0.96);
+  transition: transform var(--dur-curta) var(--curva-padrao);
+}
+
+/* entrada em cascata: cada item espera um pouco mais que o anterior (até o 8º) */
+@keyframes entrar-de-baixo {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.cascata > * {
+  animation: entrar-de-baixo var(--dur-longa) var(--mola-suave) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 32ms);
+}
+
+/* quando o dia chega deslizando pelo gesto, a lista já entra inteira (sem cascata por cima) */
+.sem-cascata .cascata > * {
+  animation: none;
+}
+
+/* troca de tela sem View Transitions: a tela nova entra (a antiga só sai de cena) */
+@keyframes tela-entra-frente {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes tela-entra-tras {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+html:not(.com-transicao-de-vista) .tela {
+  animation: tela-entra-frente var(--dur-media) var(--mola-suave) both;
+}
+html:not(.com-transicao-de-vista)[data-direcao='tras'] .tela {
+  animation-name: tela-entra-tras;
+}
+
+/* View Transitions (Chrome 111+, Safari 18+): a tela velha sai e a nova entra deslizando */
+::view-transition-old(conteudo),
+::view-transition-new(conteudo) {
+  animation-duration: var(--dur-media);
+  animation-timing-function: var(--curva-padrao);
+}
+::view-transition-old(conteudo) {
+  animation-name: vt-sai-frente;
+}
+::view-transition-new(conteudo) {
+  animation-name: vt-entra-frente;
+}
+html[data-direcao='tras']::view-transition-old(conteudo) {
+  animation-name: vt-sai-tras;
+}
+html[data-direcao='tras']::view-transition-new(conteudo) {
+  animation-name: vt-entra-tras;
+}
+@keyframes vt-sai-frente {
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+@keyframes vt-entra-frente {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes vt-sai-tras {
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes vt-entra-tras {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+/* esqueleto: o brilho é um gradiente que anda por transform, sem repintar o bloco */
+@keyframes brilho {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* aviso flutuante */
+@keyframes aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes aviso-sai {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* marca que acabou de mudar na chamada: o ícone "pulsa" uma vez */
+@keyframes marcou {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tocavel,
+  .tocavel:active:not(:disabled) {
+    transform: none;
+    transition: none;
+  }
+  .cascata > *,
+  html:not(.com-transicao-de-vista) .tela {
+    animation: none;
+  }
+  ::view-transition-old(conteudo),
+  ::view-transition-new(conteudo) {
+    animation: none;
+  }
+  .esqueleto::after {
+    animation: none;
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

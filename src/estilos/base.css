@@ -1,0 +1,226 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--surface);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--fonte-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  font-feature-settings: 'lnum' 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--brand);
+}
+
+:focus-visible {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+::selection {
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+}
+
+.sem-quebra {
+  white-space: nowrap;
+}
+
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- tipografia: serifada fala, sans opera ---------- */
+
+.micro {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.display {
+  font-family: var(--fonte-display);
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--brand-strong);
+  text-wrap: balance;
+}
+
+.titulo {
+  font-family: var(--fonte-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--brand-strong);
+  text-wrap: balance;
+}
+
+.titulo em,
+.display em {
+  font-style: italic;
+}
+
+.subtitulo {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.texto-secundario {
+  color: var(--text-secondary);
+}
+
+.numeral {
+  font-family: var(--fonte-display);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--brand-strong);
+}
+
+/* ---------- casca do app ---------- */
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: env(safe-area-inset-top) var(--margem) 0;
+  padding-left: max(var(--margem), env(safe-area-inset-left));
+  padding-right: max(var(--margem), env(safe-area-inset-right));
+  background: var(--surface);
+  border-bottom: 1px solid transparent;
+}
+
+.topo-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  color: var(--brand-strong);
+}
+
+.topo-nome {
+  font-family: var(--fonte-display);
+  font-size: 19px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conteudo {
+  flex: 1;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 8px var(--margem) calc(var(--altura-abas) + env(safe-area-inset-bottom) + 32px);
+  padding-left: max(var(--margem), env(safe-area-inset-left));
+  padding-right: max(var(--margem), env(safe-area-inset-right));
+  view-transition-name: conteudo;
+}
+
+.tela {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.secao-cabeca {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cabecalho-de-tela {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}

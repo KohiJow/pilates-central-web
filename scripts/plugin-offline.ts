@@ -106,13 +106,9 @@ export function politicaDeSeguranca(): Plugin {
           "form-action 'self'",
           "object-src 'none'",
         ]
-        return [
-          {
-            tag: 'meta',
-            attrs: { 'http-equiv': 'Content-Security-Policy', content: regras.join('; ') },
-            injectTo: 'head-prepend',
-          },
-        ]
+        const meta = `<meta http-equiv="Content-Security-Policy" content="${regras.join('; ')}" />`
+        // logo depois do charset: a política vale antes de qualquer script
+        return html.replace(/(<meta charset="utf-8" \/>)/, `$1\n    ${meta}`)
       },
     },
   }
