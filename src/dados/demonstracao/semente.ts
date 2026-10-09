@@ -43,7 +43,8 @@ import type { Aleatorio } from './aleatorio'
 
 // 2: papéis da administração, financeiro separado do aluno, seis meses de mensalidades
 // 3: acesso do aluno e página pública ligados, alguns alunos com acesso liberado
-export const VERSAO_DO_BANCO = 3
+// 4: endereço fictício também na unidade Centro (quem já tinha a 3 no aparelho ganha a nova)
+export const VERSAO_DO_BANCO = 4
 
 export interface BancoDeDemonstracao {
   versao: typeof VERSAO_DO_BANCO
@@ -66,8 +67,8 @@ const CONFIGURACAO: Configuracao = {
 const COM_ACESSO = [1, 4, 11, 16, 22, 27]
 
 const UNIDADES: Unidade[] = [
-  // o endereço do Centro é o do estúdio (público); o resto da demonstração é fictício
-  { id: 'u-centro', nome: 'Centro', endereco: 'Av. Dr. Thomáz Alves, 148, sala 2, Centro, Campinas/SP', ativa: true },
+  // endereços fictícios, como o resto da demonstração (o site publicado é aberto a qualquer um)
+  { id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100, sala 2, Centro', ativa: true },
   { id: 'u-jardim', nome: 'Jardim', endereco: 'Avenida Exemplo, 200, Jardim', ativa: true },
 ]
 

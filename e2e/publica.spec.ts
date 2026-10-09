@@ -35,7 +35,7 @@ test.describe('página pública de aula experimental', () => {
     const href = (await whats.getAttribute('href')) ?? ''
     expect(href).toMatch(/^https:\/\/wa\.me\/5511900000000\?text=/)
     expect(decodeURIComponent(href.split('text=')[1] ?? '')).toContain(`aula experimental: sexta, 9 de outubro, às ${hora}`)
-    await expect(page.getByText('Av. Dr. Thomáz Alves, 148, sala 2, Centro, Campinas/SP')).toBeVisible()
+    await expect(page.getByText('Rua Exemplo, 100, sala 2, Centro')).toBeVisible()
     expect(pedidos).toEqual([])
   })
 
