@@ -117,7 +117,10 @@ export async function carregar(repo: Repositorio, hoje: DataISO): Promise<void> 
     setTimeout(() => (cargaRecente.value = false), 900)
   } catch {
     situacao.value = 'erro'
+    return
   }
+  // as cópias do aluno e da página pública podem esperar: a tela já está pronta
+  void repo.depoisDeCarregar?.().catch(() => undefined)
 }
 
 /** Garante que os registros de `data` estão carregados (a agenda pode ir longe no calendário). */

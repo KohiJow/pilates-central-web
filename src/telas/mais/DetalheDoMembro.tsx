@@ -5,13 +5,14 @@ import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
 import { CabecalhoDeSubtela } from '../../componentes/CabecalhoDeSubtela'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
+import { Icone } from '../../componentes/Icone'
 import { Pilula } from '../../componentes/Pilula'
 import { base, equipePorId, nomeDaUnidade } from '../../dados/estado'
 import { mudarAcessoDoMembro, mudarPapelDoMembro, passarAConta } from '../../dados/gestao'
 import { dataCurta } from '../../dominio/datas'
 import { podeEditarMembro } from '../../dominio/equipe'
 import { NOME_DO_PAPEL } from '../../dominio/permissoes'
-import { listaFalada, plural, primeiroNome, telefoneLegivel } from '../../dominio/texto'
+import { linkDoWhatsApp, listaFalada, plural, primeiroNome, telefoneLegivel } from '../../dominio/texto'
 import type { Id } from '../../dominio/tipos'
 import { nomeDaTurma } from '../../dominio/turmas'
 import { SemAcesso } from './SemAcesso'
@@ -79,11 +80,23 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
             <dt>Convite</dt>
             <dd>
               Registrado em {dataCurta(alvo.convite.enviadoEm.slice(0, 10))}
-              {convidadoPor ? ` por ${primeiroNome(convidadoPor.nome)}` : ''}. O acesso por e-mail chega quando o login estiver ligado.
+              {convidadoPor ? ` por ${primeiroNome(convidadoPor.nome)}` : ''}. A pessoa entra criando a conta com este e-mail.
             </dd>
           </div>
         )}
       </dl>
+
+      {alvo.convite && alvo.telefone && (
+        <a
+          class="botao botao--secundario botao--largo tocavel"
+          href={linkDoWhatsApp(alvo.telefone, mensagemDoConvite(alvo.nome, alvo.email))}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icone nome="mensagem" tamanho={20} />
+          <span>Mandar o convite pelo WhatsApp</span>
+        </a>
+      )}
 
       <section class="secao" aria-label="Ações">
         {podeEditarMembro(ator, alvo) && (
@@ -156,4 +169,10 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
       </FolhaInferior>
     </section>
   )
+}
+
+/** O app não manda e-mail de convite (sem Cloud Functions): o convite vai pelo WhatsApp. */
+function mensagemDoConvite(nome: string, email: string): string {
+  const endereco = `${location.origin}${import.meta.env.BASE_URL}`
+  return `Olá, ${primeiroNome(nome)}! Você foi convidado para a equipe do estúdio no app. Entre em ${endereco}, toque em Entrar e depois em "Primeiro acesso? Criar conta", com o e-mail ${email}, e confirme o e-mail no link que chegar.`
 }

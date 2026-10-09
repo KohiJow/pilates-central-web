@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Aviso de privacidade | Pilates Central</title>
+    <meta name="description" content="O que o app do estúdio guarda, para quê, quem vê e como pedir os seus dados." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F5F1EE" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="%BASE_URL%icones/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icones/apple-touch-icon.png" />
+    <script>
+      // aplica o tema salvo antes da primeira pintura, para não piscar claro no modo escuro
+      try {
+        var t = localStorage.getItem('pc-tema')
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>Para ler o aviso, ative o JavaScript do navegador.</noscript>
+    <script type="module" src="/src/privacidade/main.tsx"></script>
+  </body>
+</html>

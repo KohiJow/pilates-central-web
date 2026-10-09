@@ -23,7 +23,9 @@ import { colocarNaTurma, editarTurma, encerrarTurma, lugaresReservados, novaTurm
 import type { RascunhoTurma } from '../dominio/turmas'
 import { desativarUnidade, montarUnidade, validarUnidade } from '../dominio/unidades'
 import type { RascunhoUnidade } from '../dominio/unidades'
-import { alunosPorId, base, creditos, equipePorId, financeiro, gravarComDesfazer, pagamentos } from './estado'
+import { exclusaoDoAluno } from '../dominio/privacidade'
+import { ehEmailValido } from '../dominio/texto'
+import { alunosPorId, base, creditos, equipePorId, financeiro, gravarComDesfazer, pagamentos, registros } from './estado'
 
 type ComDesfazer = { desfazer?: () => Promise<void> }
 
@@ -93,6 +95,57 @@ export async function mudarSituacaoDoAluno(alunoId: Id, nova: SituacaoAluno): Pr
       })
     }
     return { alunos: [{ ...atual, situacao: anterior }], turmas: devolvidas }
+  })
+}
+
+// ---------- app do aluno e LGPD ----------
+
+/** Libera o app do aluno (no Firebase, grava o convite para o e-mail dele). */
+export async function liberarAcessoDoAluno(alunoId: Id, ator: MembroEquipe): Promise<Resultado<ComDesfazer>> {
+  const aluno = alunosPorId.peek().get(alunoId)
+  if (!aluno) return recusado('nada-a-fazer', 'Aluno não encontrado.')
+  if (!base.peek()?.configuracao.acessoDoAluno) return recusado('nada-a-fazer', 'O app do aluno está desligado nos ajustes do estúdio.')
+  if (!ehEmailValido(aluno.email)) return recusado('dados-invalidos', 'Cadastre o e-mail do aluno antes: é por ele que o aluno entra.')
+  if (aluno.situacao === 'inativo') return recusado('nada-a-fazer', 'Aluno arquivado não tem acesso ao app.')
+  if (aluno.acesso) return recusado('nada-a-fazer', 'O acesso já está liberado.')
+  return gravarComDesfazer({ alunos: [{ ...aluno, acesso: { convidadoEm: agoraDoApp().toISOString(), porId: ator.id } }] }, () => {
+    const agora = alunosPorId.peek().get(alunoId)
+    if (!agora) return null
+    const semAcesso = { ...agora }
+    delete semAcesso.acesso
+    return { alunos: [semAcesso] }
+  })
+}
+
+export async function tirarAcessoDoAluno(alunoId: Id): Promise<Resultado<ComDesfazer>> {
+  const aluno = alunosPorId.peek().get(alunoId)
+  if (!aluno?.acesso) return recusado('nada-a-fazer', 'O acesso já está desligado.')
+  const semAcesso = { ...aluno }
+  delete semAcesso.acesso
+  return gravarComDesfazer({ alunos: [semAcesso] })
+}
+
+/**
+ * Exclui o aluno a pedido dele (LGPD): some o cadastro, a mensalidade, o acesso e os créditos;
+ * sai das turmas e das aulas de hoje em diante. Sem desfazer: a confirmação vem antes.
+ */
+export async function excluirAluno(alunoId: Id): Promise<Resultado<ComDesfazer>> {
+  const aluno = alunosPorId.peek().get(alunoId)
+  if (!aluno) return recusado('nada-a-fazer', 'Aluno não encontrado.')
+  const e = exclusaoDoAluno(
+    alunoId,
+    turmas(),
+    [...registros.peek().values()],
+    [...creditos.peek().values()],
+    hoje.peek(),
+    agoraDoApp().toISOString(),
+  )
+  return gravarComDesfazer({
+    alunosRemovidos: [alunoId],
+    financeiroRemovido: [alunoId],
+    turmas: e.turmas,
+    registros: e.registros,
+    creditosRemovidos: e.creditosRemovidos,
   })
 }
 

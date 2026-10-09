@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import type { Page } from '@playwright/test'
 import { abrirApp, entrarComoAdministracao, entrarComoProfessor, esperarFolhaParada, esperarParado, irPara, irParaAba } from './apoio'
 
 // Rótulos em caixa alta (micro-rótulos, pílulas, abas, dias da faixa) são etiquetas, não texto
 // corrido: podem ficar abaixo de 16px. Todo o resto tem que ter 16px ou mais.
-const ETIQUETAS = '.micro, .pilula, .aba, .dia-semana, .selo-demo, .avatar, .marca-dagua, .so-leitor'
+const ETIQUETAS = '.micro, .pilula, .aba, .dia-semana, .dia-da-aula-semana, .selo-demo, .avatar, .marca-dagua, .so-leitor'
 
 async function auditar(page: Page, onde: string) {
   const problemas = await page.evaluate((etiquetas) => {
@@ -36,6 +36,49 @@ async function auditar(page: Page, onde: string) {
 }
 
 test.describe('acessibilidade para uso com uma mão', () => {
+  test('alvos e texto no app do aluno e nas páginas públicas', async ({ page }) => {
+    await abrirApp(page)
+    await page.getByRole('button', { name: 'Explorar como aluno' }).click()
+    await esperarFolhaParada(page)
+    await auditar(page, 'escolher aluno')
+    await page.getByRole('dialog').getByRole('button', { name: /Beatriz Barbosa/ }).click()
+    await esperarParado(page, '.tela-quadro')
+    await auditar(page, 'minhas aulas')
+    await page.locator('#conteudo .lista .lista-item').first().click()
+    await esperarFolhaParada(page)
+    await auditar(page, 'folha da aula do aluno')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    for (const nome of ['Reposição', 'Mais']) {
+      await page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: nome }).click()
+      await esperarParado(page, '.tela-quadro')
+      await auditar(page, `aluno: ${nome}`)
+    }
+    await page.goto('./experimental/?demo&agora=2026-10-09T10:00')
+    await expect(page.locator('.horario').first()).toBeVisible()
+    await auditar(page, 'página de aula experimental')
+    await page.goto('./privacidade/')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await auditar(page, 'aviso de privacidade')
+  })
+
+  test('alvos e texto nas telas de conta (portas e login, com o emulador ligado só no endereço)', async ({ page }) => {
+    // sem o emulador rodando: as telas aparecem e nada é pedido à rede antes de entrar
+    await page.goto('./?emulador=1')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await auditar(page, 'portas')
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Que bom ver você.' })).toBeVisible()
+    await auditar(page, 'entrar com e-mail')
+    await page.getByRole('button', { name: 'Primeiro acesso? Criar conta' }).click()
+    await expect(page.getByRole('heading', { name: 'Crie a sua conta.' })).toBeVisible()
+    await auditar(page, 'criar conta')
+    await page.getByRole('button', { name: 'Já tenho conta' }).click()
+    await page.getByRole('button', { name: 'Esqueci a senha' }).click()
+    await esperarFolhaParada(page)
+    await auditar(page, 'senha nova')
+  })
+
   test('alvos de toque de 48px e texto de 16px em todas as telas', async ({ page }) => {
     await abrirApp(page)
     await auditar(page, 'entrar')

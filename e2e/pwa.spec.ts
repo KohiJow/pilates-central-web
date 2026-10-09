@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import { abrirApp, entrarComoAdministracao } from './apoio'
 
 test.describe('app instalável', () => {

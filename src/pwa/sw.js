@@ -49,21 +49,32 @@ sw.addEventListener('fetch', (evento) => {
 })
 
 /**
+ * Cada página (o app, a aula experimental, o aviso de privacidade) é guardada pelo próprio
+ * endereço, sem a busca nem o index.html: abrir uma não troca a cópia da outra.
+ * @param {string} url
+ */
+function chaveDaPagina(url) {
+  const u = new URL(url)
+  const caminho = u.pathname.endsWith('/index.html') ? u.pathname.slice(0, -'index.html'.length) : u.pathname
+  return new URL(caminho, u.origin).href
+}
+
+/**
  * Página: tenta a rede (para pegar versão nova) e cai na cópia guardada quando não há internet
  * ou a rede demora demais.
  * @param {Request} pedido
  */
 async function navegar(pedido) {
-  const indice = noEscopo('./')
+  const chave = chaveDaPagina(pedido.url)
   try {
     const resposta = await comPrazo(fetch(pedido), ESPERA_DA_REDE_MS)
     if (resposta.ok) {
       const cache = await caches.open(CACHE)
-      await cache.put(indice, resposta.clone())
+      await cache.put(chave, resposta.clone())
     }
     return resposta
   } catch {
-    const guardada = await caches.match(indice)
+    const guardada = (await caches.match(chave)) ?? (await caches.match(noEscopo('./')))
     return guardada ?? Response.error()
   }
 }

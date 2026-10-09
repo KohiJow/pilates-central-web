@@ -6,6 +6,7 @@ import { Botao } from '../../componentes/Botao'
 import { CabecalhoDeSubtela } from '../../componentes/CabecalhoDeSubtela'
 import { Campo } from '../../componentes/Campo'
 import { Contador } from '../../componentes/Contador'
+import { Interruptor } from '../../componentes/Interruptor'
 import { base } from '../../dados/estado'
 import { salvarConfiguracao } from '../../dados/gestao'
 import { validarConfiguracao } from '../../dominio/configuracao'
@@ -17,7 +18,10 @@ import type { Configuracao } from '../../dominio/tipos'
 import { focarPrimeiroErro } from '../formulario'
 import { SemAcesso } from './SemAcesso'
 
-/** Nome do estúdio, WhatsApp de contato e quantos lugares uma turma nova começa tendo. */
+/**
+ * Nome do estúdio, WhatsApp de contato, quantos lugares uma turma nova começa tendo, e o que
+ * fica aberto para fora da equipe: o app do aluno e a página pública de aula experimental.
+ */
 export function FormularioDoEstudio() {
   const atual = base.value?.configuracao
   const [c, setC] = useState<Configuracao | undefined>(() =>
@@ -47,7 +51,7 @@ export function FormularioDoEstudio() {
 
   return (
     <section class="tela" aria-labelledby="titulo-estudio-form">
-      <CabecalhoDeSubtela voltarPara="Mais" rotulo="Estúdio" titulo="Nome e WhatsApp" idTitulo="titulo-estudio-form" />
+      <CabecalhoDeSubtela voltarPara="Mais" rotulo="Estúdio" titulo="Dados do estúdio" idTitulo="titulo-estudio-form" />
       <form ref={formulario} class="formulario pilha" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo rotulo="Nome do estúdio" valor={c.nomeEstudio} aoMudar={(v) => mudar('nomeEstudio', v)} erro={erros.nomeEstudio} />
         <Campo
@@ -69,6 +73,24 @@ export function FormularioDoEstudio() {
           formatar={(v) => plural(v, 'aluno')}
           erro={erros.capacidadePadrao}
         />
+        <fieldset class="grupo">
+          <legend class="micro">Para fora da equipe</legend>
+          <Interruptor
+            rotulo="App do aluno"
+            ligado={c.acessoDoAluno}
+            aoMudar={(v) => mudar('acessoDoAluno', v)}
+            ajuda="Quem tem o acesso liberado na ficha vê as aulas, avisa falta e escolhe a reposição."
+          />
+          <Interruptor
+            rotulo="Página de aula experimental"
+            ligado={c.paginaExperimental}
+            aoMudar={(v) => mudar('paginaExperimental', v)}
+            ajuda="Mostra os horários com vaga para quem quer conhecer o estúdio (sem nomes)."
+          />
+          <a class="link" href={`${import.meta.env.BASE_URL}experimental/`} target="_blank" rel="noopener">
+            Ver a página pública
+          </a>
+        </fieldset>
         <Botao variante="primario" type="submit" largo icone="presente">
           Salvar
         </Botao>

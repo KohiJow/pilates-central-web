@@ -3,9 +3,12 @@ import { defineConfig, devices } from '@playwright/test'
 const PORTA = Number(process.env.PORTA ?? 8887)
 const ENDERECO = `http://127.0.0.1:${PORTA}/pilates-central-web/`
 const CI = Boolean(process.env.CI)
+// EMULADOR=1: prepara os emuladores do Firebase e roda também e2e/firebase.spec.ts
+const EMULADOR = Boolean(process.env.EMULADOR)
 
 export default defineConfig({
   testDir: 'e2e',
+  ...(EMULADOR ? { globalSetup: './e2e/firebase/preparar.ts' } : {}),
   timeout: 45_000,
   expect: { timeout: 7_000 },
   fullyParallel: true,

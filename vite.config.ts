@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { politicaDeSeguranca, servicoOffline } from './scripts/plugin-offline.ts'
@@ -18,6 +19,14 @@ export default defineConfig({
     target: ['es2022', 'safari16.4', 'chrome111', 'firefox115'],
     assetsInlineLimit: 0,
     sourcemap: true,
+    rolldownOptions: {
+      // o app, a página pública de aula experimental e o aviso de privacidade (sem login)
+      input: {
+        principal: fileURLToPath(new URL('./index.html', import.meta.url)),
+        experimental: fileURLToPath(new URL('./experimental/index.html', import.meta.url)),
+        privacidade: fileURLToPath(new URL('./privacidade/index.html', import.meta.url)),
+      },
+    },
   },
   server: { host: '127.0.0.1', port: PORTA, strictPort: true },
   preview: { host: '127.0.0.1', port: PORTA, strictPort: true },

@@ -1,7 +1,7 @@
 # Modelo de dados
 
 Código em `src/dominio/` (tipos em `tipos.ts`). Nada ali sabe de onde vêm os dados: as mesmas
-funções servem ao modo demonstração (dados no aparelho) e ao Firebase (etapa 3).
+funções servem ao modo demonstração (dados no aparelho) e ao Firebase.
 
 ## Princípios
 
@@ -28,13 +28,13 @@ funções servem ao modo demonstração (dados no aparelho) e ao Firebase (etapa
 |---|---|---|
 | `Unidade` | `id`, `nome`, `endereco`, `ativa` | O estúdio tem mais de uma unidade; alunos e turmas pertencem a uma. |
 | `MembroEquipe` | `id`, `nome`, `papel` (`titular`, `administrador` ou `professor`), `email`, `telefone`, `unidades[]`, `ativo`, `convite?` | No Firebase o `id` será o uid do login. `convite` marca quem foi convidado e ainda não entrou. |
-| `Aluno` | `id`, `nome`, `unidadeId`, `telefone`, `email`, `vezesPorSemana`, `situacao` (`ativo`, `pausado`, `inativo` = arquivado), `observacao`, `desde` | As turmas fixas do aluno são derivadas de `Turma.alunosFixos` (`turmasDoAluno`), para não haver duas fontes. A observação é texto livre visível só à equipe; não há ficha de saúde estruturada. |
+| `Aluno` | `id`, `nome`, `unidadeId`, `telefone`, `email`, `vezesPorSemana`, `situacao` (`ativo`, `pausado`, `inativo` = arquivado), `observacao`, `desde`, `acesso?` (`convidadoEm`, `porId`) | As turmas fixas do aluno são derivadas de `Turma.alunosFixos` (`turmasDoAluno`), para não haver duas fontes. A observação é texto livre visível só à equipe; não há ficha de saúde estruturada. `acesso` presente = app do aluno liberado. |
 | `FinanceiroDoAluno` | `alunoId`, `unidadeId`, `valorMensal`, `formaPreferida`, `diaVencimento` | A parte do cadastro que o professor não lê. Fica separada porque no Firestore a regra libera ou nega o documento inteiro. |
 | `Turma` | `id`, `unidadeId`, `diaDaSemana` (0 = domingo), `inicio`, `duracaoMin`, `capacidade`, `professorId`, `alunosFixos[]`, `fixosDesde`, `ativa`, `desde` | Uma turma por dia da semana: "seg/qua/sex às 7h" são três turmas. `fixosDesde` guarda desde quando cada aluno está na turma: quem entra hoje não aparece nas aulas que já passaram. |
 | `RegistroAula` | `id`, `turmaId`, `unidadeId`, `data`, `marcacoes` (aluno para `presente`, `faltou` ou `avisou`), `reposicoes` (aluno para crédito usado), `cancelamento?` (`motivo`: `feriado` ou `estudio`, `observacao`), `atualizadoEm` | As exceções de uma aula. Sem registro, a aula é a turma pura. |
 | `CreditoReposicao` | `id`, `alunoId`, `unidadeId`, `motivo` (`aviso`, `cancelamento`, `cortesia`), `origem` (turma e data da falta), `criadoEm`, `validoAte`, `usadoEm?` (turma e data da reposição) | Situação derivada: disponível, usado ou vencido (`situacaoDoCredito`). Só os de aviso contam para o limite do mês. |
 | `Pagamento` | `id`, `alunoId`, `unidadeId`, `competencia` (`'2026-10'`), `valor`, `forma`, `pagoEm`, `observacao`, `registradoPorId` | Lançado à mão pela administração. Formas: Pix, cartão de crédito, cartão de débito, dinheiro, transferência, Gympass, TotalPass, outro. |
-| `Configuracao` | `nomeEstudio`, `whatsapp`, `validadeCreditoDias`, `antecedenciaAvisoHoras`, `limiteReposicoesMes`, `alertaAusenciasSeguidas`, `capacidadePadrao` | Padrão em `configuracao.ts`: 30 dias de validade, 3 horas de antecedência, sem limite por mês, destaque a partir de 3 ausências seguidas, 5 lugares. |
+| `Configuracao` | `nomeEstudio`, `whatsapp`, `validadeCreditoDias`, `antecedenciaAvisoHoras`, `limiteReposicoesMes`, `alertaAusenciasSeguidas`, `capacidadePadrao`, `acessoDoAluno`, `paginaExperimental` | Padrão em `configuracao.ts`: 30 dias de validade, 3 horas de antecedência, sem limite por mês, destaque a partir de 3 ausências seguidas, 5 lugares, app do aluno e página pública desligados. |
 
 ## Visões derivadas (calculadas a cada leitura)
 
@@ -130,24 +130,62 @@ depois.
 | Convidar e editar professores | sim | sim | não |
 | Convidar, promover e tirar administradores; passar a conta adiante | sim | não | não |
 
-A interface consulta essa tabela; as regras do Firestore (etapa 3) devem seguir a mesma.
+A interface consulta essa tabela e as regras do Firestore repetem a mesma (com o aluno como papel a mais, fora da equipe).
 
-## Proposta de coleções no Firestore (etapa 3)
+## Cópias para quem não pode ler tudo (`projecoes.ts`)
 
-"Administração" = titular ou administrador.
+O aluno e a página pública não leem turmas, registros nem cadastros (têm nomes). Leem cópias
+calculadas das mesmas regras da agenda e gravadas pela equipe na mesma transação de cada mudança:
+
+| Cópia | Conteúdo | Quem lê |
+|---|---|---|
+| `VagaDaAula` | turma, unidade, data, início, fim, capacidade, ocupadas, cancelada | equipe e aluno |
+| `PortalDoAluno` | primeiro nome, unidade e turmas fixas (dia, horário, desde quando) | o próprio aluno |
+| `PaginaPublica` | nome do estúdio, WhatsApp, unidades abertas, se a aula experimental está ligada e os horários com vaga dos próximos 14 dias | qualquer pessoa |
+
+A janela das vagas é de hoje a 14 dias (`DIAS_DA_JANELA`). Ao abrir o app, a equipe confere a
+janela com o banco e grava só o que falta ou mudou. Nas gravações, a contagem de lugares é
+recalculada com o registro da aula lido de novo dentro da transação.
+
+## App do aluno (`minhasAulas.ts`)
+
+As próximas aulas do aluno saem do portal (turmas fixas), dos créditos dele (avisos e reposições)
+e das vagas. Avisar a falta e escolher a reposição usam as mesmas regras da equipe (prazo de
+aviso, validade, unidade, vaga), conferidas de novo pelo banco. O prazo vale também para encaixar
+e desistir: no app, nada muda com menos de `antecedenciaAvisoHoras` para a aula.
+
+## LGPD (`privacidade.ts`)
+
+- `dadosDoAluno` junta cadastro, turmas, presenças, créditos, mensalidade e pagamentos num
+  arquivo JSON legível (a mensalidade só quando quem exporta vê o financeiro).
+- `exclusaoDoAluno` tira o aluno das turmas, das aulas de hoje em diante e apaga os créditos; o
+  cadastro, a mensalidade, o portal e o convite somem; presenças antigas e pagamentos ficam só com
+  o código.
+
+## Coleções no Firestore
+
+Um projeto Firebase é um estúdio. "Administração" = titular ou administrador. Regras em
+[`firestore.rules`](../firestore.rules); detalhes de acesso em [seguranca.md](seguranca.md).
 
 | Coleção | Documento | Quem lê | Quem escreve |
 |---|---|---|---|
-| `configuracao` | `estudio` | equipe | administração |
-| `unidades` | id | equipe | administração |
-| `equipe` | uid do login | equipe | administração para professores; titular para administradores e para o próprio papel |
+| `estudio` | `posse` (`titularUid`, `titularMembroId`) | contas com e-mail confirmado | primeiro acesso (uma vez); depois só o titular, para passar a conta |
+| `configuracao` | `estudio` | equipe e aluno | administração |
+| `unidades` | id | equipe e aluno | administração |
+| `equipe` | id do membro (com `uid` depois do aceite) | equipe | administração para professores; titular para administradores; cada um o próprio contato; o convidado só grava o próprio `uid` ao aceitar |
+| `convites` | e-mail da pessoa | administração e o dono do e-mail | administração (professor e aluno), titular (administrador); o convidado apaga ao aceitar |
+| `acessos` | uid da conta | a própria conta | a própria conta, a partir de um convite ou do primeiro acesso |
 | `alunos` | id | equipe | administração |
 | `financeiroDosAlunos` | id do aluno | administração | administração |
 | `turmas` | id | equipe | administração |
-| `registros` | `${turmaId}_${data}` | equipe | equipe (campos `marcacoes.*` e `reposicoes.*`); `cancelamento` só a administração |
-| `creditos` | id determinístico | equipe | equipe |
+| `registros` | `${turmaId}_${data}` | equipe | equipe (cancelamento só a administração; professor só nas unidades dele); aluno só a própria marcação ou reposição |
+| `creditos` | id determinístico | equipe; o aluno os dele | equipe; aluno o do próprio aviso e o uso na própria reposição |
 | `pagamentos` | id | administração | administração |
+| `vagas` | `${turmaId}_${data}` | equipe e aluno | equipe; aluno só um lugar a mais ou a menos, junto com o registro |
+| `portal` | id do aluno | equipe e o próprio aluno | administração |
+| `publico` | `estudio` | qualquer pessoa | administração; professor só os horários |
 
-Para duas pessoas marcando a mesma aula ao mesmo tempo, o adaptador do Firebase deve gravar por
-campo (`updateDoc` com `marcacoes.<aluno>`) dentro de um lote, e não o documento inteiro. Os alunos
-fixos de uma turma, com `arrayUnion` e `arrayRemove`.
+O titular fica gravado como administrador na equipe; quem é titular diz a posse (passar a conta
+muda um documento só). Na equipe, marcações por aluno vão por mescla dentro de uma transação
+(duas pessoas na mesma chamada não se apagam) e alunos fixos entram e saem da turma com
+`arrayUnion` e `arrayRemove`.

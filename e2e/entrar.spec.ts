@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import { aba, abrirApp, entrarComoAdministracao, entrarComoProfessor, irParaAba } from './apoio'
 
 test.describe('entrar na demonstração', () => {

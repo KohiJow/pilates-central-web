@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks'
 import { abrir } from '../../app/navegacao'
 import { membro, papel, pode } from '../../app/perfil'
 import { hoje } from '../../app/relogio'
+import { temProjeto, voltarAsPortas } from '../../app/modo'
 import { sair } from '../../app/sessao'
 import { escolherTema, tema } from '../../app/tema'
 import type { Tema } from '../../app/tema'
@@ -20,8 +21,9 @@ import { textoDasRegras } from '../../dominio/configuracao'
 import { ehAdministracao, NOME_DO_PAPEL } from '../../dominio/permissoes'
 import { listaFalada, plural, telefoneLegivel } from '../../dominio/texto'
 import type { RepositorioDeDemonstracao } from '../../dados/repositorio'
+import type { Configuracao } from '../../dominio/tipos'
 
-const TEMAS: { id: Tema; rotulo: string }[] = [
+export const TEMAS: { id: Tema; rotulo: string }[] = [
   { id: 'automatico', rotulo: 'Automático' },
   { id: 'claro', rotulo: 'Claro' },
   { id: 'escuro', rotulo: 'Escuro' },
@@ -41,6 +43,13 @@ function ItemDeMenu({ icone, titulo, sub, aoTocar }: { icone: NomeDoIcone; titul
       <Chevrons tamanho={16} />
     </button>
   )
+}
+
+function resumoDoEstudio(config: Configuracao): string {
+  const partes = [config.nomeEstudio]
+  if (config.whatsapp) partes.push(telefoneLegivel(config.whatsapp))
+  partes.push(config.acessoDoAluno ? 'app do aluno ligado' : 'app do aluno desligado')
+  return partes.join(', ')
 }
 
 function resumoDaEquipe(): string {
@@ -97,7 +106,7 @@ export function Ajustes() {
           <ul class="lista">
             {(
               [
-                ['local', 'Nome e WhatsApp', config.whatsapp ? `${config.nomeEstudio}, ${telefoneLegivel(config.whatsapp)}` : config.nomeEstudio, 'estudio'],
+                ['local', 'Estúdio', resumoDoEstudio(config), 'estudio'],
                 ['regras', 'Regras de reposição', textoDasRegras(config), 'regras'],
                 ['grade', 'Unidades', plural(unidades.value.length, 'unidade aberta', 'unidades abertas'), 'unidades'],
                 ['alunos', 'Equipe', resumoDaEquipe(), 'equipe'],
@@ -156,9 +165,27 @@ export function Ajustes() {
         </section>
       )}
 
+      <section class="secao" aria-labelledby="titulo-privacidade">
+        <h2 id="titulo-privacidade" class="micro">
+          Privacidade
+        </h2>
+        <p class="texto-secundario">
+          O que o app guarda, para quê e quem vê. A cópia dos dados de um aluno e a exclusão ficam na ficha dele.
+        </p>
+        <a class="botao botao--secundario botao--largo tocavel" href={`${import.meta.env.BASE_URL}privacidade/`}>
+          <Icone nome="info" tamanho={20} />
+          <span>Aviso de privacidade</span>
+        </a>
+      </section>
+
       <Botao variante="terciario" icone="sair" largo onClick={sair}>
-        Trocar de perfil
+        {demo ? 'Trocar de perfil' : 'Sair da conta'}
       </Botao>
+      {demo && temProjeto && (
+        <Botao variante="terciario" icone="voltar" largo onClick={voltarAsPortas}>
+          Sair da demonstração
+        </Botao>
+      )}
 
       <p class="rodape-versao">Pilates Central, versão {__VERSAO__}</p>
 
@@ -184,7 +211,7 @@ export function Ajustes() {
   )
 }
 
-function Instalacao() {
+export function Instalacao() {
   if (estaInstalado()) return <p class="texto-secundario">O app já está instalado neste aparelho.</p>
   if (podeInstalar.value) {
     return (

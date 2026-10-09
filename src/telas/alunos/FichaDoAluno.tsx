@@ -49,6 +49,7 @@ import { lugaresReservados, nomeDaTurma } from '../../dominio/turmas'
 import { abrirAula } from '../chamada/aulaAberta'
 import { FolhaDePagamento } from '../financeiro/FolhaDePagamento'
 import { FolhaDeEncaixe } from '../reposicao/FolhaDeEncaixe'
+import { AcessoAoApp, DadosEPrivacidade } from './AcessoEPrivacidade'
 
 const ICONE: Record<Marcacao, NomeDoIcone> = { presente: 'presente', faltou: 'faltou', avisou: 'avisou' }
 const PALAVRA: Record<Marcacao, string> = { presente: 'presente', faltou: 'faltou', avisou: 'avisou' }
@@ -203,6 +204,8 @@ function Ficha({ aluno }: { aluno: Aluno }) {
         </dl>
       </section>
 
+      <AcessoAoApp aluno={aluno} />
+
       {ehAdm && (
         <section class="secao" aria-label="Ações do cadastro">
           <Botao variante="secundario" icone="editar" largo onClick={() => abrir(aluno.id, 'editar')}>
@@ -225,6 +228,8 @@ function Ficha({ aluno }: { aluno: Aluno }) {
           )}
         </section>
       )}
+
+      <DadosEPrivacidade aluno={aluno} />
 
       <FolhaDeEncaixe creditoId={creditoParaEncaixe} aoFechar={() => setCreditoParaEncaixe(null)} />
       {pode('registrar-pagamento') && (

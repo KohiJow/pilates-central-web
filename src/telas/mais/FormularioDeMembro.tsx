@@ -62,7 +62,7 @@ export function FormularioDeMembro({ membroId }: { membroId?: Id }) {
     const feito = await convidarParaEquipe(ator, r)
     if (!feito.ok) return avisar({ texto: feito.mensagem, icone: 'info' })
     avisar({
-      texto: `Convite registrado para ${primeiroNome(feito.valor.membro.nome)}. O acesso por e-mail chega quando o login estiver ligado.`,
+      texto: `Convite registrado para ${primeiroNome(feito.valor.membro.nome)}. Mande o convite pelo WhatsApp, na ficha da pessoa.`,
       icone: 'convidar',
       duracao: 6000,
     })

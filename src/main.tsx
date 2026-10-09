@@ -5,21 +5,19 @@ import './estilos/movimento.css'
 import './estilos/componentes.css'
 import './estilos/telas.css'
 import './estilos/gestao.css'
+import './estilos/conta.css'
 import { render } from 'preact'
 import { App } from './app/App'
+import { iniciar } from './app/conta'
 import { acompanharInstalacao } from './app/instalacao'
+import { modo } from './app/modo'
 import { acompanharHistorico } from './app/navegacao'
 import { acompanharSessao } from './app/perfil'
-import { fixarAgora, hoje, iniciarRelogio, lerAgoraDaUrl } from './app/relogio'
+import { iniciarRelogio } from './app/relogio'
 import { acompanharTemaDoSistema } from './app/tema'
-import { criarRepositorio } from './dados/criar'
-import { carregar } from './dados/estado'
 import { deveUsarTransicaoDeVista, movimentoReduzido, transicaoDeVista } from './movimento/preferencias'
 import { ativarRetornoDeToque } from './movimento/toque'
 
-// ?agora= só faz sentido na demonstração; com o Firebase (etapa 3) isto precisa ficar desligado,
-// senão um link mudaria a data das marcações gravadas
-fixarAgora(lerAgoraDaUrl(location.search))
 iniciarRelogio()
 acompanharTemaDoSistema()
 acompanharInstalacao()
@@ -28,11 +26,12 @@ acompanharSessao()
 acompanharHistorico()
 transicaoDeVista.ligada = deveUsarTransicaoDeVista(location.search) && !movimentoReduzido.peek()
 
-const repositorio = criarRepositorio(location.search)
-void carregar(repositorio, hoje.peek())
+// a porta já escolhida neste aparelho abre direto; senão, a tela das duas portas decide
+const escolhido = modo.peek()
+if (escolhido) iniciar(escolhido)
 
 const raiz = document.getElementById('app')
-if (raiz) render(<App repositorio={repositorio} />, raiz)
+if (raiz) render(<App />, raiz)
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

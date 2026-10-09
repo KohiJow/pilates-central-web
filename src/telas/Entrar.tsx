@@ -1,4 +1,6 @@
 import { useState } from 'preact/hooks'
+import { entrarComoAlunoDaDemonstracao } from '../app/conta'
+import { temProjeto, voltarAsPortas } from '../app/modo'
 import { entrar } from '../app/sessao'
 import { Avatar } from '../componentes/Avatar'
 import { Botao } from '../componentes/Botao'
@@ -13,14 +15,21 @@ import { ehAdministracao, NOME_DO_PAPEL } from '../dominio/permissoes'
 import { listaFalada } from '../dominio/texto'
 import type { MembroEquipe } from '../dominio/tipos'
 
-type Escolha = 'professor' | 'equipe' | null
+type Escolha = 'professor' | 'equipe' | 'aluno' | null
 
-/** Entrada da demonstração: explorar como a administração, como um professor ou como outra pessoa. */
+/**
+ * Entrada da demonstração: explorar como a administração, como um professor, como aluno (o app
+ * do aluno) ou como outra pessoa da equipe.
+ */
 export function Entrar() {
   const [escolha, setEscolha] = useState<Escolha>(null)
   const equipe = ordenarEquipe(base.value?.equipe ?? []).filter((e) => e.ativo && !e.convite)
   const titular = equipe.find((e) => e.papel === 'titular')
   const lista = escolha === 'professor' ? equipe.filter((e) => e.papel === 'professor') : equipe
+  const alunosComAcesso = (base.value?.alunos ?? [])
+    .filter((a) => a.acesso && a.situacao === 'ativo')
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const acessoDoAlunoLigado = base.value?.configuracao.acessoDoAluno ?? false
   const pronto = situacao.value === 'pronto'
 
   const entrarComo = (m: MembroEquipe) => {
@@ -67,23 +76,61 @@ export function Entrar() {
           <Chevrons tamanho={22} />
         </Card>
 
+        {acessoDoAlunoLigado && alunosComAcesso.length > 0 && (
+          <Card class="escolha" rotulo="Explorar como aluno" desativado={!pronto} aoTocar={() => setEscolha('aluno')}>
+            <span class="escolha-texto">
+              <span class="escolha-titulo">Explorar como aluno</span>
+              <span class="escolha-desc">Vê as próximas aulas, avisa que não vem e escolhe onde repor.</span>
+            </span>
+            <Chevrons tamanho={22} />
+          </Card>
+        )}
+
         <Botao variante="terciario" disabled={!pronto} onClick={() => setEscolha('equipe')}>
           Entrar como outra pessoa da equipe
         </Botao>
 
-        <p class="entrar-rodape">
-          Com o estúdio configurado, aqui entra o login com <span class="sem-quebra">e-mail</span> e senha.
-        </p>
+        {temProjeto ? (
+          <Botao variante="terciario" icone="voltar" onClick={voltarAsPortas}>
+            Voltar e entrar com e-mail
+          </Botao>
+        ) : (
+          <p class="entrar-rodape">
+            Com o projeto do estúdio configurado, aqui aparece também o login com <span class="sem-quebra">e-mail</span> e senha.
+          </p>
+        )}
       </div>
 
       <FolhaInferior
         aberta={escolha !== null}
         aoFechar={() => setEscolha(null)}
-        rotulo={escolha === 'professor' ? 'Explorar como professor' : 'Equipe'}
+        rotulo={escolha === 'professor' ? 'Explorar como professor' : escolha === 'aluno' ? 'Explorar como aluno' : 'Equipe'}
         titulo="Quem é você?"
       >
         {!pronto ? (
           <EsqueletoDeLista itens={3} altura={64} />
+        ) : escolha === 'aluno' ? (
+          <ul class="lista">
+            {alunosComAcesso.map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  class="lista-item tocavel"
+                  onClick={() => {
+                    setEscolha(null)
+                    entrarComoAlunoDaDemonstracao(a.id)
+                  }}
+                >
+                  <Avatar nome={a.nome} />
+                  <span class="lista-item-texto">
+                    <span class="lista-item-titulo">{a.nome}</span>
+                    <span class="lista-item-sub">Aluno, {nomeDaUnidade(a.unidadeId)}</span>
+                  </span>
+                  <Chevrons tamanho={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
         ) : (
           <ul class="lista">
             {lista.map((m) => (

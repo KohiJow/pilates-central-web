@@ -61,6 +61,8 @@ export interface Repositorio {
   financeiro(): Promise<FinanceiroDoAluno[]>
   pagamentos(competencias: Competencia[]): Promise<Pagamento[]>
   salvar(gravacao: Gravacao): Promise<void>
+  /** depois de abrir: no Firebase, confere as cópias do aluno e da página pública */
+  depoisDeCarregar?(): Promise<void>
 }
 
 export interface RepositorioDeDemonstracao extends Repositorio {

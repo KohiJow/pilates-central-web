@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import type { Page } from '@playwright/test'
 import { aviso, entrarComoAdministracao, esperarFolhaParada, folha, irParaAba } from './apoio'
 

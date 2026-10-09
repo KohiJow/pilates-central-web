@@ -4,8 +4,8 @@ import { criarRepositorioDeDemonstracao } from './demonstracao/repositorioDemons
 import type { RepositorioDeDemonstracao } from './repositorio'
 
 /**
- * Escolhe a camada de dados. Sem projeto Firebase configurado (etapa 2), o app roda em
- * modo demonstração, com dados fictícios guardados no aparelho.
+ * Camada de dados do modo demonstração: dados fictícios guardados no aparelho. A do Firebase
+ * chega por import() em app/conta.ts, só quando a pessoa escolhe Entrar.
  */
 export function criarRepositorio(busca: string): RepositorioDeDemonstracao {
   const atraso = Number(new URLSearchParams(busca).get('atraso') ?? 0)

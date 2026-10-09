@@ -66,7 +66,8 @@ const CONFIGURACAO: Configuracao = {
 const COM_ACESSO = [1, 4, 11, 16, 22, 27]
 
 const UNIDADES: Unidade[] = [
-  { id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100, Centro', ativa: true },
+  // o endereço do Centro é o do estúdio (público); o resto da demonstração é fictício
+  { id: 'u-centro', nome: 'Centro', endereco: 'Av. Dr. Thomáz Alves, 148, sala 2, Centro, Campinas/SP', ativa: true },
   { id: 'u-jardim', nome: 'Jardim', endereco: 'Avenida Exemplo, 200, Jardim', ativa: true },
 ]
 

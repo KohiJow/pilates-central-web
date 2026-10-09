@@ -1,7 +1,7 @@
 import type { Papel } from './tipos'
 
 // Tabela única do que cada papel pode fazer. A interface consulta daqui e as regras do
-// Firestore (etapa 3) seguem a mesma tabela, para a tela nunca oferecer o que o banco recusa.
+// Firestore (firestore.rules) seguem a mesma tabela, para a tela nunca oferecer o que o banco recusa.
 export type Acao =
   | 'ver-agenda'
   | 'marcar-presenca'

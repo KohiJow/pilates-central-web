@@ -27,8 +27,17 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
-      # o typecheck já rodou acima; aqui só o empacotamento
+      # o typecheck já rodou acima; aqui só o empacotamento. A configuração do projeto Firebase
+      # vem das variáveis do repositório (ver docs/firebase.md); sem elas, o site sai só com a
+      # demonstração.
       - run: npx vite build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
       - uses: actions/upload-artifact@v7
         with:
           name: site
@@ -74,7 +83,15 @@ jobs:
           name: site
           path: dist
       - run: npx playwright install --with-deps ${{ matrix.projeto }}
-      - run: npx playwright test --project=${{ matrix.projeto }}
+      # emuladores do Firebase (auth e Firestore, projeto demo-pilates) para os testes com o SDK
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm i -g firebase-tools@15.31.0
+      - run: firebase emulators:exec --only auth,firestore --project demo-pilates "npx playwright test --project=${{ matrix.projeto }}"
+        env:
+          EMULADOR: '1'
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:

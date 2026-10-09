@@ -4,8 +4,12 @@ import type { Locator, Page } from '@playwright/test'
 /** Sexta-feira, 9 de outubro de 2026, 10h em Campinas: um dia com aulas antes e depois. */
 export const AGORA_PADRAO = '2026-10-09T10:00'
 
+/**
+ * Abre a demonstração com o relógio fixo. `demo` escolhe a porta da demonstração: vale com ou sem
+ * projeto Firebase configurado no build (com projeto, a tela inicial seria a das duas portas).
+ */
 export async function abrirApp(page: Page, agora = AGORA_PADRAO, extra = ''): Promise<void> {
-  await page.goto(`./?agora=${agora}${extra}`)
+  await page.goto(`./?demo&agora=${agora}${extra}`)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 }
 

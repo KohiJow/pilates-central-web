@@ -73,7 +73,7 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
  * A tela nova entra deslizando 24px do lado da aba escolhida. A animação só começa depois que a
  * tela foi pintada uma vez: em aparelho lento, o tempo de montar a tela não come o movimento.
  */
-function QuadroDeTela({ children }: { children: ComponentChildren }) {
+export function QuadroDeTela({ children }: { children: ComponentChildren }) {
   const quadro = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const el = quadro.current

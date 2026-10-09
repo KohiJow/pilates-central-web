@@ -35,6 +35,7 @@ export function precachear(nome: string): boolean {
 export function servicoOffline(): Plugin {
   let pastaPublica = ''
   let raiz = ''
+  let base = '/'
   return {
     name: 'servico-offline',
     apply: 'build',
@@ -42,6 +43,7 @@ export function servicoOffline(): Plugin {
     configResolved(config) {
       pastaPublica = config.publicDir
       raiz = config.root
+      base = config.base
     },
     transformIndexHtml: {
       order: 'post',
@@ -52,7 +54,8 @@ export function servicoOffline(): Plugin {
           .filter((nome) => /latin-wght-normal.*\.woff2$/.test(nome) && !FONTE_DE_OUTRO_ALFABETO.test(nome))
           .map((nome) => ({
             tag: 'link',
-            attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: nome, crossorigin: '' },
+            // endereço absoluto: as páginas em subpastas (experimental/) também acham a fonte
+            attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: `${base}${nome}`, crossorigin: '' },
             injectTo: 'head' as const,
           }))
       },
@@ -60,7 +63,9 @@ export function servicoOffline(): Plugin {
     generateBundle(_opcoes, bundle) {
       const doBundle = Object.keys(bundle).filter(precachear)
       const publicos = listar(pastaPublica).filter((nome) => PUBLICOS.test(nome))
-      const arquivos = ['./', ...doBundle.filter((n) => n !== 'index.html'), ...publicos].sort()
+      // páginas pelo endereço que a pessoa abre: experimental/index.html vira experimental/
+      const paginas = doBundle.map((n) => (n === 'index.html' ? './' : n.endsWith('/index.html') ? n.slice(0, -'index.html'.length) : n))
+      const arquivos = [...new Set([...paginas, ...publicos])].sort()
       const hash = createHash('sha256')
       for (const nome of doBundle) {
         const item = bundle[nome]
@@ -83,10 +88,22 @@ export function servicoOffline(): Plugin {
 // Política de segurança de conteúdo para o site publicado. O GitHub Pages não deixa mandar
 // cabeçalhos, então ela vai numa <meta>. O único script embutido (o que aplica o tema antes
 // da primeira pintura) entra pelo hash; qualquer outro script embutido fica bloqueado.
+// Com projeto Firebase configurado no build, o app conversa com o login e com o Firestore
+// (por REST, no SDK "lite"); sem projeto, nem isso é liberado.
+const DO_FIREBASE = [
+  'https://identitytoolkit.googleapis.com',
+  'https://securetoken.googleapis.com',
+  'https://firestore.googleapis.com',
+]
+
 export function politicaDeSeguranca(): Plugin {
+  let comFirebase = false
   return {
     name: 'politica-de-seguranca',
     apply: 'build',
+    configResolved(config) {
+      comFirebase = Boolean(config.env.VITE_FIREBASE_PROJECT_ID)
+    },
     transformIndexHtml: {
       order: 'post',
       handler(html) {
@@ -99,7 +116,7 @@ export function politicaDeSeguranca(): Plugin {
           "style-src 'self'",
           "img-src 'self' data: blob:",
           "font-src 'self'",
-          "connect-src 'self'",
+          `connect-src 'self'${comFirebase ? ` ${DO_FIREBASE.join(' ')}` : ''}`,
           "manifest-src 'self'",
           "worker-src 'self'",
           "base-uri 'self'",

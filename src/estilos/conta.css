@@ -1,0 +1,121 @@
+/* Telas de conta (portas, login, confirmação) e app do aluno. */
+
+/* link de texto com alvo de toque inteiro (48px), sem depender de hover */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  padding: 0 4px;
+  color: var(--brand-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* e-mail comprido não estoura a largura do celular */
+.quebra-livre {
+  overflow-wrap: anywhere;
+}
+
+.entrar .formulario {
+  gap: 14px;
+}
+
+/* item de lista que vive sozinho, como um cartão */
+.lista-item--cartao {
+  border-radius: var(--raio-card);
+  background: var(--surface-raised);
+  box-shadow: var(--sombra-1);
+}
+
+/* dia da aula do aluno: "sex" em cima, "16/10" embaixo */
+.dia-da-aula {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  min-height: 48px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--brand-strong);
+}
+
+.dia-da-aula-semana {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dia-da-aula-numero {
+  font-family: var(--fonte-display);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.chips--coluna {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.chips--coluna .chip {
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  padding: 10px 18px;
+}
+
+/* liga e desliga: a linha inteira é tocável; só a bolinha se move */
+.interruptor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border-radius: var(--raio-card);
+  background: var(--surface-raised);
+  box-shadow: var(--sombra-1);
+  text-align: left;
+}
+
+.interruptor-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.interruptor-trilho {
+  flex: none;
+  position: relative;
+  width: 52px;
+  height: 32px;
+  border-radius: var(--raio-pilula);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1.5px var(--brand-muted);
+}
+
+.interruptor-bolinha {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-muted);
+  transition: transform var(--dur-curta) var(--mola-viva);
+}
+
+.interruptor[aria-checked='true'] .interruptor-trilho {
+  background: var(--brand);
+  box-shadow: none;
+}
+
+.interruptor[aria-checked='true'] .interruptor-bolinha {
+  background: var(--text-on-brand);
+  transform: translateX(20px);
+}

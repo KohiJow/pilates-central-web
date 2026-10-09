@@ -1,3 +1,4 @@
+import { baixarArquivo } from '../../app/baixar'
 import type { JSX } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
 import { abrirEm } from '../../app/navegacao'
@@ -49,17 +50,9 @@ const MESES_NO_GRAFICO = 6
 /** listas longas mostram os primeiros e um "Mostrar todos" (uma mão só, sem rolar sem fim) */
 const LIMITE_DA_LISTA = 6
 
-
-/** Baixa a planilha do mês (no iPhone abre a prévia, de onde dá para salvar ou mandar). */
+/** Baixa a planilha do mês. */
 function baixar(nome: string, conteudo: string): void {
-  const url = URL.createObjectURL(new Blob([conteudo], { type: 'text/csv;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = nome
-  document.body.append(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  baixarArquivo(nome, conteudo, 'text/csv;charset=utf-8')
 }
 
 /** Aba Financeiro (só a administração): o mês por unidade, quem está em aberto e os últimos meses. */

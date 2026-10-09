@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import type { Page } from '@playwright/test'
 import { aviso, entrarComoAdministracao, entrarComoProfessor, esperarFolhaParada, esperarParado, folha, irParaAba, irParaSecao } from './apoio'
 

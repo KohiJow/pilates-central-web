@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './base'
 import type { CDPSession, Page, TestInfo } from '@playwright/test'
 import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, esperarTransicao, folha, irParaAba } from './apoio'
 

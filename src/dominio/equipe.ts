@@ -1,6 +1,6 @@
 // Regras da equipe: quem convida quem, quem muda o papel de quem e como a conta muda de mãos.
 // O ator (quem está usando o app) entra em toda regra: a tela só oferece o que passa aqui, e as
-// regras do Firestore (etapa 3) repetem as mesmas recusas do lado do banco.
+// regras do Firestore (firestore.rules) repetem as mesmas recusas do lado do banco.
 import { ehAdministracao, NOME_DO_PAPEL, pode } from './permissoes'
 import { aceito, recusado, semErros } from './resultado'
 import type { ErrosDeCampo, Resultado } from './resultado'
@@ -45,8 +45,8 @@ function semPermissao(texto: string) {
 
 /**
  * Convida alguém para a equipe. A administração convida professores; só quem é titular
- * convida (e promove) administradores. Na demonstração o convite fica registrado; o envio
- * por e-mail chega com o login (etapa 3).
+ * convida (e promove) administradores. Na demonstração o convite fica registrado; no Firebase
+ * vira um documento de convite para o e-mail da pessoa (ver firestore.rules).
  */
 export function convidar(
   ator: MembroEquipe,
@@ -151,7 +151,7 @@ export function reativarMembro(ator: MembroEquipe, alvo: MembroEquipe): Resultad
 /**
  * Passa a conta para um administrador. Quem era titular vira administrador (continua com o
  * mesmo acesso ao dia a dia). O novo titular precisa já ter entrado no app: com o login de
- * verdade (etapa 3), isso quer dizer e-mail confirmado.
+ * verdade, isso quer dizer e-mail confirmado.
  */
 export function transferirTitularidade(ator: MembroEquipe, alvo: MembroEquipe): Resultado<MembroEquipe[]> {
   if (!pode(ator.papel, 'transferir-titularidade')) {

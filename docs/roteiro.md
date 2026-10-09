@@ -83,19 +83,50 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [x] Vitest: regras novas (alunos, turmas, frequência, equipe com tentativas de escalada, unidades, financeiro do mês, planilha, lembrete, limite do mês, encaixe a partir do crédito) e dados da demonstração versão 2
 - [x] Playwright nos dois motores: alunos, turmas, reposição, financeiro (inclusive o CSV baixado), equipe e papéis, auditoria de alvos de 48 px e texto de 16 px em todas as telas de gestão e folhas, fluidez das transições novas (abrir ficha, voltar, seção, folha de encaixe, escolher aula, troca de mês)
 
-## Etapa 3: login, regras do Firestore, aluno e página pública (a fazer)
+## Etapa 3: Firebase, papéis, acesso do aluno e página pública (feita)
 
-- [ ] Arquivo único de configuração do Firebase; sem configuração, continua em demonstração (as duas portas: "Entrar" e "Ver demonstração")
-- [ ] Adaptador `src/dados/firebase/` implementando `Repositorio`, com o SDK modular carregado sob demanda (`import()` em `criar.ts`; o service worker já ignora pedaços com "firebase" no nome)
-- [ ] Gravação por campo (`updateDoc` com `marcacoes.<aluno>`) em lote, para duas pessoas marcarem a mesma aula sem uma apagar a outra; alunos fixos da turma com `arrayUnion`/`arrayRemove`
-- [ ] Login com e-mail e senha; o primeiro acesso vira titular; convite real de professor e administrador
-- [ ] Regras do Firestore seguindo `src/dominio/permissoes.ts` e `src/dominio/equipe.ts`, testadas no emulador (`firebase emulators:exec --project demo-pilates`), com as tentativas de escalada dos testes de `equipe.test.ts`
-- [ ] Desligar `?agora=` e `?atraso=` fora do modo demonstração (`src/main.tsx` e `src/dados/criar.ts`)
-- [ ] Ampliar `connect-src` da política de segurança para os domínios do Firebase (e do emulador em desenvolvimento)
+### Firebase
+- [x] Configuração do projeto num arquivo só (`src/config/firebase.ts`), lida no build de variáveis `VITE_FIREBASE_*` (no GitHub Actions, variáveis do repositório `FIREBASE_*`); sem elas, o site é só demonstração. Sem Analytics
+- [x] Duas portas quando há projeto: **Entrar** (estúdio de verdade) e **Ver demonstração**; a escolha fica no aparelho (`src/app/modo.ts`); `?demo` leva direto à demonstração
+- [x] SDK modular carregado sob demanda (`import()` em `src/app/conta.ts`), num pedaço `firebase-*.js` fora do pacote inicial e do cache do service worker; Firestore "lite" (REST), sem o iframe de login do Google
+- [x] Emuladores só em `localhost` e com `?emulador=1` (portas em `firebase.json`); inerte no site publicado
+- [x] Login por e-mail e senha com mensagens genéricas, senha nova, confirmação do e-mail antes de qualquer acesso (`src/dados/firebase/autenticacao.ts`)
+- [x] Adaptador da equipe com o mesmo contrato da demonstração (`repositorioDaEquipe.ts`): transação por ação, registro da aula relido e mesclado aluno por aluno, cadastros só nos campos alterados, alunos fixos com `arrayUnion`/`arrayRemove`, vagas recalculadas com o registro fresco
+- [x] Política de segurança amplia `connect-src` só para login, token e Firestore, e só com projeto configurado
+- [x] `?agora=` e `?atraso=` só no modo demonstração
 
-- [ ] Acesso do aluno para cancelar ou remarcar a própria aula num horário com vaga (as regras de aviso e de encaixe já existem no domínio; falta login do aluno e regras do Firestore que limitem ao próprio registro)
-- [ ] Página pública de aula experimental: quem achou o estúdio na internet vê horários com vaga e pede a aula; usar as fotos de `public/fotos/` (já tratadas, 4:5, sem pessoas) e o WhatsApp do estúdio
-- [ ] Deixar o caminho aberto para Gympass (Wellhub) e TotalPass, sem integrar agora
+### Papéis e posse
+- [x] Posse em `estudio/posse`, criada no primeiro acesso (trava no e-mail combinado nas regras) e mudada só pela passagem da conta
+- [x] Convites em `convites/{e-mail}`; o papel só vale com o e-mail confirmado e igual ao do convite (`acessos/{uid}` liga a conta à pessoa)
+- [x] Titular gravado como administrador na equipe; quem é titular diz a posse
+- [x] Convite da equipe e do aluno com a mensagem pronta para o WhatsApp (o plano gratuito não manda e-mail)
+
+### Regras do Firestore
+- [x] `firestore.rules` com menor privilégio, esquema e tamanho em tudo, o resto negado; identidade calculada uma vez por pedido (o teto de 1000 expressões estourava com funções repetidas)
+- [x] Financeiro em coleções só da administração; aluno lê só cópias sem nomes (`vagas`, `portal`) e os próprios créditos; página pública lê só `publico/estudio`
+- [x] Aluno avisa a própria falta e encaixa a própria reposição: transação no cliente e as regras conferindo prazo (relógio do servidor), capacidade e a ligação entre registro, crédito e vaga
+- [x] 174 testes no emulador (`npm run regras`), cada papel contra cada coleção e as tentativas de escalada; job próprio no CI
+
+### Aluno, página pública e LGPD
+- [x] App do aluno (liga e desliga em Mais, Estúdio; liberado por aluno na ficha): próximas aulas, avisar falta (gera crédito), desfazer no prazo, escolher a reposição numa aula com vaga, desistir no prazo; igual na demonstração ("Explorar como aluno")
+- [x] Página pública `experimental/` sem login: marca, fotos do espaço, horários com vaga, endereço e pedido pelo WhatsApp com a mensagem pronta; nada é gravado; na demonstração lê os dados do aparelho
+- [x] Aviso de privacidade em `privacidade/`; exportar os dados de um aluno (JSON) e excluir o aluno com confirmação, na ficha
+- [x] Service worker guarda cada página pelo próprio endereço (o app, a experimental e a de privacidade)
+
+### Testes
+- [x] Vitest: projeções, app do aluno, privacidade, aula experimental, conversão e mescla do Firestore, leitura REST
+- [x] Playwright com o SDK de verdade contra os emuladores, nos dois motores (`EMULADOR=1`): responsável entra e vê o financeiro, professor não vê, aluno avisa e remarca, página pública lista vagas sem gravar, professor convidado cria a conta e confirma o e-mail
+- [x] Playwright na demonstração: app do aluno, página pública (inclusive a vaga aberta por um aviso), privacidade, exportar e excluir, liberar o app; auditoria de alvos e texto nas telas novas
+- [x] Trava em todo teste de ponta a ponta: pedido para domínios do Google é cortado e reprova
+
+### Ficou para depois
+- [ ] Publicar as regras no projeto real e fazer o primeiro acesso (passo a passo em [firebase.md](firebase.md)); conferir no primeiro acesso real que o console do navegador não mostra erro de política de segurança
+- [ ] Preencher as variáveis `FIREBASE_*` do repositório no GitHub (sem elas, o site publicado fica só com a demonstração)
+- [ ] Limite de reposições por mês também nas regras (hoje só o app confere)
+- [ ] Aviso de "versão nova disponível" do service worker
+- [ ] Cancelar o dia inteiro de uma vez (feriado móvel)
+- [ ] Medir a View Transition num iPhone de verdade
+- [ ] Deixar o caminho aberto para Gympass (Wellhub) e TotalPass, sem integrar agora (as formas de pagamento já existem)
 
 ## Notas para quem continuar
 
@@ -107,8 +138,12 @@ trabalho precisa saber. Atualizar a cada entrega.
 - **Nada de cor animada:** o teste de fluidez reprova qualquer animação ou transição que não seja de transform ou opacity.
 - **Sombras:** cards usam a sombra sem desfoque (`--sombra-1`); desfoque grande só em elemento único (folha, aviso).
 - **Conteúdo do repositório:** sem travessão, sem ponto médio, sem nomes reais, sem trechos de conversa com a cliente, sem fotos com pessoas. E-mails só `@example.com`, telefones `55119000000xx` (exemplos na tela usam `(19) 90000-0000`).
-- **Papéis:** no código `titular`, `administrador` e `professor`; na tela "Responsável", "Administração" e "Professor". Toda regra de equipe recebe quem está agindo (`src/dominio/equipe.ts`); as regras do Firestore devem repetir as mesmas recusas, e `equipe.test.ts` tem a lista de tentativas de escalada para virar teste de regra no emulador.
-- **Financeiro separado:** `FinanceiroDoAluno` (coleção `financeiroDosAlunos` proposta) só é pedido por quem pode ver financeiro (`carregarFinanceiro` em `src/dados/estado.ts`). O adaptador do Firebase precisa manter isso: o professor nem tenta ler.
+- **Papéis:** no código `titular`, `administrador` e `professor` (mais o aluno, fora da equipe); na tela "Responsável", "Administração" e "Professor". Toda regra de equipe recebe quem está agindo (`src/dominio/equipe.ts`); `firestore.rules` repete as mesmas recusas e `testes-de-regras/` testa cada uma no emulador.
+- **Financeiro separado:** `FinanceiroDoAluno` (coleção `financeiroDosAlunos`) só é pedido por quem pode ver financeiro (`carregarFinanceiro` em `src/dados/estado.ts`); o teste com o emulador confere que o app do professor nem pede.
+- **Regras do Firestore:** calcule quem pede uma vez (`quemSou`) e passe adiante; funções que relêem o papel estouram o teto de 1000 expressões por pedido. Leia documento com `dados(caminho, padrao)` (um `get` que trata o documento ausente), não `exists` mais `get`: há teto de 10 leituras por operação e 20 por lote. Rode `npm run regras` (sobe o emulador sozinho) ou, com o emulador já no ar, `FIRESTORE_EMULATOR_HOST=127.0.0.1:8824 npx vitest run --config vitest.regras.config.ts`.
+- **Ponta a ponta com o Firebase:** com os emuladores no ar (`firebase emulators:start --only auth,firestore --project demo-pilates`) e a prévia rodando, `EMULADOR=1` faz o Playwright limpar os emuladores, criar as contas e gravar a demonstração de hoje (`e2e/firebase/preparar.ts`) e rodar `e2e/firebase.spec.ts`. Cada motor usa um aluno diferente (os dois podem rodar juntos no mesmo emulador). No Chromium, `bypassCSP` deixa o app falar com o emulador; no WebKit a `<meta>` da política sai do HTML servido no teste (servir a página pelo teste no Chromium faz o navegador bloquear o endereço local).
+- **Trava do Firebase real:** importe `test` e `expect` de `e2e/base.ts`, nunca de `@playwright/test`: a trava corta e reprova qualquer pedido para domínios do Google.
+- **Projeto configurado no build:** com as variáveis `FIREBASE_*`, a tela inicial vira as duas portas. Os testes da demonstração abrem com `?demo` (ver `abrirApp`) para valer com ou sem projeto.
 - **Desfazer:** ações de cadastro passam por `gravarComDesfazer` com um inverso calculado na hora de desfazer (por exemplo, tirar da turma só o aluno colocado). No Firebase, alunos fixos com `arrayUnion`/`arrayRemove` para duas pessoas não apagarem a mudança uma da outra.
-- **Dados da demonstração:** versão 2 (`VERSAO_DO_BANCO`); quem tinha a versão 1 no aparelho ganha dados novos ao abrir. As três semanas recentes são as mesmas da etapa 1 (os testes conhecem: sexta 9/10, 18h com Camila tem 5 de 6; Ana Almeida tem 4 ausências seguidas; outubro tem R$ 10.660,00 previstos e R$ 5.590,00 recebidos).
+- **Dados da demonstração:** versão 3 (`VERSAO_DO_BANCO`): app do aluno e página pública ligados, seis alunos com acesso (Beatriz Barbosa, a-11, é a dos testes) e o endereço do Centro igual ao do estúdio. Quem tinha versão anterior no aparelho ganha dados novos ao abrir. As três semanas recentes são as mesmas da etapa 1 (os testes conhecem: sexta 9/10, 18h com Camila tem 5 de 6; Ana Almeida tem 4 ausências seguidas; outubro tem R$ 10.660,00 previstos e R$ 5.590,00 recebidos).
 - **Telas em teste:** para esperar uma tela nova parar, `esperarParado(page, '.tela-quadro')`; `irPara(page, '#/rota')` abre pelo endereço; `irParaSecao` troca Alunos, Turmas e Reposições.
