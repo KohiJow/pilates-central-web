@@ -16,11 +16,14 @@ import type { Aluno, SituacaoAluno } from '../../dominio/tipos'
 import { CabecaDeAlunos } from './CabecaDeAlunos'
 import { buscaDeAlunos, situacaoDosAlunos, unidadeDosAlunos } from './estadoDaLista'
 
-const SITUACOES: { id: SituacaoAluno | null; rotulo: string }[] = [
-  { id: null, rotulo: 'Ativos' },
+// "Ativos" é só quem está vindo às aulas: o mesmo número que o Financeiro mostra como alunos ativos
+const SITUACOES: { id: SituacaoAluno; rotulo: string }[] = [
+  { id: 'ativo', rotulo: 'Ativos' },
   { id: 'pausado', rotulo: 'Pausados' },
   { id: 'inativo', rotulo: 'Arquivados' },
 ]
+
+const NOME_DA_LISTA: Record<SituacaoAluno, string> = { ativo: 'ativo', pausado: 'pausado', inativo: 'arquivado' }
 
 /** As unidades que a pessoa vê: a administração vê todas; o professor, as dele. */
 export function unidadesVisiveis() {
@@ -33,11 +36,15 @@ export function ListaDeAlunos() {
   const unidadeId = visiveis.find((u) => u.id === unidadeDosAlunos.value)?.id
   const idsVisiveis = new Set(visiveis.map((u) => u.id))
   const todos = (base.value?.alunos ?? []).filter((a) => idsVisiveis.has(a.unidadeId))
-  const lista = filtrarAlunos(todos, {
-    busca: buscaDeAlunos.value,
-    ...(unidadeId ? { unidadeId } : {}),
-    ...(situacaoDosAlunos.value ? { situacao: situacaoDosAlunos.value } : {}),
-  })
+  const filtro = { busca: buscaDeAlunos.value, ...(unidadeId ? { unidadeId } : {}) }
+  const lista = filtrarAlunos(todos, { ...filtro, situacao: situacaoDosAlunos.value })
+  // busca sem resultado aqui: diz em que outra lista a pessoa está, com um toque para ir até lá
+  const emOutraLista =
+    lista.length === 0 && buscaDeAlunos.value
+      ? SITUACOES.filter((s) => s.id !== situacaoDosAlunos.value)
+          .map((s) => ({ ...s, quantos: filtrarAlunos(todos, { ...filtro, situacao: s.id }).length }))
+          .find((s) => s.quantos > 0)
+      : undefined
   const carregando = situacao.value !== 'pronto'
 
   return (
@@ -87,8 +94,20 @@ export function ListaDeAlunos() {
         <EstadoVazio
           icone="alunos"
           rotulo="Ninguém aqui"
-          texto={buscaDeAlunos.value ? `Nenhum aluno encontrado para "${buscaDeAlunos.value}".` : 'Nenhum aluno nesta lista.'}
-        />
+          texto={
+            emOutraLista
+              ? `Nenhum aluno ${NOME_DA_LISTA[situacaoDosAlunos.value]} com "${buscaDeAlunos.value}". Achei em ${emOutraLista.rotulo}.`
+              : buscaDeAlunos.value
+                ? `Nenhum aluno encontrado para "${buscaDeAlunos.value}". Confira o nome ou busque pelo final do telefone.`
+                : 'Nenhum aluno nesta lista.'
+          }
+        >
+          {emOutraLista && (
+            <Botao variante="secundario" onClick={() => (situacaoDosAlunos.value = emOutraLista.id)}>
+              Ver em {emOutraLista.rotulo} ({emOutraLista.quantos})
+            </Botao>
+          )}
+        </EstadoVazio>
       ) : (
         <div class="secao">
           <p class="texto-secundario" aria-live="polite">

@@ -5,6 +5,6 @@ import type { Id, SituacaoAluno } from '../../dominio/tipos'
 // busca e a unidade escolhidas.
 export const buscaDeAlunos = signal('')
 export const unidadeDosAlunos = signal<Id | null>(null)
-export const situacaoDosAlunos = signal<SituacaoAluno | null>(null)
+export const situacaoDosAlunos = signal<SituacaoAluno>('ativo')
 export const unidadeDasTurmas = signal<Id | null>(null)
 export const unidadeDasReposicoes = signal<Id | null>(null)

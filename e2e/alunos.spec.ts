@@ -20,7 +20,10 @@ async function abrirFicha(page: Page, nome: string) {
 test.describe('lista de alunos', () => {
   test('busca sem acento, filtra por unidade e situação, e destaca quem sumiu', async ({ page }) => {
     await abrirAlunos(page)
-    await expect(page.getByText('39 alunos')).toBeVisible()
+    // "Ativos" é só quem está vindo: o mesmo número de alunos ativos do Financeiro
+    await expect(page.getByRole('radio', { name: 'Ativos' })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByText('37 alunos')).toBeVisible()
+    await expect(page.locator('[data-aluno]', { hasText: 'Pausado' })).toHaveCount(0)
     // ausências seguidas: destaque discreto na própria linha
     await expect(linhaDoAluno(page, 'Ana Almeida').getByText('4 ausências seguidas')).toBeVisible()
 
@@ -39,6 +42,18 @@ test.describe('lista de alunos', () => {
     await expect(page.locator('[data-aluno]')).toHaveCount(2)
     await page.getByRole('radio', { name: 'Arquivados' }).click()
     await expect(page.locator('[data-aluno]')).toHaveText([/Lívia Fontes/])
+  })
+
+  test('busca de quem está pausado, com Ativos escolhido, diz onde a pessoa está', async ({ page }) => {
+    await abrirAlunos(page)
+    await page.getByRole('searchbox', { name: 'Buscar aluno' }).fill('patricia')
+    await expect(page.getByText('Nenhum aluno ativo com "patricia". Achei em Pausados.')).toBeVisible()
+    await page.getByRole('button', { name: 'Ver em Pausados (1)' }).click()
+    await expect(page.getByRole('radio', { name: 'Pausados' })).toHaveAttribute('aria-checked', 'true')
+    await expect(linhaDoAluno(page, 'Patrícia Ribeiro')).toBeVisible()
+    // nome que não existe: o que fazer
+    await page.getByRole('searchbox', { name: 'Buscar aluno' }).fill('zzz')
+    await expect(page.getByText(/Nenhum aluno encontrado para "zzz"\. Confira o nome ou busque pelo final do telefone\./)).toBeVisible()
   })
 
   test('voltar da ficha mantém a busca e a lista volta para onde estava', async ({ page }) => {
