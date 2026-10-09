@@ -164,6 +164,11 @@
   text-overflow: ellipsis;
 }
 
+/* na grade de turmas a frequência não pode sumir em reticências no celular estreito */
+.linha-aula-sub--quebra {
+  white-space: normal;
+}
+
 /* ---------- Agenda ---------- */
 
 .agenda-topo {

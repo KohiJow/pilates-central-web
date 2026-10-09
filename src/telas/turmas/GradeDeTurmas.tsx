@@ -97,7 +97,7 @@ function LinhaDeTurma({ turma, minha, percentual }: { turma: Turma; minha: boole
             {primeiroNome(nomeDaEquipe(turma.professorId))}
             {minha ? ' (você)' : ''}
           </span>
-          <span class="linha-aula-sub">
+          <span class="linha-aula-sub linha-aula-sub--quebra">
             até {fim}
             {percentual !== null ? `, frequência ${percentual}%` : ''}
           </span>
