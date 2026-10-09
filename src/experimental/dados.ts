@@ -9,7 +9,7 @@ import { criarRepositorioDeDemonstracao } from '../dados/demonstracao/repositori
 import { momentoDe, somarDias } from '../dominio/datas'
 import { DIAS_DA_JANELA, paginaPublica } from '../dominio/projecoes'
 import type { PaginaPublica } from '../dominio/tipos'
-import { decodificarCampos, enderecoDoDocumento } from './rest'
+import { decodificarCampos, enderecoDoDocumento, paginaPublicaDe } from './rest'
 import type { ValorDoFirestore } from './rest'
 
 export type Origem = 'demonstracao' | 'estudio'
@@ -45,7 +45,7 @@ async function doEstudio(): Promise<PaginaPublica | null> {
   if (r.status === 404 || r.status === 403) return null
   if (!r.ok) throw new Error(`página pública: ${r.status}`)
   const corpo = (await r.json()) as { fields?: Record<string, ValorDoFirestore> }
-  return decodificarCampos(corpo.fields ?? {}) as unknown as PaginaPublica
+  return paginaPublicaDe(decodificarCampos(corpo.fields ?? {}))
 }
 
 export function carregarPagina(origem: Origem, agora: Date): Promise<PaginaPublica | null> {
