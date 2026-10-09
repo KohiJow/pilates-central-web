@@ -203,7 +203,51 @@ imagem versionada foi aberta e olhada.
 - [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console, passo em [firebase.md](firebase.md)); sem Cloud Functions não há como apagar pelo app
 - [ ] Itens de listas gravadas pela equipe (horários públicos, alunos fixos, unidades, reposições) só têm o tamanho da lista conferido nas regras
 
+## Revisão no celular e de movimento (feita)
+
+Passeio por 59 passos (entrada, folhas, chamada, agenda com faixa e dedo, alunos, turmas,
+reposição, financeiro, ajustes, tema, esqueleto, app do aluno e página pública) em quatro
+perfis: WebKit com iPhone 13 (390 x 664) e com o iPhone SE do Playwright (320 x 568, a menor tela),
+Chromium com Pixel 7 e com a CPU 4x mais lenta. A agenda e os campos também a 375 px (iPhone SE de
+segunda e terceira geração), nos testes.
+Cada perfil gravado em vídeo, quadros a 10 por segundo olhados em folhas de contato; em cada passo,
+intervalos de `requestAnimationFrame`, deslocamento de layout (CLS) e tarefas longas; nos gestos,
+a posição da peça quadro a quadro contra a do dedo (com toque de verdade no Chromium, pelo CDP).
+
+### Achado e corrigido
+- [x] **Fontes baixavam duas vezes no iPhone** (59 kB a mais na primeira visita): o WebKit busca a fonte do CSS sem CORS e a pré-carga pedia com CORS. A pré-carga agora é montada conforme o motor (`preCargaDasFontes` em `scripts/plugin-offline.ts`); o aviso "preloaded but not used" sumiu do console do WebKit
+- [x] **Teclado cobria o campo e o botão nas folhas** (lançar pagamento, busca do encaixe, senha nova): a folha acompanha a `visualViewport`, sobe até a borda do teclado por transform, encolhe e rola até o campo (`src/movimento/teclado.ts`, `FolhaInferior`)
+- [x] **A folha trocava de conteúdo enquanto descia**: na entrada aparecia a equipe inteira no lugar dos professores, e no encaixe um "sem vaga" no lugar da aula marcada. A folha guarda o que mostrava aberta e fica inerte até sumir
+- [x] **O aviso saltava** do alto para cima das abas quando a folha fechava, por cima dela; agora entra de novo no lugar novo
+- [x] **Soltar o dedo dava tranco**: a folha arremessada partia do repouso e chegava a 3,7 px/ms com o dedo a 1 px/ms; a lista do dia, depois de um arraste longo, voltava uns pixels antes de sumir. As duas saem na velocidade do gesto (`curvaQueContinua` em `src/movimento/animar.ts`) e a lista sempre para a frente
+- [x] **A faixa de dias descia 34 px sob o dedo no iPhone**: com o "Hoje" ao lado, o título dos outros dias quebrava em duas linhas (medido em 375 e 390 px nos dois motores). O "Hoje" foi para a linha do mês e o título ficou numa linha, com o tamanho ajustado à tela (medido nos 43 dias em 320 a 412 px: cabeçalho sempre da mesma altura)
+- [x] Nome do estúdio cortado ("Pilates ...") a 360 px e menos: o selo de demonstração ficou mais estreito; cabe inteiro a partir de 360 px (a 320 px segue com reticências, "Pilates Ce...")
+- [x] Contraste medido na tela: o "dom" e os outros dias sem aula da faixa ficavam em 4,2:1 no tema claro (cor secundária com opacidade em 13 px)
+- [x] Abrir sem internet nunca tinha sido testado no WebKit (o teste era pulado); agora é, com o servidor desligado de verdade
+- [x] Teste do aluno no emulador falhava no horário da aula dele (relógio de verdade)
+
+### Conferido e certo
+- [x] JS inicial da demonstração: 80 kB comprimidos (limite 170) e o Firebase não é baixado (teste em `e2e/celular.spec.ts`); fotos de 11 a 62 kB em webp
+- [x] Manifesto, ícone do iPhone de 180 px sem transparência, `viewport-fit=cover` com as margens seguras no topo, nas abas, na folha e nos avisos, `100dvh`, campos de 16 px (sem zoom ao focar), rolagem da folha e da faixa sem vazar
+- [x] CLS zero em todos os passos nos dois perfis do Chromium (o teste de fluidez agora reprova qualquer deslocamento sem toque)
+- [x] Chromium: p95 de 16,7 a 16,8 ms em todos os 59 passos; com a CPU 4x, também 16,7 a 16,8 ms, com tarefas longas de 50 a 130 ms ao montar telas novas (a maior: a lista de alunos) e de 237 ms na carga da página
+- [x] Folha e lista seguem o dedo: erro médio de 3 px no arraste lento da folha e de 9 px no deslize do dia (um passo do dedo, medido no quadro seguinte)
+- [x] Foco visível em todos os controles percorridos com Tab nas 15 telas da medição de contraste; folhas com `role="dialog"`, título, foco preso e o resto inerte; faixa de dias com rótulo por dia e o dia escolhido marcado
+- [x] "Reduzir movimento" desliga deslocamentos (teste existente)
+
+### Ficou para depois
+- [ ] Conferir num iPhone de verdade: o teclado nas folhas (aqui a `visualViewport` foi simulada nos dois motores), a barra de status com `apple-mobile-web-app-status-bar-style: default` no tema escuro, e a View Transition no Safari
+- [ ] No WebKit do contêiner (sem GPU) a primeira folha da sessão leva de 0,7 a 2 s para subir e há quadros de 1 a 2 s em seguida; a mesma folha animando sozinha mediu p95 de 20 ms ali. Não reproduz no Chromium; vale medir num iPhone antes de mexer
+- [ ] Tela de abertura do app instalado no iPhone (`apple-touch-startup-image`): sem ela o iOS mostra uma tela lisa até carregar
+- [ ] Tarefas longas de 80 a 130 ms ao montar Alunos, Financeiro e a ficha com a CPU 4x: dá para montar a lista em partes se aparecer em aparelho fraco
+- [ ] A marca das seções (Alunos, Turmas, Reposições) não desliza de uma para outra: a tela inteira é trocada e entra deslizando, com a marca já no lugar
+
 ## Notas para quem continuar
+
+- **Coisas de celular em `e2e/celular.spec.ts`:** teclado (a `visualViewport` é trocada por uma falsa que encolhe como a do iPhone; espere `.folha[data-teclado]` antes de medir), fontes uma vez só, JS inicial e Firebase fora, campos de 16 px, servidor desligado (o teste sobe um servidor só dele em `dist/`, então rode depois do build), agenda no iPhone SE, folha descendo com o mesmo conteúdo, aviso trocando de lugar e a lista do dia saindo para a frente.
+- **Folhas:** o conteúdo mostrado enquanto a folha desce é o da última vez que ela estava aberta. Se precisar mudar algo na folha durante a saída, mude antes de fechar.
+- **Soltar o dedo:** use `curvaQueContinua(velocidade, distancia, duracao)` em qualquer animação que começa no fim de um gesto; as curvas comuns começam paradas e dão tranco.
+- **Contraste:** além dos pares de tokens (`contraste.test.ts`), `e2e/acessibilidade.spec.ts` mede cada texto visível contra o fundo composto nos dois temas. Opacidade em texto pequeno quase sempre reprova.
 
 - **Rodar os testes de ponta a ponta no servidor ARM:** o WebKit não roda direto no Oracle Linux. Com o `npm run preview` no ar (porta 8887), rodar o contêiner do Playwright 1.60:
   `podman run --rm --network host -v "$PWD":/w:Z -w /w --ipc=host mcr.microsoft.com/playwright:v1.60.0-noble npx playwright test`.

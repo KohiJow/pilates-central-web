@@ -245,7 +245,7 @@ O que as medições mudaram:
   o tema sem transição até a medição num iPhone de verdade (`?transicao=vista` força).
 - **Barras e gráfico por transform.** A barra do recebido e as colunas do gráfico crescem por
   `scaleX`/`scaleY`, nunca por largura ou altura; a marca da seção escolhida (Alunos, Turmas,
-  Reposições) desliza como a pílula do dia.
+  Reposições) é posicionada por transform e chega junto com a tela nova.
 - **Listas longas com "Mostrar todos".** Em aberto, lançamentos e créditos mostram os primeiros e
   um botão para o resto: menos para pintar de uma vez e menos rolagem com uma mão.
 - **Interruptor sem cor animada.** Só a bolinha anda (transform); a cor do trilho troca na hora.
@@ -254,13 +254,40 @@ O que as medições mudaram:
 - **Rolagem que não vaza.** Nos vídeos do WebKit, o app do aluno abria com a página ainda rolada
   da tela de entrada (que é comprida); agora cada troca de moldura (entrar, sair) volta ao topo.
 
+Uma revisão só de celular e movimento passou por 59 passos em quatro perfis (WebKit com iPhone 13
+e com o iPhone SE de 320 px, Chromium com Pixel 7, normal e com a CPU 4x), com vídeo de cada um olhado quadro a
+quadro, deslocamento de layout e tarefas longas medidos em cada passo e a posição da peça
+comparada com a do dedo nos gestos. No Chromium, todos os passos ficaram entre 16,7 e 16,8 ms de
+p95, inclusive com a CPU 4x, e com deslocamento de layout zero (o teste de fluidez agora reprova
+qualquer deslocamento que não venha de toque). O que ela mudou:
+
+- **Folha acima do teclado.** No iPhone o teclado só encolhe a janela visual: a folha ficava com o
+  campo e o botão de confirmar atrás dele. Agora ela acompanha a `visualViewport`, sobe até a borda
+  do teclado (por transform) e rola até o campo.
+- **Folha desce com o que mostrava.** Quem abre a folha limpa o próprio estado ao fechar, e o
+  conteúdo trocava no meio da descida (a equipe inteira no lugar dos professores, "sem vaga" no
+  lugar da aula recém marcada). A folha guarda o conteúdo aberto e fica inerte até sumir.
+- **Soltar o dedo sem tranco.** A folha arremessada e a lista do dia saem na velocidade do gesto
+  (uma curva que começa com a inclinação do dedo) e sempre para a frente; antes, a lista largada
+  depois de um arraste longo voltava uns pixels antes de sumir.
+- **Aviso que troca de lugar entra de novo.** Com a folha aberta o aviso fica no alto; quando ela
+  fecha, ele reaparece embaixo em vez de saltar por cima da folha que desce.
+- **Título da agenda numa linha.** No iPhone, com o "Hoje" ao lado, o título quebrava em duas
+  linhas nos outros dias e a faixa de dias descia 34 px sob o dedo. O "Hoje" foi para a linha do
+  mês e o título se ajusta à largura da tela.
+- **Fontes uma vez só.** O WebKit (o motor do Safari) busca a fonte do CSS sem CORS e o Chrome
+  com CORS; a pré-carga fixa casava só com o Chrome, e no WebKit as fontes baixavam duas vezes
+  (59 kB a mais). Ela agora é montada conforme o motor.
+
 ## Acessibilidade
 
 Pensada para gente de 40+ usando com uma mão: alvos de toque de 48 px ou mais, texto corrido de
 16 px ou mais (conferidos por teste em todas as telas, inclusive as de gestão, as folhas, o app do
 aluno, as telas de login e as páginas públicas), contraste de 4,5:1 conferido por teste sobre os
 próprios tokens de cor (o âmbar nunca é texto; o terracota médio só aparece em ícone; as cores do
-gráfico passam 3:1 sobre o card nos dois temas), estado nunca só por cor (vagas têm número
+gráfico passam 3:1 sobre o card nos dois temas) e medido na tela, texto por texto, contra o fundo
+composto nos temas claro e escuro, campos de 16 px (o iPhone não dá zoom ao focar), estado nunca
+só por cor (vagas têm número
 escrito, presença tem ícone e rótulo, atraso tem palavra, a aula do aluno tem "Confirmada", "Você
 avisou" ou "Cancelada"), folha com foco preso e o resto do app inerte, formulário que leva o foco
 ao primeiro erro, contador lido como spinbutton, interruptor lido como switch, gráfico com tabela
@@ -311,6 +338,10 @@ sem gravar nada, um professor convidado cria a conta e confirma o e-mail, a admi
 cadastros, convites, reposição, pagamento e exclusão, login errado e senha nova respondem igual
 com ou sem conta, e no primeiro acesso de um estúdio vazio só o e-mail combinado vira responsável. Nenhum teste fala com o
 projeto real: uma trava em todos eles corta e reprova qualquer pedido para domínios do Google.
+
+`e2e/celular.spec.ts` junta o que é de celular: teclado sobre a folha, fontes baixadas uma vez,
+JS inicial abaixo de 170 kB comprimido sem o Firebase, campos de 16 px, abrir com o servidor
+desligado (nos dois motores), a agenda no tamanho do iPhone SE e os gestos soltando no embalo.
 
 `PORTA=8853` troca a porta (prévia e testes), `LENTO=1` liga a CPU 4x mais lenta no Chromium e
 `GRAVAR=1` grava vídeo das transições. No GitHub Actions: tipos, lint, Vitest e build; as regras
@@ -378,8 +409,9 @@ Etapa 1: fundação, agenda e presença. Etapa 2: gestão do estúdio (alunos, t
 presença, financeiro, unidades, equipe e configurações). Etapa 3: Firebase com papéis e
 convites, regras do Firestore testadas, app do aluno, página de aula experimental e LGPD. Depois,
 uma revisão de produto comparou o app, pedido por pedido, com o que o estúdio precisa, e contou
-os toques de cada tarefa (a tabela acima), e uma revisão de segurança e privacidade atacou as
-regras e o site. Detalhes
+os toques de cada tarefa (a tabela acima), uma revisão de segurança e privacidade atacou as
+regras e o site, e uma revisão no celular olhou cada transição em vídeo no iPhone e no
+Android e corrigiu o que pulava, cortava ou ficava atrás do teclado. Detalhes
 e o que falta (publicar as regras e fazer o primeiro acesso no projeto real) em
 [docs/roteiro.md](docs/roteiro.md).
 
