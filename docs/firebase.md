@@ -89,7 +89,9 @@ conta para ela depois).
 Em **Mais**:
 
 1. **Estúdio:** WhatsApp, e se o **app do aluno** e a **página de aula experimental** ficam ligados.
-2. **Unidades**, depois **Alunos** (com e-mail para quem vai usar o app) e **Turmas**.
+2. **Unidades** (com o endereço: é ele que aparece na página de aula experimental, por exemplo
+   "Av. Dr. Thomáz Alves, 148, sala 2, Centro, Campinas/SP"), depois **Alunos** (com e-mail para
+   quem vai usar o app) e **Turmas**.
 3. **Equipe:** convide a administração e os professores pelo e-mail de cada um. O app não manda
    e-mail de convite (isso pediria Cloud Functions): avise a pessoa pelo WhatsApp para entrar no
    site, tocar em **Primeiro acesso? Criar conta** com aquele e-mail e confirmar o e-mail. O papel
