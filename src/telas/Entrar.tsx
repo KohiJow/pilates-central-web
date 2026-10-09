@@ -37,6 +37,7 @@ export function Entrar() {
           variante="marca"
           class="escolha"
           rotulo="Explorar como dona"
+          desativado={situacao.value !== 'pronto'}
           aoTocar={() => dona && entrar({ papel: 'dona', membroId: dona.id })}
         >
           <span class="escolha-texto">
@@ -46,7 +47,12 @@ export function Entrar() {
           <Chevrons tamanho={22} />
         </Card>
 
-        <Card class="escolha" rotulo="Explorar como professor" aoTocar={() => setEscolhendoProfessor(true)}>
+        <Card
+          class="escolha"
+          rotulo="Explorar como professor"
+          desativado={situacao.value !== 'pronto'}
+          aoTocar={() => setEscolhendoProfessor(true)}
+        >
           <span class="escolha-texto">
             <span class="escolha-titulo">Explorar como professor</span>
             <span class="escolha-desc">Faz a chamada das suas aulas e encaixa reposições.</span>

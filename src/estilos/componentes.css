@@ -73,7 +73,7 @@
 }
 
 .campo-rotulo {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
 }
@@ -117,12 +117,12 @@
 }
 
 .campo-ajuda {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 
 .campo-erro {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--danger);
 }
@@ -176,7 +176,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--toque);
   padding: 0 18px;
   border-radius: var(--raio-pilula);
   box-shadow: inset 0 0 0 1px var(--brand-muted);
@@ -184,12 +184,6 @@
   font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
-}
-/* área de toque de 48px mesmo com o desenho de 44px */
-.chip::before {
-  content: '';
-  position: absolute;
-  inset: -2px 0;
 }
 .chip[aria-pressed='true'],
 .chip[aria-checked='true'] {
@@ -209,6 +203,10 @@
   padding: 16px;
   text-align: left;
   color: var(--text);
+}
+
+button.card:disabled {
+  opacity: 0.6;
 }
 
 .card--marca {
@@ -258,7 +256,7 @@
 }
 
 .vagas-texto {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -414,8 +412,7 @@
   height: calc(var(--altura-abas) + env(safe-area-inset-bottom));
   padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
   background: var(--surface-raised);
-  box-shadow: 0 -1px 0 var(--brand-ghost), 0 -8px 24px rgba(91, 42, 20, 0.05);
-  view-transition-name: abas;
+  box-shadow: 0 -1px 0 var(--brand-ghost);
 }
 
 .aba {
@@ -427,7 +424,7 @@
   gap: 2px;
   min-height: 56px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -472,7 +469,9 @@
   display: flex;
   flex-direction: column;
   max-width: 560px;
-  max-height: 92dvh;
+  /* sobra espaço no alto para o aviso flutuante, que sobe para o topo com a folha aberta e
+     não pode cobrir a alça (no iPhone 13 cobria) */
+  max-height: calc(100dvh - env(safe-area-inset-top) - 96px);
   margin: 0 auto;
   border-radius: var(--raio-folha) var(--raio-folha) 0 0;
   background: var(--surface-raised);
@@ -577,8 +576,11 @@
   width: 52px;
   height: 68px;
   border-radius: 18px;
-  background: var(--brand);
-  box-shadow: var(--sombra-1);
+  /* pêssego com contorno terracota, e não terracota sólida: o texto do dia fica escuro sobre
+     a pílula e sobre o creme, então nunca some no meio do deslize (no vídeo do WebKit, com
+     a pílula sólida, o número sumia por alguns quadros) */
+  background: var(--surface-accent);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
   transition: transform var(--dur-longa) var(--mola-viva);
   pointer-events: none;
 }
@@ -595,11 +597,10 @@
   border-radius: 18px;
   scroll-snap-align: center;
   color: var(--text);
-  transition: color var(--dur-curta) var(--curva-padrao);
 }
 
 .dia-semana {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -624,12 +625,13 @@
 }
 
 .dia[aria-pressed='true'] {
-  color: var(--text-on-brand);
+  color: var(--text-on-accent);
 }
 
 /* sem o indicador deslizante (ainda medindo), o dia selecionado pinta o próprio fundo */
 .faixa:not(.faixa--medida) .dia[aria-pressed='true'] {
-  background: var(--brand);
+  background: var(--surface-accent);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
 }
 
 /* ---------- chevrons duplos e marca d'água ---------- */
@@ -685,7 +687,7 @@
   border-radius: 50%;
   background: var(--surface-accent);
   color: var(--text-on-accent);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -748,6 +750,6 @@
 }
 
 .lista-item-sub {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }

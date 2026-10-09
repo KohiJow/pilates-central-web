@@ -2,7 +2,7 @@ import { signal } from '@preact/signals'
 import type { ComponentChildren } from 'preact'
 import { createPortal } from 'preact/compat'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { animar, duracaoPelaVelocidade } from '../movimento/animar'
+import { animar, animarDepoisDePintar, duracaoPelaVelocidade } from '../movimento/animar'
 import { deveFechar, resistencia, Velocimetro } from '../movimento/arraste'
 import { CURVA, DURACAO } from '../movimento/tempos'
 import { Icone } from './Icone'
@@ -57,13 +57,19 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
     if (!montada || !f || !b) return
     if (aberta) {
       focoAnterior.current = document.activeElement
-      void animar(f, [{ transform: 'translateY(100%)' }, { transform: 'translateY(0px)' }], {
+      const subida = animarDepoisDePintar(f, [{ transform: 'translateY(100%)' }, { transform: 'translateY(0px)' }], {
         duration: DURACAO.longa,
         easing: CURVA.suave,
       })
-      void animar(b, [{ opacity: 0 }, { opacity: 1 }], { duration: DURACAO.media, easing: CURVA.padrao })
+      const escurecer = animarDepoisDePintar(b, [{ opacity: 0 }, { opacity: 1 }], {
+        duration: DURACAO.media,
+        easing: CURVA.padrao,
+      })
       f.focus({ preventScroll: true })
-      return
+      return () => {
+        subida.cancelar()
+        escurecer.cancelar()
+      }
     }
     // saindo: continua de onde a folha está (no meio do arraste ou da entrada)
     const atual = translateYAtual(f)
@@ -81,6 +87,7 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
       const anterior = focoAnterior.current
       if (anterior instanceof HTMLElement && anterior.isConnected) anterior.focus({ preventScroll: true })
     })
+    return undefined
   }, [aberta, montada])
 
   // enquanto aberta: trava o fundo, Esc fecha, foco preso, "voltar" fecha

@@ -181,7 +181,7 @@ function Chamada({ aula, papel }: { aula: Aula; papel: Papel }) {
         {contagem.avisou > 0 && <Pilula tom="alerta">{plural(contagem.avisou, 'avisou', 'avisaram')}</Pilula>}
         {contagem.pendente > 0 && <Pilula>{contagem.pendente} sem marcação</Pilula>}
       </div>
-      <ul class="chamada-lista cascata">
+      <ul class="chamada-lista">
         {aula.participantes.map((p, i) => (
           <AlunoNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} />
         ))}
@@ -322,7 +322,7 @@ function Encaixe({ aula, aoVoltar }: { aula: Aula; aoVoltar: () => void }) {
           <p class="texto-secundario">
             {plural(aula.vagas, 'vaga livre', 'vagas livres')}. Quem tem reposição para usar:
           </p>
-          <ul class="cascata">
+          <ul>
             {filtrados.map((c, i) => {
               const nome = alunos.get(c.alunoId)?.nome ?? 'Aluno'
               return (

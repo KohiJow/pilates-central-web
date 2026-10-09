@@ -1,7 +1,6 @@
 import { signal } from '@preact/signals'
 import type { ItemDeAba } from '../componentes/BarraAbas'
 import type { Papel } from '../dominio/tipos'
-import { trocarComTransicao } from '../movimento/transicao'
 
 export type Aba = 'hoje' | 'agenda' | 'mais'
 
@@ -30,7 +29,8 @@ export const aba = signal<Aba>(abaDoEndereco())
 
 /**
  * Troca de aba sem empilhar histórico (o "voltar" do celular fecha folhas e sai do app,
- * não fica passeando pelas abas) e com transição de tela.
+ * não fica passeando pelas abas). A tela nova entra deslizando do lado da aba escolhida
+ * (animação em CSS, ver .tela em movimento.css).
  */
 export function irPara(nova: Aba, papel: Papel): void {
   const atual = aba.peek()
@@ -38,8 +38,7 @@ export function irPara(nova: Aba, papel: Papel): void {
   const ordem = POR_PAPEL[papel]
   const direcao = ordem.indexOf(nova) > ordem.indexOf(atual) ? 'frente' : 'tras'
   history.replaceState(history.state, '', `${location.pathname}${location.search}#/${nova}`)
-  void trocarComTransicao(() => {
-    aba.value = nova
-    window.scrollTo(0, 0)
-  }, direcao)
+  document.documentElement.dataset.direcao = direcao
+  aba.value = nova
+  window.scrollTo(0, 0)
 }

@@ -56,7 +56,7 @@
 }
 
 .escolha-desc {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
   color: var(--text-secondary);
 }
@@ -72,7 +72,7 @@
 
 .entrar-rodape {
   text-align: center;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 
@@ -128,7 +128,7 @@
 }
 
 .numero-rotulo {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.25;
   color: var(--text-secondary);
 }
@@ -157,7 +157,7 @@
 }
 
 .linha-aula-sub {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -184,6 +184,10 @@
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+  min-height: 50dvh;
+}
+
+.agenda-dia-conteudo {
   will-change: transform;
 }
 
@@ -231,7 +235,7 @@
 }
 
 .cartao-aula-hora span {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 
@@ -248,7 +252,7 @@
 }
 
 .cartao-aula-alunos {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
   overflow: hidden;
   display: -webkit-box;
@@ -276,7 +280,7 @@
   justify-content: center;
   gap: 10px;
   margin-top: 8px;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 
@@ -341,7 +345,7 @@
   background: var(--surface-raised);
   box-shadow: inset 0 0 0 1px var(--brand-soft);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -383,7 +387,7 @@
   border-radius: 12px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: 16px;
   margin-bottom: 12px;
 }
 
@@ -471,7 +475,7 @@
 
 .rodape-versao {
   text-align: center;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 

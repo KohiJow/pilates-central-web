@@ -8,12 +8,12 @@ import { EstadoVazio } from '../componentes/EstadoVazio'
 import { FaixaDias } from '../componentes/FaixaDias'
 import { Chevrons } from '../componentes/Icone'
 import { Chip } from '../componentes/Pilula'
-import { aulasNoDia, base, equipePorId, garantirData, situacao, unidades } from '../dados/estado'
+import { aulasNoDia, base, cargaRecente, equipePorId, garantirData, situacao, unidades } from '../dados/estado'
 import { agruparPorPeriodo, NOME_DO_PERIODO } from '../dominio/agenda'
 import { dataPorExtenso, diaDaSemana, diasDoIntervalo, nomeDoMes, somarDias } from '../dominio/datas'
 import { plural } from '../dominio/texto'
 import type { DataISO } from '../dominio/tipos'
-import { animar } from '../movimento/animar'
+import { animar, animarDepoisDePintar } from '../movimento/animar'
 import { direcaoDaTroca, eixoDoGesto, resistencia, Velocimetro } from '../movimento/arraste'
 import { CURVA, DURACAO } from '../movimento/tempos'
 import { diaEscolhido, escolherUnidade, soMinhas, unidadeEscolhida } from './agenda/estadoDaAgenda'
@@ -33,8 +33,8 @@ export function Agenda() {
   const unidadesVisiveis = unidades.value.filter((u) => ehDona || membro?.unidades.includes(u.id))
   const unidadeId =
     unidadesVisiveis.find((u) => u.id === unidadeEscolhida.value)?.id ?? unidadesVisiveis[0]?.id ?? undefined
-  const dia = diaEscolhido.value
   const diaDeHoje = hoje.value
+  const dia = diaEscolhido.value ?? diaDeHoje
   const dias = diasDoIntervalo(somarDias(diaDeHoje, -DIAS_PARA_TRAS), somarDias(diaDeHoje, DIAS_PARA_FRENTE))
   const professorId = !ehDona && soMinhas.value ? s?.membroId : undefined
   const filtro = { ...(unidadeId ? { unidadeId } : {}), ...(professorId ? { professorId } : {}) }
@@ -47,7 +47,7 @@ export function Agenda() {
   const ultimoDia = dias[dias.length - 1] ?? diaDeHoje
   const trocarDia = (novo: DataISO) => {
     if (novo < primeiroDia || novo > ultimoDia) return
-    diaEscolhido.value = novo
+    diaEscolhido.value = novo === diaDeHoje ? null : novo
     void garantirData(novo)
   }
 
@@ -125,7 +125,7 @@ export function Agenda() {
                     {plural(g.aulas.length, 'aula')}
                   </span>
                 </div>
-                <div class="agenda-grupo cascata">
+                <div class={`agenda-grupo${cargaRecente.value ? ' cascata' : ''}`}>
                   {g.aulas.map((a, i) => (
                     <CartaoDeAula key={a.id} aula={a} indice={i} mostrarUnidade={!unidadeId} />
                   ))}
@@ -160,6 +160,9 @@ interface PropsDeslizante {
  * velocidade e anima a saída e a entrada só com transform e opacity.
  */
 function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: PropsDeslizante) {
+  // a área que recebe o dedo fica parada; quem anda é o conteúdo dentro dela (se a área
+  // andasse junto, um gesto começado logo depois de trocar de dia cairia fora dela)
+  const area = useRef<HTMLDivElement>(null)
   const caixa = useRef<HTMLDivElement>(null)
   const gesto = useRef<{ id: number; x0: number; y0: number; eixo: 'x' | 'y' | null; dx: number; quadro: number } | null>(
     null,
@@ -168,6 +171,7 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
   const arrastou = useRef(false)
   const diaAnterior = useRef(dia)
   const veioDoGesto = useRef(false)
+  const entrada = useRef<((irParaOFim?: boolean) => void) | null>(null)
 
   // entrada do dia novo, vindo do lado certo
   useLayoutEffect(() => {
@@ -177,22 +181,29 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
     if (!el || antes === dia) return
     const direcao = dia > antes ? 1 : -1
     const distancia = veioDoGesto.current ? el.offsetWidth * 0.3 : 24
-    el.classList.toggle('sem-cascata', veioDoGesto.current)
     veioDoGesto.current = false
-    void animar(
+    const animacao = animarDepoisDePintar(
       el,
       [
-        { transform: `translateX(${direcao * distancia}px)`, opacity: 0 },
+        { transform: `translateX(${direcao * distancia}px)`, opacity: 0.01 },
         { transform: 'translateX(0px)', opacity: 1 },
       ],
       { duration: DURACAO.media, easing: CURVA.suave },
     )
+    entrada.current = animacao.cancelar
+    void animacao.fim.then(() => {
+      if (entrada.current === animacao.cancelar) entrada.current = null
+    })
+    return () => animacao.cancelar()
   }, [dia])
 
   useEffect(() => () => cancelAnimationFrame(gesto.current?.quadro ?? 0), [])
 
   const aoApertar = (e: PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    // o dedo pegou a lista ainda entrando: ela vai direto para o lugar e o gesto assume
+    entrada.current?.(true)
+    entrada.current = null
     arrastou.current = false
     velocimetro.current.zerar()
     velocimetro.current.registrar(e.timeStamp, e.clientX, e.clientY)
@@ -212,7 +223,7 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
         return
       }
       if (g.eixo === 'x') {
-        el.setPointerCapture(e.pointerId)
+        area.current?.setPointerCapture(e.pointerId)
         arrastou.current = true
         for (const anim of el.getAnimations()) anim.cancel()
       }
@@ -258,7 +269,7 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
 
   return (
     <div
-      ref={caixa}
+      ref={area}
       class="agenda-dia"
       onPointerDown={aoApertar}
       onPointerMove={aoMover}
@@ -273,7 +284,9 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
         }
       }}
     >
-      {children}
+      <div ref={caixa} class="agenda-dia-conteudo">
+        {children}
+      </div>
     </div>
   )
 }

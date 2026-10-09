@@ -9,7 +9,7 @@ import { EstadoVazio } from '../componentes/EstadoVazio'
 import { Numero } from '../componentes/Numero'
 import { Icone } from '../componentes/Icone'
 import { Vagas } from '../componentes/Vagas'
-import { aulasNoDia, equipePorId, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
+import { aulasNoDia, cargaRecente, equipePorId, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
 import { faseDaAula } from '../dominio/agenda'
 import { dataPorExtenso, horaFalada, minutosEntre, momentoDaAula } from '../dominio/datas'
 import { resumoDoDia } from '../dominio/resumo'
@@ -76,7 +76,7 @@ export function Hoje() {
             </Card>
           )}
 
-          <div class="numeros cascata">
+          <div class={`numeros${cargaRecente.value ? ' cascata' : ''}`}>
             <Card class="numero-card" style={{ '--i': 0 } as JSX.CSSProperties}>
               <Numero valor={resumo.alunosEsperados} />
               <span class="numero-rotulo">alunos esperados</span>
@@ -96,7 +96,7 @@ export function Hoje() {
               <h2 id="titulo-proximas" class="micro">
                 Depois
               </h2>
-              <ul class="lista cascata">
+              <ul class={`lista${cargaRecente.value ? ' cascata' : ''}`}>
                 {depois.map((a, i) => (
                   <li key={a.id} style={{ '--i': i } as JSX.CSSProperties}>
                     <LinhaDeAula aula={a} mostrarUnidade={ehDona} />

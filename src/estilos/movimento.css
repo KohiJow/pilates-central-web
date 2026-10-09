@@ -24,7 +24,9 @@
   transition: transform var(--dur-curta) var(--curva-padrao);
 }
 
-/* entrada em cascata: cada item espera um pouco mais que o anterior (até o 8º) */
+/* entrada em cascata: cada item espera um pouco mais que o anterior (até o 8º). Só quando os
+   dados chegam (depois do esqueleto); numa troca de tela ou de dia quem se move é o bloco
+   inteiro, para não somar animações uma dentro da outra (medido: pesa no WebKit sem GPU). */
 @keyframes entrar-de-baixo {
   from {
     opacity: 0;
@@ -32,75 +34,29 @@
   }
 }
 .cascata > * {
-  animation: entrar-de-baixo var(--dur-longa) var(--mola-suave) both;
+  animation: entrar-de-baixo var(--dur-longa) var(--mola-suave) backwards;
   animation-delay: calc(min(var(--i, 0), 8) * 32ms);
 }
 
-/* quando o dia chega deslizando pelo gesto, a lista já entra inteira (sem cascata por cima) */
-.sem-cascata .cascata > * {
+/* troca de aba: a tela nova entra do lado da aba escolhida (QuadroDeTela, em Estrutura.tsx).
+   Medido no Chromium, isto ficou mais liso que a View Transition (pico de 16,8 ms contra
+   33,4 ms) e não bloqueia o toque durante a troca. */
+
+/* troca de tema com View Transition (Chromium): a página antiga esmaece para a nova.
+   O grupo padrão do navegador anima largura e altura; aqui ele fica parado (só opacity). */
+::view-transition-group(*) {
   animation: none;
 }
-
-/* troca de tela sem View Transitions: a tela nova entra (a antiga só sai de cena) */
-@keyframes tela-entra-frente {
+/* a página antiga fica parada e a nova aparece por cima: troca limpa, sem escurecer no meio */
+::view-transition-old(root) {
+  animation: none;
+}
+::view-transition-new(root) {
+  animation: vt-aparece var(--dur-longa) var(--curva-padrao) both;
+}
+@keyframes vt-aparece {
   from {
     opacity: 0;
-    transform: translateX(24px);
-  }
-}
-@keyframes tela-entra-tras {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-}
-html:not(.com-transicao-de-vista) .tela {
-  animation: tela-entra-frente var(--dur-media) var(--mola-suave) both;
-}
-html:not(.com-transicao-de-vista)[data-direcao='tras'] .tela {
-  animation-name: tela-entra-tras;
-}
-
-/* View Transitions (Chrome 111+, Safari 18+): a tela velha sai e a nova entra deslizando */
-::view-transition-old(conteudo),
-::view-transition-new(conteudo) {
-  animation-duration: var(--dur-media);
-  animation-timing-function: var(--curva-padrao);
-}
-::view-transition-old(conteudo) {
-  animation-name: vt-sai-frente;
-}
-::view-transition-new(conteudo) {
-  animation-name: vt-entra-frente;
-}
-html[data-direcao='tras']::view-transition-old(conteudo) {
-  animation-name: vt-sai-tras;
-}
-html[data-direcao='tras']::view-transition-new(conteudo) {
-  animation-name: vt-entra-tras;
-}
-@keyframes vt-sai-frente {
-  to {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-}
-@keyframes vt-entra-frente {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-}
-@keyframes vt-sai-tras {
-  to {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-}
-@keyframes vt-entra-tras {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
   }
 }
 
@@ -134,17 +90,25 @@ html[data-direcao='tras']::view-transition-new(conteudo) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* nada se desloca: animações e transições terminam no primeiro quadro */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
   .tocavel,
   .tocavel:active:not(:disabled) {
     transform: none;
     transition: none;
   }
-  .cascata > *,
-  html:not(.com-transicao-de-vista) .tela {
+  .cascata > * {
     animation: none;
   }
-  ::view-transition-old(conteudo),
-  ::view-transition-new(conteudo) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none;
   }
   .esqueleto::after {

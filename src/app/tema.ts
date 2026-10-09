@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals'
+import { trocarComTransicao } from '../movimento/transicao'
 import { gravarLocal, lerLocal } from './armazenamento'
 
 export type Tema = 'automatico' | 'claro' | 'escuro'
@@ -27,7 +28,7 @@ export function aplicarTema(t: Tema = tema.peek()): void {
 export function escolherTema(t: Tema): void {
   tema.value = t
   gravarLocal(CHAVE, t === 'automatico' ? null : t === 'escuro' ? 'dark' : 'light')
-  aplicarTema(t)
+  void trocarComTransicao(() => aplicarTema(t))
 }
 
 export function acompanharTemaDoSistema(): void {

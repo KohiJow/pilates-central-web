@@ -8,6 +8,10 @@ import { Hoje } from '../telas/Hoje'
 import { Mais } from '../telas/Mais'
 import { Botao } from '../componentes/Botao'
 import { EstadoVazio } from '../componentes/EstadoVazio'
+import { useLayoutEffect, useRef } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
+import { animarDepoisDePintar } from '../movimento/animar'
+import { CURVA, DURACAO } from '../movimento/tempos'
 import { aba, abasDoPapel, irPara } from './navegacao'
 import type { Sessao } from './sessao'
 
@@ -48,14 +52,41 @@ export function Estrutura({ sessao, aoRecarregar }: { sessao: Sessao; aoRecarreg
             </Botao>
           </EstadoVazio>
         ) : (
-          <div class="tela-quadro" key={atual}>
+          <QuadroDeTela key={atual}>
             <Tela />
-          </div>
+          </QuadroDeTela>
         )}
       </main>
 
       <BarraAbas itens={itens} atual={atual} aoEscolher={(id) => irPara(id, sessao.papel)} />
       <FolhaDaAula />
+    </div>
+  )
+}
+
+/**
+ * A tela nova entra deslizando 24px do lado da aba escolhida. A animação só começa depois que a
+ * tela foi pintada uma vez: em aparelho lento, o tempo de montar a tela não come o movimento.
+ */
+function QuadroDeTela({ children }: { children: ComponentChildren }) {
+  const quadro = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = quadro.current
+    if (!el) return
+    const lado = document.documentElement.dataset.direcao === 'tras' ? -1 : 1
+    const entrada = animarDepoisDePintar(
+      el,
+      [
+        { transform: `translateX(${lado * 24}px)`, opacity: 0.01 },
+        { transform: 'translateX(0px)', opacity: 1 },
+      ],
+      { duration: DURACAO.media, easing: CURVA.suave },
+    )
+    return entrada.cancelar
+  }, [])
+  return (
+    <div ref={quadro} class="tela-quadro">
+      {children}
     </div>
   )
 }

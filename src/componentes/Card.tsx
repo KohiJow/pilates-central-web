@@ -7,16 +7,24 @@ interface Props {
   class?: string
   aoTocar?: () => void
   rotulo?: string
+  desativado?: boolean
   style?: JSX.CSSProperties
   children: ComponentChildren
 }
 
 /** Card: superfície elevada com sombra tingida; "marca" é o card terracota sólido. */
-export function Card({ variante = 'claro', class: classe, aoTocar, rotulo, style, children }: Props) {
+export function Card({ variante = 'claro', class: classe, aoTocar, rotulo, desativado, style, children }: Props) {
   const classes = `card${variante === 'claro' ? '' : ` card--${variante}`}${classe ? ` ${classe}` : ''}`
   if (aoTocar) {
     return (
-      <button type="button" class={`${classes} tocavel`} onClick={aoTocar} aria-label={rotulo} style={style}>
+      <button
+        type="button"
+        class={`${classes} tocavel`}
+        onClick={aoTocar}
+        aria-label={rotulo}
+        disabled={desativado}
+        style={style}
+      >
         {children}
       </button>
     )

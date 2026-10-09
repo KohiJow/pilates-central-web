@@ -22,6 +22,8 @@ export const base = signal<DadosBase | null>(null)
 export const registros = signal<ReadonlyMap<string, RegistroAula>>(new Map())
 export const creditos = signal<ReadonlyMap<Id, CreditoReposicao>>(new Map())
 export const situacao = signal<'carregando' | 'pronto' | 'erro'>('carregando')
+/** true logo depois que os dados chegam: as listas entram em cascata só nessa hora */
+export const cargaRecente = signal(false)
 
 const MARGEM_DA_JANELA = 42
 let janela: Intervalo | null = null
@@ -86,7 +88,9 @@ export async function carregar(repo: Repositorio, hoje: DataISO): Promise<void> 
       registros.value = new Map(lista.map((r) => [r.id, r]))
       creditos.value = new Map(listaDeCreditos.map((c) => [c.id, c]))
       situacao.value = 'pronto'
+      cargaRecente.value = true
     })
+    setTimeout(() => (cargaRecente.value = false), 900)
   } catch {
     situacao.value = 'erro'
   }

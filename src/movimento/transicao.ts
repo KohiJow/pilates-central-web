@@ -1,6 +1,4 @@
-import { movimentoReduzido, suportaTransicaoDeVista } from './preferencias'
-
-export type Direcao = 'frente' | 'tras' | 'nenhuma'
+import { movimentoReduzido, transicaoDeVista } from './preferencias'
 
 type ComTransicao = Document & {
   startViewTransition?: (atualizar: () => Promise<void> | void) => { finished: Promise<void> }
@@ -10,20 +8,25 @@ type ComTransicao = Document & {
 export const aguardarRender = () => new Promise<void>((r) => setTimeout(r, 0))
 
 /**
- * Troca de tela com View Transitions quando o navegador tem (melhoria progressiva).
- * Sem suporte, a troca é imediata e o CSS anima a entrada da tela nova (.tela-entrando).
+ * Aplica uma mudança da página inteira com View Transition (melhoria progressiva): a tela velha
+ * esmaece para a nova. Sem suporte (ou com "reduzir movimento"), a mudança é imediata.
+ * Usada na troca de tema, em que todas as cores mudam de uma vez e CSS sozinho não faria a
+ * transição só com opacity. Na troca de abas a alternativa em CSS mediu melhor (ver README).
  */
-export async function trocarComTransicao(atualizar: () => void, direcao: Direcao): Promise<void> {
+export async function trocarComTransicao(atualizar: () => void): Promise<void> {
   const raiz = document.documentElement
-  raiz.dataset.direcao = direcao
   const doc = document as ComTransicao
-  if (!suportaTransicaoDeVista || movimentoReduzido.peek() || !doc.startViewTransition) {
+  if (!transicaoDeVista.ligada || movimentoReduzido.peek() || !doc.startViewTransition) {
     atualizar()
     return
   }
+  // durante a transição o navegador não entrega toques à página; o atributo deixa isso visível
+  // para os testes (e para depurar)
+  raiz.dataset.transicao = 'sim'
   const transicao = doc.startViewTransition(async () => {
     atualizar()
     await aguardarRender()
   })
   await transicao.finished.catch(() => undefined)
+  delete raiz.dataset.transicao
 }

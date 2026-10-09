@@ -11,7 +11,7 @@ import { fixarAgora, hoje, iniciarRelogio, lerAgoraDaUrl } from './app/relogio'
 import { acompanharTemaDoSistema } from './app/tema'
 import { criarRepositorio } from './dados/criar'
 import { carregar } from './dados/estado'
-import { movimentoReduzido, suportaTransicaoDeVista } from './movimento/preferencias'
+import { deveUsarTransicaoDeVista, movimentoReduzido, transicaoDeVista } from './movimento/preferencias'
 import { ativarRetornoDeToque } from './movimento/toque'
 
 fixarAgora(lerAgoraDaUrl(location.search))
@@ -19,9 +19,7 @@ iniciarRelogio()
 acompanharTemaDoSistema()
 acompanharInstalacao()
 ativarRetornoDeToque()
-if (suportaTransicaoDeVista && !movimentoReduzido.peek()) {
-  document.documentElement.classList.add('com-transicao-de-vista')
-}
+transicaoDeVista.ligada = deveUsarTransicaoDeVista(location.search) && !movimentoReduzido.peek()
 
 const repositorio = criarRepositorio(location.search)
 void carregar(repositorio, hoje.peek())
