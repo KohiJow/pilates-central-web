@@ -1,5 +1,5 @@
 import type { JSX } from 'preact'
-import { irPara } from '../app/navegacao'
+import { abrirEm, irPara } from '../app/navegacao'
 import { hoje, momento } from '../app/relogio'
 import { membro as membroAtual, papel } from '../app/perfil'
 import { Botao } from '../componentes/Botao'
@@ -14,7 +14,7 @@ import { alunosPorId, aulasNoDia, base, cargaRecente, creditos, nomeDaEquipe, no
 import { resumoDeCreditos } from '../dominio/reposicao'
 import { faseDaAula } from '../dominio/agenda'
 import { ehAdministracao } from '../dominio/permissoes'
-import { dataPorExtenso, horaFalada, minutosEntre, momentoDaAula } from '../dominio/datas'
+import { dataPorExtenso, diaRelativo, horaFalada, minutosEntre, momentoDaAula, somarDias } from '../dominio/datas'
 import { resumoDoDia } from '../dominio/resumo'
 import type { PessoaNaAula } from '../dominio/resumo'
 import { plural, primeiroNome } from '../dominio/texto'
@@ -26,6 +26,16 @@ function saudacao(minutos: number): string {
   if (minutos < 12 * 60) return 'Bom dia'
   if (minutos < 18 * 60) return 'Boa tarde'
   return 'Boa noite'
+}
+
+/** Dia sem aula: diz quando é a próxima (nos próximos 7 dias), que é o que a pessoa quer saber. */
+function textoDoDiaSemAula(dia: string, filtro: { professorId?: string }): string {
+  for (let i = 1; i <= 7; i++) {
+    const data = somarDias(dia, i)
+    const primeira = aulasNoDia(data, filtro).find((a) => !a.cancelamento)
+    if (primeira) return `Não tem aula marcada para hoje. A próxima é ${diaRelativo(data, dia)}, ${horaFalada(primeira.inicio)}.`
+  }
+  return 'Não tem aula marcada para hoje.'
 }
 
 function quandoComeca(minutosAte: number): string {
@@ -61,7 +71,7 @@ export function Hoje() {
           <EsqueletoDeLista itens={3} altura={72} />
         </>
       ) : resumo.totalDeAulas === 0 ? (
-        <EstadoVazio icone="folga" rotulo="Sem aulas hoje" texto="Não tem aula marcada para hoje.">
+        <EstadoVazio icone="folga" rotulo="Sem aulas hoje" texto={textoDoDiaSemAula(dia, ehAdm ? {} : { professorId: membro?.id ?? '' })}>
           <Botao variante="secundario" icone="agenda" onClick={() => irPara('agenda', papel.value)}>
             Ver a agenda
           </Botao>
@@ -125,6 +135,9 @@ export function Hoje() {
   )
 }
 
+/** Até quantos alunos sumidos aparecem pelo nome no Hoje; mais que isso vira uma linha só. */
+const POUCOS_SUMIDOS = 3
+
 /**
  * O que pede atenção além do dia: créditos de reposição perto de vencer e alunos sumidos.
  * Cada linha leva direto para onde se resolve.
@@ -139,11 +152,13 @@ function ParaOlhar() {
     hoje.value,
   ).aVencer.length
   const limite = base.value?.configuracao.alertaAusenciasSeguidas ?? 3
-  const sumidos = [...ausenciasPorAluno.value].filter(([id, n]) => {
-    const a = alunos.get(id)
-    return n >= limite && a?.situacao === 'ativo' && doMeu(a.unidadeId)
-  }).length
-  if (aVencer === 0 && sumidos === 0) return null
+  const sumidos = [...ausenciasPorAluno.value]
+    .filter(([id, n]) => {
+      const a = alunos.get(id)
+      return n >= limite && a?.situacao === 'ativo' && doMeu(a.unidadeId)
+    })
+    .sort((a, b) => b[1] - a[1])
+  if (aVencer === 0 && sumidos.length === 0) return null
   return (
     <section class="secao" aria-labelledby="titulo-para-olhar">
       <h2 id="titulo-para-olhar" class="micro">
@@ -166,22 +181,40 @@ function ParaOlhar() {
             </button>
           </li>
         )}
-        {sumidos > 0 && (
-          <li>
-            <button type="button" class="lista-item tocavel" onClick={() => irPara('alunos', papel.peek())}>
-              <span class="item-icone" aria-hidden="true">
-                <Icone nome="alunos" tamanho={22} />
-              </span>
-              <span class="lista-item-texto">
-                <span class="lista-item-titulo">
-                  {plural(sumidos, 'aluno faltou', 'alunos faltaram')} {limite} vezes ou mais seguidas
-                </span>
-                <span class="lista-item-sub">Vale uma mensagem para saber como estão</span>
-              </span>
-              <Icone nome="avancar" tamanho={20} />
-            </button>
-          </li>
-        )}
+        {sumidos.length > 0 && sumidos.length <= POUCOS_SUMIDOS
+          ? // poucos: cada um com o nome, direto para a ficha (onde estão o WhatsApp e a frequência)
+            sumidos.map(([id, n]) => (
+              <li key={id}>
+                <button type="button" class="lista-item tocavel" onClick={() => abrirEm('alunos', [id])}>
+                  <span class="item-icone" aria-hidden="true">
+                    <Icone nome="alunos" tamanho={22} />
+                  </span>
+                  <span class="lista-item-texto">
+                    <span class="lista-item-titulo">
+                      {nomeDoAluno(id)} faltou {n} vezes seguidas
+                    </span>
+                    <span class="lista-item-sub">Vale uma mensagem para saber como está</span>
+                  </span>
+                  <Icone nome="avancar" tamanho={20} />
+                </button>
+              </li>
+            ))
+          : sumidos.length > 0 && (
+              <li>
+                <button type="button" class="lista-item tocavel" onClick={() => irPara('alunos', papel.peek())}>
+                  <span class="item-icone" aria-hidden="true">
+                    <Icone nome="alunos" tamanho={22} />
+                  </span>
+                  <span class="lista-item-texto">
+                    <span class="lista-item-titulo">
+                      {plural(sumidos.length, 'aluno faltou', 'alunos faltaram')} {limite} vezes ou mais seguidas
+                    </span>
+                    <span class="lista-item-sub">Na lista de alunos, eles aparecem marcados</span>
+                  </span>
+                  <Icone nome="avancar" tamanho={20} />
+                </button>
+              </li>
+            )}
       </ul>
     </section>
   )

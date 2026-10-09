@@ -1,6 +1,6 @@
 import { expect, test } from './base'
 import type { Page } from '@playwright/test'
-import { abrirApp, entrarComoAdministracao, esperarFolhaParada, folha } from './apoio'
+import { abrirApp, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
 
 async function numero(page: Page, rotulo: RegExp): Promise<number> {
   const texto = await page.locator('.numero-card', { hasText: rotulo }).locator('.so-leitor').textContent()
@@ -36,10 +36,20 @@ test.describe('hoje', () => {
     await entrarComoAdministracao(page)
     const vencer = page.getByRole('button', { name: /5 reposições vencem em 7 dias/ })
     await expect(vencer).toBeVisible()
-    await expect(page.getByRole('button', { name: /faltou 3 vezes ou mais seguidas|faltaram 3 vezes ou mais seguidas/ })).toBeVisible()
+    const sumida = page.getByRole('button', { name: /Ana Almeida faltou 4 vezes seguidas/ })
+    await expect(sumida).toBeVisible()
     await vencer.click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reposições')
     await expect(page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Alunos' })).toHaveAttribute('aria-current', 'page')
+
+    // a aluna sumida abre direto na ficha, com o WhatsApp à mão, e o voltar devolve ao Hoje
+    await irParaAba(page, 'Hoje')
+    await sumida.click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ana Almeida')
+    await expect(page.getByRole('link', { name: 'WhatsApp' })).toBeVisible()
+    await esperarParado(page, '.tela-quadro')
+    await page.locator('.voltar').click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Bom dia/)
   })
 
   test('domingo: estado vazio leva para a agenda', async ({ page }) => {
