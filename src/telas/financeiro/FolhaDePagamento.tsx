@@ -19,6 +19,7 @@ import {
   lerValor,
   NOME_DA_FORMA,
   nomeDaCompetencia,
+  resumoDoMes,
   ultimasCompetencias,
   validarPagamento,
   valorSugerido,
@@ -121,7 +122,7 @@ export function FolhaDePagamento({ aberta, aoFechar, alunoId, competencia }: Pro
       }
     >
       {!aluno ? (
-        <EscolherAluno busca={busca} aoBuscar={setBusca} aoEscolher={escolher} />
+        <EscolherAluno busca={busca} aoBuscar={setBusca} aoEscolher={escolher} competencia={r.competencia} />
       ) : (
         <div class="pilha formulario" ref={corpo}>
           <Campo
@@ -171,23 +172,47 @@ export function FolhaDePagamento({ aberta, aoFechar, alunoId, competencia }: Pro
   )
 }
 
-function EscolherAluno({ busca, aoBuscar, aoEscolher }: { busca: string; aoBuscar: (v: string) => void; aoEscolher: (id: Id) => void }) {
-  const alunos = filtrarAlunos(base.value?.alunos ?? [], { busca, situacao: 'ativo' }).slice(0, 30)
+function EscolherAluno({
+  busca,
+  aoBuscar,
+  aoEscolher,
+  competencia,
+}: {
+  busca: string
+  aoBuscar: (v: string) => void
+  aoEscolher: (id: Id) => void
+  competencia: Competencia
+}) {
+  const todos = base.value?.alunos ?? []
+  // quase todo pagamento é de quem ainda deve o mês: essas pessoas vêm primeiro, com o valor
+  const abertos = resumoDoMes(todos, financeiro.value, [...pagamentos.value.values()], competencia, hoje.value).abertos
+  const emAberto = new Map(abertos.map((s, i) => [s.alunoId, { ...s, ordem: i }]))
+  const alunos = filtrarAlunos(todos, { busca, situacao: 'ativo' })
+    .sort((a, b) => (emAberto.get(a.id)?.ordem ?? Infinity) - (emAberto.get(b.id)?.ordem ?? Infinity))
+    .slice(0, 30)
+  const mes = nomeDaCompetencia(competencia).replace(/ de \d{4}$/, '')
   return (
     <div class="pilha">
       <Campo rotulo="Buscar aluno" icone="busca" type="search" valor={busca} aoMudar={aoBuscar} placeholder="Nome" autocomplete="off" />
+      {!busca && abertos.length > 0 && <p class="texto-secundario">Primeiro quem ainda não pagou {mes}.</p>}
       <ul class="lista">
-        {alunos.map((a) => (
-          <li key={a.id}>
-            <button type="button" class="lista-item tocavel" onClick={() => aoEscolher(a.id)}>
-              <Avatar nome={a.nome} />
-              <span class="lista-item-texto">
-                <span class="lista-item-titulo">{a.nome}</span>
-                <span class="lista-item-sub">{nomeDaUnidade(a.unidadeId)}</span>
-              </span>
-            </button>
-          </li>
-        ))}
+        {alunos.map((a) => {
+          const aberto = emAberto.get(a.id)
+          return (
+            <li key={a.id}>
+              <button type="button" class="lista-item tocavel" onClick={() => aoEscolher(a.id)}>
+                <Avatar nome={a.nome} />
+                <span class="lista-item-texto">
+                  <span class="lista-item-titulo">{a.nome}</span>
+                  <span class="lista-item-sub">
+                    {nomeDaUnidade(a.unidadeId)}
+                    {aberto ? `, ${emReais(aberto.falta)} ${aberto.atrasado ? 'atrasado' : 'em aberto'}` : ''}
+                  </span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
