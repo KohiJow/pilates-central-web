@@ -1,6 +1,6 @@
+import { useLayoutEffect } from 'preact/hooks'
 import { Avisos } from '../componentes/Avisos'
-import { carregar } from '../dados/estado'
-import { repositorio } from '../dados/estado'
+import { carregar, repositorio } from '../dados/estado'
 import { AppDoAluno } from '../telas/aluno/AppDoAluno'
 import { EntrarComEmail } from '../telas/conta/EntrarComEmail'
 import { AbrindoConta, ConfirmarEmail, FalhaAoAbrir, PrimeiroAcesso, SemAcessoAConta } from '../telas/conta/EtapasDaConta'
@@ -47,8 +47,18 @@ function Tela() {
   }
 }
 
+/** Qual moldura está na tela: ao trocar (entrar, sair), a página volta ao topo. */
+function moldura(): string {
+  if (modo.value === null) return 'portas'
+  if (modo.value === 'demonstracao') return sessao.value ? 'equipe' : sessaoDoAluno.value ? 'aluno' : 'entrar'
+  return conta.value.etapa
+}
+
 export function App() {
   const dentro = (modo.value === 'demonstracao' && (sessao.value || sessaoDoAluno.value)) || conta.value.etapa === 'equipe' || conta.value.etapa === 'aluno'
+  const atual = moldura()
+  // a rolagem da tela de entrada (que é comprida) não pode vazar para o app
+  useLayoutEffect(() => window.scrollTo(0, 0), [atual])
   return (
     <>
       <Tela />

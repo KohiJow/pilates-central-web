@@ -66,7 +66,6 @@ export function EntrarComEmail() {
           autoCapitalize="none"
           valor={email}
           aoMudar={setEmail}
-          icone="mensagem"
         />
         <Campo
           rotulo="Senha"

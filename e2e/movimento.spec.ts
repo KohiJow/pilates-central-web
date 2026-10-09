@@ -1,6 +1,6 @@
 import { expect, test } from './base'
 import type { CDPSession, Page, TestInfo } from '@playwright/test'
-import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, esperarTransicao, folha, irParaAba } from './apoio'
+import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, esperarTransicao, folha, irPara, irParaAba } from './apoio'
 
 // Fluidez como requisito: durante cada transição, mede os intervalos entre quadros
 // (requestAnimationFrame) e confere que só transform e opacity são animados.
@@ -254,6 +254,46 @@ test.describe('fluidez das transições', () => {
     await expect(page.locator('.grafico')).toBeVisible()
     await medir(page, info, referencia, 'troca-de-mes', async () => {
       await page.getByRole('button', { name: 'Mês anterior' }).click()
+    })
+    await irPara(page, '#/mais/estudio')
+    await medir(page, info, referencia, 'interruptor', async () => {
+      await page.getByRole('switch', { name: /Página de aula experimental/ }).click()
+    })
+  })
+
+  test('app do aluno e página pública: aba, folha, aviso, dia e horário', async ({ page }, info) => {
+    test.setTimeout(90_000)
+    await abrirApp(page)
+    await page.getByRole('button', { name: 'Explorar como aluno' }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('button', { name: /Beatriz Barbosa/ }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Olá, Beatriz' })).toBeVisible()
+    await esperarParado(page, '.tela-quadro')
+    await page.waitForTimeout(500)
+    const referencia = await medirReferencia(page)
+    console.log(JSON.stringify({ regua: info.project.name, cpuLenta: LENTO, p95: referencia, teste: 'aluno' }))
+
+    await medir(page, info, referencia, 'aluno-abrir-folha', async () => {
+      await page.locator('#conteudo .lista .lista-item', { hasText: '13/10' }).click()
+    })
+    await esperarFolhaParada(page)
+    await medir(page, info, referencia, 'aluno-avisar-e-aviso', async () => {
+      await folha(page).getByRole('button', { name: 'Avisar que não vou' }).click()
+    }, 600)
+    await expect(folha(page)).toHaveCount(0)
+    await medir(page, info, referencia, 'aluno-troca-de-aba', async () => {
+      await page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Reposição' }).click()
+    })
+    await esperarParado(page, '.tela-quadro')
+
+    await page.goto('./experimental/?demo&agora=2026-10-09T10:00')
+    await expect(page.locator('.horario').first()).toBeVisible()
+    await page.waitForTimeout(500)
+    await medir(page, info, referencia, 'publica-dia-pela-faixa', async () => {
+      await page.getByRole('group', { name: 'Escolha o dia' }).getByRole('button', { name: /13 de outubro/ }).click()
+    })
+    await medir(page, info, referencia, 'publica-escolher-horario', async () => {
+      await page.locator('.horario').first().click()
     })
   })
 })
