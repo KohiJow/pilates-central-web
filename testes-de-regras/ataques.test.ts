@@ -3,7 +3,7 @@
 // já eram recusados ficam para não voltarem a passar.
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { deleteDoc, deleteField, doc, getDoc, increment, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { AMANHA, aulaId, banco, credito, criarAmbiente, DEPOIS, EMAILS, LOGO, semear, vagaDe } from './cenario'
@@ -354,6 +354,35 @@ describe('posse: só quem precisa sabe quem é o titular', () => {
     await semRegras((db) => deleteDoc(doc(db, 'acessos/uid-titular')))
     await assertSucceeds(getDoc(doc(como('titular'), 'estudio/posse')))
     await assertFails(getDoc(doc(como('semConfirmar'), 'estudio/posse')))
+  })
+})
+
+describe('exclusão a pedido do aluno (LGPD)', () => {
+  const doAluno = (db: Firestore, alunoId: string) =>
+    getDocs(query(collection(db, 'acessos'), where('tipo', '==', 'aluno'), where('pessoaId', '==', alunoId)))
+
+  it('a administração acha e apaga o acesso (com o e-mail) de quem pediu a exclusão', async () => {
+    const achados = await assertSucceeds(doAluno(como('adm'), 'a-1'))
+    if (achados.docs.map((d) => d.id).join() !== 'uid-aluno') throw new Error('deveria achar o acesso do aluno')
+    const db = como('adm')
+    const b = writeBatch(db)
+    b.delete(doc(db, 'alunos/a-1'))
+    b.delete(doc(db, 'financeiroDosAlunos/a-1'))
+    b.delete(doc(db, 'portal/a-1'))
+    b.delete(doc(db, 'acessos/uid-aluno'))
+    await assertSucceeds(b.commit())
+    if (await ler('acessos/uid-aluno')) throw new Error('o acesso deveria ter saído')
+  })
+
+  it('o acesso da equipe não sai pela administração, nem o professor e o aluno acham acessos', async () => {
+    await assertFails(deleteDoc(doc(como('adm'), 'acessos/uid-prof')))
+    await assertFails(deleteDoc(doc(como('adm'), 'acessos/uid-titular')))
+    await assertFails(getDocs(collection(como('adm'), 'acessos')))
+    await assertFails(getDocs(query(collection(como('adm'), 'acessos'), where('tipo', '==', 'equipe'))))
+    await assertFails(doAluno(como('prof'), 'a-1'))
+    await assertFails(doAluno(como('aluno2'), 'a-1'))
+    await assertFails(deleteDoc(doc(como('prof'), 'acessos/uid-aluno')))
+    await assertFails(deleteDoc(doc(como('aluno2'), 'acessos/uid-aluno')))
   })
 })
 

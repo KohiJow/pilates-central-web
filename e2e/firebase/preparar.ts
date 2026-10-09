@@ -10,7 +10,7 @@ import { documentoDoMembro } from '../../src/dados/firebase/conversao'
 import { momentoDe } from '../../src/dominio/datas'
 import { paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
-import { AUTH, CONTAS, convidadoDoMotor, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
+import { AUTH, CONTAS, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
 
 async function pedir(url: string, corpo?: unknown, metodo = 'POST') {
   const r = await fetch(url, {
@@ -87,6 +87,11 @@ export default async function preparar(): Promise<void> {
     const a = b.alunos.find((x) => x.id === alunoId)
     if (!a?.acesso) throw new Error(`${alunoId} não tem acesso liberado na semente`)
     documentos.push([`acessos/${uid}`, { tipo: 'aluno', pessoaId: alunoId, email: a.email, criadoEm: instante }])
+  }
+  // quem o teste da administração exclui (um por motor) tem a conta ligada, para conferir que o
+  // acesso (com o e-mail) sai junto com o cadastro
+  for (const alunoId of Object.values(EXCLUIDO_DO_MOTOR)) {
+    documentos.push([`acessos/uid-${alunoId}`, { tipo: 'aluno', pessoaId: alunoId, email: `${alunoId}@example.com`, criadoEm: instante }])
   }
   for (const a of b.alunos) documentos.push([`alunos/${a.id}`, limpo(a)])
   for (const t of b.turmas) documentos.push([`turmas/${t.id}`, limpo(t)])

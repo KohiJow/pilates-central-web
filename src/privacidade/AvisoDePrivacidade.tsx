@@ -60,7 +60,8 @@ export function AvisoDePrivacidade() {
               <strong>Você, aluno:</strong> só as suas aulas, os seus créditos de reposição e as vagas das aulas, sem nome de ninguém.
             </li>
             <li>
-              <strong>Quem visita a página de aula experimental:</strong> só os horários com vaga e o endereço do estúdio.
+              <strong>Quem visita a página de aula experimental:</strong> só o nome, o WhatsApp e o endereço do estúdio e os horários
+              com vaga, sem nome de ninguém.
             </li>
           </ul>
           <p>
@@ -81,8 +82,8 @@ export function AvisoDePrivacidade() {
             privacidade do próprio WhatsApp.
           </p>
           <p>
-            No seu celular, o app guarda só preferências (como o tema claro ou escuro) e, no modo demonstração, dados fictícios que nunca
-            saem do aparelho.
+            No seu celular, o app guarda só preferências (como o tema claro ou escuro), a sessão de login, para não pedir a senha toda
+            vez (sai quando você toca em Sair), e, no modo demonstração, dados fictícios que nunca saem do aparelho.
           </p>
         </section>
 
@@ -96,7 +97,8 @@ export function AvisoDePrivacidade() {
             <li>tirar o seu acesso ao app.</li>
           </ul>
           <p>
-            Basta pedir ao estúdio. A administração exporta os seus dados ou exclui o cadastro direto pelo app, na sua ficha.
+            Basta pedir ao estúdio. A administração exporta os seus dados ou exclui o cadastro direto pelo app, na sua ficha. Se você
+            tem conta no app, o estúdio apaga também a conta de login.
           </p>
         </section>
 

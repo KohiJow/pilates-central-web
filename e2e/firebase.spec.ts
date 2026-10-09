@@ -5,7 +5,7 @@
 import type { Page, TestInfo } from '@playwright/test'
 import { aba, aviso, esperarFolhaParada, esperarParado, folha, irPara, irParaAba } from './apoio'
 import { expect, test } from './base'
-import { AUTH, CONTAS, convidadoDoMotor, FIRESTORE, lerDocumento, linkDeConfirmacao, projetoVazio, SENHA } from './firebase/contas'
+import { AUTH, CONTAS, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, lerDocumento, linkDeConfirmacao, projetoVazio, SENHA } from './firebase/contas'
 
 /** Espera um documento do emulador ficar como o teste quer (as gravações são assíncronas). */
 async function esperarNoBanco(caminho: string, condicao: (doc: Record<string, unknown> | null) => boolean) {
@@ -230,7 +230,7 @@ test.describe('Firebase (emuladores)', () => {
     await expect(aviso(page, /R\$\s10,00 de Eduardo lançado/)).toBeVisible()
 
     // exclusão a pedido do aluno (LGPD)
-    const excluido = webkit ? 'a-16' : 'a-15'
+    const excluido = EXCLUIDO_DO_MOTOR[webkit ? 'webkit' : 'chromium']
     await irPara(page, `#/alunos/${excluido}`)
     await page.getByRole('button', { name: 'Excluir o cadastro' }).click()
     await esperarFolhaParada(page)
@@ -238,6 +238,7 @@ test.describe('Firebase (emuladores)', () => {
     await expect(aviso(page, /Cadastro de .* excluído/)).toBeVisible()
     await esperarNoBanco(`alunos/${excluido}`, (d) => d === null)
     await esperarNoBanco(`financeiroDosAlunos/${excluido}`, (d) => d === null)
+    await esperarNoBanco(`acessos/uid-${excluido}`, (d) => d === null)
   })
 
   test('senha nova e login errado respondem igual, tenha ou não conta', async ({ page }) => {

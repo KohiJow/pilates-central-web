@@ -373,9 +373,13 @@ service cloud.firestore {
     // e só a partir de um convite para o e-mail dela (ou do primeiro acesso, para o titular).
     match /acessos/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
+      // a administração acha e apaga o acesso de um aluno que pediu a exclusão (LGPD): o
+      // documento tem o e-mail dele. Acesso da equipe, só a própria pessoa apaga.
+      allow list: if adm(quemSou()) && resource.data.tipo == 'aluno';
       allow create: if criarAcesso(uid);
       // apagar o próprio acesso é inofensivo (perde o papel) e permite aceitar outro convite
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow delete: if (request.auth != null && request.auth.uid == uid)
+        || (resource.data.tipo == 'aluno' && adm(quemSou()));
       allow update: if false;
     }
 

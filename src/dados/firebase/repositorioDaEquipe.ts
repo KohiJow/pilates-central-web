@@ -290,6 +290,16 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
     const portaisAntes = souAdministracao() ? portaisDosAlunos(estadoDe(antes, registros), instante) : new Map<Id, PortalDoAluno>()
     const portaisDepois = souAdministracao() ? portaisDosAlunos(estadoDe(depois, regDepois), instante) : new Map<Id, PortalDoAluno>()
 
+    // quem pediu a exclusão (LGPD) perde também o documento que liga a conta dele ao cadastro (tem
+    // o e-mail); a consulta fica fora da transação, que só lê documentos pelo endereço
+    const acessosDosExcluidos = (
+      await Promise.all(
+        (g.alunosRemovidos ?? []).map((id) =>
+          getDocs(query(collection(db, 'acessos'), where('tipo', '==', 'aluno'), where('pessoaId', '==', id))),
+        ),
+      )
+    ).flatMap((r) => r.docs.map((d) => d.ref))
+
     const gravados = await runTransaction(db, async (tx) => {
       // leituras primeiro (regra das transações): registros tocados e vagas a recalcular
       const ids = [...new Set([...(g.registros ?? []).map((r) => r.id), ...afetadas])]
@@ -314,6 +324,7 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
       const vagasFinal = vagasDaJanela(estadoDe(depois, regFinal), hoje, instante)
 
       gravarCadastros(tx, antes, g, instante)
+      for (const ref of acessosDosExcluidos) tx.delete(ref)
       for (const m of mesclados) tx.set(doc(db, 'registros', m.id), semIndefinidos(m))
       for (const id of afetadas) {
         const noBanco = vagasNoBanco.get(id)

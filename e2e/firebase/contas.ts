@@ -25,6 +25,9 @@ export function convidadoDoMotor(motor: string) {
 
 export const MOTORES = ['chromium', 'webkit'] as const
 
+/** Aluno que o teste da administração exclui, um por motor. */
+export const EXCLUIDO_DO_MOTOR: Record<(typeof MOTORES)[number], string> = { chromium: 'a-15', webkit: 'a-16' }
+
 /** Projeto vazio, um por motor, para o teste do primeiro acesso (começa sem dono). */
 export function projetoVazio(motor: string): string {
   return `demo-pilates-vazio-${motor}`
