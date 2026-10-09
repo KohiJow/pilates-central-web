@@ -27,7 +27,7 @@ describe('texto da interface', () => {
 
   it('telefone e WhatsApp', () => {
     expect(telefoneLegivel('5511900000012')).toBe('(11) 90000-0012')
-    expect(telefoneLegivel('1133334444')).toBe('(11) 3333-4444')
+    expect(telefoneLegivel('1130000000')).toBe('(11) 3000-0000')
     expect(linkDoWhatsApp('5511900000012', 'Oi, tudo bem?')).toBe('https://wa.me/5511900000012?text=Oi%2C%20tudo%20bem%3F')
   })
 
