@@ -331,7 +331,8 @@ function Encaixe({ aula, aoVoltar }: { aula: Aula; aoVoltar: () => void }) {
                   <span class="encaixe-texto">
                     <span class="lista-item-titulo">{nome}</span>
                     <span class="lista-item-sub">
-                      Faltou em {dataCurta(c.origem.data)}, vale até {dataCurta(c.validoAte)}
+                      {c.origem.data < momento.value.data ? 'Faltou em' : 'Vai faltar em'} {dataCurta(c.origem.data)}, vale
+                      até {dataCurta(c.validoAte)}
                     </span>
                   </span>
                   <Botao variante="secundario" onClick={() => void encaixar(c.id, nome)}>

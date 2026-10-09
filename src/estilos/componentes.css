@@ -185,11 +185,18 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.chip[aria-pressed='true'],
+/* escolha única (unidade, tema, motivo): terracota sólida */
 .chip[aria-checked='true'] {
   background: var(--brand);
   color: var(--text-on-brand);
   box-shadow: none;
+}
+
+/* liga e desliga: pêssego com contorno, para não competir com a ação principal da tela */
+.chip[aria-pressed='true'] {
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
 }
 
 /* ---------- cards ---------- */

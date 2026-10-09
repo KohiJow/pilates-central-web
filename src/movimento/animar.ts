@@ -21,11 +21,27 @@ export function animar(
   const prazo = new Promise<void>((r) => setTimeout(r, opcoes.duration + Number(opcoes.delay ?? 0) + 150))
   return Promise.race([
     animacao.finished.then(
-      () => undefined,
+      () => limparSeNeutro(elemento, final),
       () => undefined,
     ),
     prazo,
   ])
+}
+
+const NEUTRO = /^translate[XY]?\(0(px)?\)$/
+
+/**
+ * Terminou no lugar de origem (deslocamento zero, opacidade 1): tira o estilo em linha, para o
+ * navegador não manter uma camada de composição à toa depois da animação.
+ */
+function limparSeNeutro(elemento: HTMLElement, final: Keyframe): void {
+  if (elemento.getAnimations().some((a) => a.playState === 'running')) return
+  if (final.transform !== undefined && NEUTRO.test(String(final.transform)) && elemento.style.transform === String(final.transform)) {
+    elemento.style.transform = ''
+  }
+  if (final.opacity !== undefined && Number(final.opacity) === 1 && elemento.style.opacity === '1') {
+    elemento.style.opacity = ''
+  }
 }
 
 /** transform atual do elemento (inclusive no meio de uma animação), para continuar dali. */
