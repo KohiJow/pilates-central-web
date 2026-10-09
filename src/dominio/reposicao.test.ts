@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { montarAula } from './agenda'
+import { diaDaSemana } from './datas'
 import { buscaEm, contexto, credito, registro, turma } from './apoio-de-teste'
 import {
+  aulasParaEncaixe,
   cancelarAula,
   candidatosAReposicao,
   desfazerEncaixe,
   encaixar,
   reabrirAula,
+  resumoDeCreditos,
   situacaoDoCredito,
   verificarEncaixe,
 } from './reposicao'
@@ -149,5 +152,46 @@ describe('cancelar aula', () => {
 
     const usado = creditos.map((c, i) => (i === 0 ? { ...c, usadoEm: { turmaId: 'x', data: '2026-10-12' } } : c))
     expect(reabrirAula(aula1, r1, buscaEm(usado), antes)).toMatchObject({ ok: false, codigo: 'credito-ja-usado' })
+  })
+})
+
+describe('central de reposição', () => {
+  it('aulas com vaga para o crédito, só da unidade dele, até a validade', () => {
+    const c = credito({ validoAte: '2026-10-16', criadoEm: '2026-10-08T12:00:00.000-03:00' })
+    const sexta = turma()
+    const cheia = turma({ id: 't-sex-08', inicio: '08:00', capacidade: 4 })
+    const outraUnidade = turma({ id: 't-sex-09', inicio: '09:00', unidadeId: 'u-jardim', alunosFixos: [] })
+    const aulasDoDia = (data: string) =>
+      [sexta, cheia, outraUnidade].filter((t) => t.diaDaSemana === diaDaSemana(data)).map((t) => montarAula(t, data))
+    const aulas = aulasParaEncaixe(c, aulasDoDia, { data: SEXTA, minutos: 6 * 60 })
+    // sexta 9/10 e 16/10 às 7h; a das 8h está lotada e a das 9h é de outra unidade
+    expect(aulas.map((a) => a.id)).toEqual(['t-sex-07_2026-10-09', 't-sex-07_2026-10-16'])
+    // depois das 7h50 de hoje, a aula de hoje já terminou
+    expect(aulasParaEncaixe(c, aulasDoDia, { data: SEXTA, minutos: 8 * 60 }).map((a) => a.data)).toEqual(['2026-10-16'])
+    // janela de 3 dias: só hoje
+    expect(aulasParaEncaixe(c, aulasDoDia, { data: SEXTA, minutos: 6 * 60 }, 3).map((a) => a.data)).toEqual([SEXTA])
+  })
+
+  it('separa créditos a vencer, vencidos e usados', () => {
+    const r = resumoDeCreditos(
+      [
+        credito({ id: 'longe', validoAte: '2026-11-01' }),
+        credito({ id: 'perto', validoAte: '2026-10-12' }),
+        credito({ id: 'venceu', validoAte: '2026-10-08' }),
+        credito({ id: 'venceu-antes', validoAte: '2026-10-01' }),
+        credito({ id: 'usado', validoAte: '2026-10-20', usadoEm: { turmaId: 't', data: '2026-10-07' } }),
+      ],
+      SEXTA,
+    )
+    expect(r.disponiveis.map((c) => c.id)).toEqual(['perto', 'longe'])
+    expect(r.aVencer.map((c) => c.id)).toEqual(['perto'])
+    expect(r.vencidos.map((c) => c.id)).toEqual(['venceu', 'venceu-antes'])
+    expect(r.usados.map((c) => c.id)).toEqual(['usado'])
+  })
+
+  it('crédito de cancelamento sai com o motivo certo', () => {
+    const aula = montarAula(turma(), '2026-10-16')
+    const r = cancelarAula(aula, undefined, { motivo: 'estudio', observacao: '', gerarCreditos: true }, buscaEm([]), antes)
+    expect(r.ok && r.valor.alteracoes.creditos.every((c) => c.motivo === 'cancelamento')).toBe(true)
   })
 })

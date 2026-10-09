@@ -138,14 +138,45 @@ describe('avisar falta', () => {
     expect(!r.ok && r.mensagem).toContain('5/10')
   })
 
-  it('a dona pode dar crédito a quem avisou fora do prazo, uma vez só', () => {
+  it('a administração pode dar crédito a quem avisou fora do prazo, uma vez só', () => {
     const r0 = registro({ turmaId: 't-sex-07', data: SEXTA, marcacoes: { a2: 'avisou' } })
     const aula = montarAula(turma(), SEXTA, r0)
     const r = concederCredito(aula, 'a2', semCreditos, contexto(SEXTA, '06:50'))
     expect(r.ok && r.valor.creditoGerado.validoAte).toBe('2026-11-08')
+    expect(r.ok && r.valor.creditoGerado.motivo).toBe('cortesia')
     const jaTem = buscaEm([credito({ id: 'cr_a2_t-sex-07_2026-10-09' })])
     expect(concederCredito(aula, 'a2', jaTem, contexto(SEXTA, '06:50')).ok).toBe(false)
     expect(concederCredito(aula, 'a1', semCreditos, contexto(SEXTA, '06:50')).ok).toBe(false)
+  })
+})
+
+describe('limite de reposições por mês', () => {
+  const aula = montarAula(turma(), SEXTA)
+  const doMes = [
+    credito({ id: 'c1', alunoId: 'a2', origem: { turmaId: 't-x', data: '2026-10-02' } }),
+    credito({ id: 'c2', alunoId: 'a2', origem: { turmaId: 't-x', data: '2026-10-05' }, motivo: 'aviso' }),
+    // cancelamento do estúdio e cortesia não contam
+    credito({ id: 'c3', alunoId: 'a2', origem: { turmaId: 't-x', data: '2026-10-06' }, motivo: 'cancelamento' }),
+    credito({ id: 'c4', alunoId: 'a2', origem: { turmaId: 't-x', data: '2026-10-07' }, motivo: 'cortesia' }),
+    // mês anterior não conta
+    credito({ id: 'c5', alunoId: 'a2', origem: { turmaId: 't-x', data: '2026-09-30' } }),
+  ]
+  const ctxCom = (limite: number) => ({
+    ...contexto('2026-10-08', '18:00', { limiteReposicoesMes: limite }),
+    creditosDoAluno: (id: string) => doMes.filter((c) => c.alunoId === id),
+  })
+
+  it('quem já ganhou as reposições do mês avisa, mas fica sem crédito', () => {
+    const r = marcar(aula, undefined, 'a2', 'avisou', semCreditos, ctxCom(2))
+    expect(r).toMatchObject({ ok: true, valor: { limiteAtingido: true, avisoForaDoPrazo: false } })
+    expect(r.ok && r.valor.creditoGerado).toBeUndefined()
+    expect(r.ok && r.valor.alteracoes.registros[0]?.marcacoes).toEqual({ a2: 'avisou' })
+  })
+
+  it('abaixo do limite ou sem limite, gera o crédito normalmente', () => {
+    expect(marcar(aula, undefined, 'a2', 'avisou', semCreditos, ctxCom(3))).toMatchObject({ ok: true, valor: { limiteAtingido: false } })
+    const r = marcar(aula, undefined, 'a2', 'avisou', semCreditos, ctxCom(0))
+    expect(r.ok && r.valor.creditoGerado?.motivo).toBe('aviso')
   })
 })
 

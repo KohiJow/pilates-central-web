@@ -1,5 +1,5 @@
 import { faseDaAula } from './agenda'
-import { dataCurta, momentoDe } from './datas'
+import { dataCurta, momentoDe, somarDias } from './datas'
 import type { Momento } from './datas'
 import { idDoCredito, novoCredito, registroDe } from './presenca'
 import type { Alteracoes, BuscaCredito, Contexto } from './presenca'
@@ -104,6 +104,56 @@ export function candidatosAReposicao(
   return [...melhorPorAluno.values()].sort((a, b) => a.validoAte.localeCompare(b.validoAte))
 }
 
+/**
+ * Aulas com vaga onde o crédito pode ser usado, de hoje até `dias` à frente (sem passar da
+ * validade). `aulasDoDia` devolve as aulas de uma data já com as exceções gravadas.
+ */
+export function aulasParaEncaixe(
+  credito: CreditoReposicao,
+  aulasDoDia: (data: DataISO) => readonly Aula[],
+  agora: Momento,
+  dias = 14,
+): Aula[] {
+  const saida: Aula[] = []
+  const ate = credito.validoAte < somarDias(agora.data, dias) ? credito.validoAte : somarDias(agora.data, dias)
+  for (let data = agora.data; data <= ate; data = somarDias(data, 1)) {
+    for (const aula of aulasDoDia(data)) {
+      if (aula.unidadeId === credito.unidadeId && verificarEncaixe(aula, credito, agora).ok) saida.push(aula)
+    }
+  }
+  return saida
+}
+
+export interface ResumoDeCreditos {
+  /** podem ser usados, o que vence primeiro antes */
+  disponiveis: CreditoReposicao[]
+  /** disponíveis que vencem nos próximos dias */
+  aVencer: CreditoReposicao[]
+  /** venceram sem uso, o mais recente antes */
+  vencidos: CreditoReposicao[]
+  usados: CreditoReposicao[]
+}
+
+export function resumoDeCreditos(creditos: Iterable<CreditoReposicao>, hoje: DataISO, diasParaVencer = 7): ResumoDeCreditos {
+  const r: ResumoDeCreditos = { disponiveis: [], aVencer: [], vencidos: [], usados: [] }
+  const limite = somarDias(hoje, diasParaVencer)
+  for (const c of creditos) {
+    const situacao = situacaoDoCredito(c, hoje)
+    if (situacao === 'usado') r.usados.push(c)
+    else if (situacao === 'vencido') r.vencidos.push(c)
+    else {
+      r.disponiveis.push(c)
+      if (c.validoAte <= limite) r.aVencer.push(c)
+    }
+  }
+  const porValidade = (a: CreditoReposicao, b: CreditoReposicao) => a.validoAte.localeCompare(b.validoAte) || a.id.localeCompare(b.id)
+  r.disponiveis.sort(porValidade)
+  r.aVencer.sort(porValidade)
+  r.vencidos.sort((a, b) => porValidade(b, a))
+  r.usados.sort((a, b) => (b.usadoEm?.data ?? '').localeCompare(a.usadoEm?.data ?? '') || a.id.localeCompare(b.id))
+  return r
+}
+
 export interface OpcoesDeCancelamento {
   motivo: MotivoCancelamento
   observacao: string
@@ -144,7 +194,7 @@ export function cancelarAula(
     if (p.marcacao === 'avisou') continue // já tem (ou não tem, por prazo) o crédito do aviso
     delete novo.marcacoes[p.alunoId]
     if (opcoes.gerarCreditos && !creditoDe(idDoCredito(p.alunoId, aula.turmaId, aula.data))) {
-      creditos.push(novoCredito(p.alunoId, aula.unidadeId, { turmaId: aula.turmaId, data: aula.data }, ctx))
+      creditos.push(novoCredito(p.alunoId, aula.unidadeId, { turmaId: aula.turmaId, data: aula.data }, ctx, 'cancelamento'))
       creditosGerados++
     }
   }

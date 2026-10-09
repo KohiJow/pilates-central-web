@@ -7,6 +7,7 @@ import './estilos/telas.css'
 import { render } from 'preact'
 import { App } from './app/App'
 import { acompanharInstalacao } from './app/instalacao'
+import { acompanharSessao } from './app/perfil'
 import { fixarAgora, hoje, iniciarRelogio, lerAgoraDaUrl } from './app/relogio'
 import { acompanharTemaDoSistema } from './app/tema'
 import { criarRepositorio } from './dados/criar'
@@ -14,13 +15,14 @@ import { carregar } from './dados/estado'
 import { deveUsarTransicaoDeVista, movimentoReduzido, transicaoDeVista } from './movimento/preferencias'
 import { ativarRetornoDeToque } from './movimento/toque'
 
-// ?agora= só faz sentido na demonstração; com o Firebase (etapa 2) isto precisa ficar desligado,
+// ?agora= só faz sentido na demonstração; com o Firebase (etapa 3) isto precisa ficar desligado,
 // senão um link mudaria a data das marcações gravadas
 fixarAgora(lerAgoraDaUrl(location.search))
 iniciarRelogio()
 acompanharTemaDoSistema()
 acompanharInstalacao()
 ativarRetornoDeToque()
+acompanharSessao()
 transicaoDeVista.ligada = deveUsarTransicaoDeVista(location.search) && !movimentoReduzido.peek()
 
 const repositorio = criarRepositorio(location.search)

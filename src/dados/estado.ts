@@ -117,7 +117,12 @@ function contexto(): Contexto {
   const agora = agoraDoApp()
   const config = base.peek()?.configuracao
   if (!config) throw new Error('dados ainda não carregados')
-  return { agora: momentoDe(agora), instante: agora.toISOString(), config }
+  return {
+    agora: momentoDe(agora),
+    instante: agora.toISOString(),
+    config,
+    creditosDoAluno: (alunoId) => [...creditos.peek().values()].filter((c) => c.alunoId === alunoId),
+  }
 }
 
 function aplicarNaTela(a: Alteracoes): void {
@@ -178,7 +183,7 @@ const buscaCredito = (id: Id) => creditos.peek().get(id)
 const semAula = () => recusado<never>('aluno-fora-da-aula', 'Esta aula não existe mais.')
 
 export function marcarPresenca(idAula: string, alunoId: Id, marcacao: Marcacao | null) {
-  return executar<{ creditoGerado?: CreditoReposicao; avisoForaDoPrazo: boolean }>(() => {
+  return executar<{ creditoGerado?: CreditoReposicao; avisoForaDoPrazo: boolean; limiteAtingido: boolean }>(() => {
     const aula = aulaPorId(idAula)
     if (!aula) return semAula()
     return marcar(aula, registros.peek().get(idAula), alunoId, marcacao, buscaCredito, contexto())

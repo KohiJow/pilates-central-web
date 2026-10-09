@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { abrirApp, entrarComoDona, esperarFolhaParada, irParaAba } from './apoio'
+import { abrirApp, entrarComoAdministracao, esperarFolhaParada, irParaAba } from './apoio'
 
 // Rótulos em caixa alta (micro-rótulos, pílulas, abas, dias da faixa) são etiquetas, não texto
 // corrido: podem ficar abaixo de 16px. Todo o resto tem que ter 16px ou mais.
@@ -39,7 +39,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
   test('alvos de toque de 48px e texto de 16px em todas as telas', async ({ page }) => {
     await abrirApp(page)
     await auditar(page, 'entrar')
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await auditar(page, 'hoje')
     await irParaAba(page, 'Agenda')
     await auditar(page, 'agenda')
@@ -52,7 +52,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
   })
 
   test('com a folha aberta, o resto do app fica inerte e o foco começa na folha', async ({ page }) => {
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
     await esperarFolhaParada(page)
     await expect(page.locator('#app')).toHaveAttribute('inert', '')
@@ -64,7 +64,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
 
   test('com "reduzir movimento", nada desliza', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
     // com 1 ms de duração, uma animação pode aparecer como "rodando" até o próximo quadro;
     // o que importa é que nenhuma dure de verdade

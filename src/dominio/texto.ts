@@ -31,6 +31,24 @@ export function telefoneLegivel(digitos: string): string {
   return digitos
 }
 
+/**
+ * Telefone brasileiro como a pessoa digitar ("(11) 90000-0012", "+55 11 ...") para só dígitos
+ * com DDI ("5511900000012"). Devolve null se não der para entender o número.
+ */
+export function normalizarTelefone(texto: string): string | null {
+  let d = texto.replace(/\D/g, '')
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2)
+  if (d.length !== 10 && d.length !== 11) return null
+  // DDD de 11 a 99; celular de 11 dígitos começa com 9 depois do DDD
+  if (d.charAt(0) === '0' || d.charAt(1) === '0') return null
+  if (d.length === 11 && d.charAt(2) !== '9') return null
+  return `55${d}`
+}
+
+export function ehEmailValido(texto: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(texto.trim())
+}
+
 export function linkDoWhatsApp(digitos: string, mensagem = ''): string {
   const numero = digitos.replace(/\D/g, '')
   return `https://wa.me/${numero}${mensagem ? `?text=${encodeURIComponent(mensagem)}` : ''}`

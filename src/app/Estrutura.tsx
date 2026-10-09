@@ -13,13 +13,13 @@ import type { ComponentChildren } from 'preact'
 import { animarDepoisDePintar } from '../movimento/animar'
 import { CURVA, DURACAO } from '../movimento/tempos'
 import { aba, abasDoPapel, irPara } from './navegacao'
-import type { Sessao } from './sessao'
+import { papel } from './perfil'
 
 const TELAS = { hoje: Hoje, agenda: Agenda, mais: Mais }
 
 /** Casca do app logado: topo com a marca, a tela da aba e a barra de abas do papel. */
-export function Estrutura({ sessao, aoRecarregar }: { sessao: Sessao; aoRecarregar: () => void }) {
-  const itens = abasDoPapel(sessao.papel)
+export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
+  const itens = abasDoPapel(papel.value)
   const atual = itens.some((i) => i.id === aba.value) ? aba.value : 'hoje'
   const Tela = TELAS[atual]
   const demo = repositorio.value?.modo === 'demonstracao'
@@ -58,7 +58,7 @@ export function Estrutura({ sessao, aoRecarregar }: { sessao: Sessao; aoRecarreg
         )}
       </main>
 
-      <BarraAbas itens={itens} atual={atual} aoEscolher={(id) => irPara(id, sessao.papel)} />
+      <BarraAbas itens={itens} atual={atual} aoEscolher={(id) => irPara(id, papel.value)} />
       <FolhaDaAula />
     </div>
   )

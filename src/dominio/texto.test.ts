@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { iniciais, linkDoWhatsApp, listaFalada, nomeCurto, normalizar, plural, primeiroNome, telefoneLegivel } from './texto'
+import {
+  ehEmailValido,
+  iniciais,
+  linkDoWhatsApp,
+  listaFalada,
+  nomeCurto,
+  normalizar,
+  normalizarTelefone,
+  plural,
+  primeiroNome,
+  telefoneLegivel,
+} from './texto'
 
 describe('texto da interface', () => {
   it('nomes', () => {
@@ -18,6 +29,24 @@ describe('texto da interface', () => {
     expect(telefoneLegivel('5511900000012')).toBe('(11) 90000-0012')
     expect(telefoneLegivel('1133334444')).toBe('(11) 3333-4444')
     expect(linkDoWhatsApp('5511900000012', 'Oi, tudo bem?')).toBe('https://wa.me/5511900000012?text=Oi%2C%20tudo%20bem%3F')
+  })
+
+  it('telefone como a pessoa digita vira só dígitos com DDI', () => {
+    expect(normalizarTelefone('(11) 90000-0012')).toBe('5511900000012')
+    expect(normalizarTelefone('+55 11 90000-0012')).toBe('5511900000012')
+    expect(normalizarTelefone('5511900000012')).toBe('5511900000012')
+    // fixo, com 10 dígitos
+    expect(normalizarTelefone('(11) 0000-0000')).toHaveLength(12)
+    expect(normalizarTelefone('0000-0012')).toBeNull()
+    expect(normalizarTelefone('(01) 90000-0012')).toBeNull()
+    // celular de 11 dígitos começa com 9
+    expect(normalizarTelefone('(11) 80000-0012')).toBeNull()
+  })
+
+  it('e-mail', () => {
+    expect(ehEmailValido('ana@example.com')).toBe(true)
+    expect(ehEmailValido('ana@example')).toBe(false)
+    expect(ehEmailValido('ana example.com')).toBe(false)
   })
 
   it('plural e listas faladas', () => {

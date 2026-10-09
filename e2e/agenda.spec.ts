@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { arrastar, entrarComoDona, entrarComoProfessor, esperarFolhaParada, folha, irParaAba } from './apoio'
+import { arrastar, entrarComoAdministracao, entrarComoProfessor, esperarFolhaParada, folha, irParaAba } from './apoio'
 
 const titulo = (page: Page) => page.getByRole('heading', { level: 1 })
 const cartao = (page: Page, hora: string) => page.locator('.cartao-aula', { has: page.locator('strong', { hasText: new RegExp(`^${hora}$`) }) })
 
 async function abrirAgenda(page: Page) {
-  await entrarComoDona(page)
+  await entrarComoAdministracao(page)
   await irParaAba(page, 'Agenda')
   await expect(titulo(page)).toHaveText('Sexta, 9 de outubro')
 }
@@ -164,7 +164,7 @@ test.describe('chamada', () => {
     await expect(folha(page)).toBeVisible()
   })
 
-  test('a dona cancela uma aula futura e desfaz; o professor não vê a opção', async ({ page }) => {
+  test('a administração cancela uma aula futura e desfaz; o professor não vê a opção', async ({ page }) => {
     await abrirAgenda(page)
     await abrirAula(page, '19h')
     await folha(page).getByRole('button', { name: 'Cancelar esta aula' }).click()

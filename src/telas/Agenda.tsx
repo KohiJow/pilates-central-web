@@ -1,16 +1,17 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import { hoje } from '../app/relogio'
-import { sessao } from '../app/sessao'
+import { membro as membroAtual, papel } from '../app/perfil'
 import { Botao } from '../componentes/Botao'
 import { EsqueletoDeLista } from '../componentes/Esqueleto'
 import { EstadoVazio } from '../componentes/EstadoVazio'
 import { FaixaDias } from '../componentes/FaixaDias'
 import { Chevrons } from '../componentes/Icone'
 import { Chip } from '../componentes/Pilula'
-import { aulasNoDia, base, cargaRecente, equipePorId, garantirData, situacao, unidades } from '../dados/estado'
+import { aulasNoDia, base, cargaRecente, garantirData, situacao, unidades } from '../dados/estado'
 import { agruparPorPeriodo, NOME_DO_PERIODO } from '../dominio/agenda'
 import { dataPorExtenso, diaDaSemana, diasDoIntervalo, nomeDoMes, somarDias } from '../dominio/datas'
+import { ehAdministracao } from '../dominio/permissoes'
 import { plural } from '../dominio/texto'
 import type { DataISO } from '../dominio/tipos'
 import { animar, animarDepoisDePintar } from '../movimento/animar'
@@ -27,16 +28,15 @@ function capitalizar(texto: string): string {
 }
 
 export function Agenda() {
-  const s = sessao.value
-  const membro = s ? equipePorId.value.get(s.membroId) : undefined
-  const ehDona = s?.papel === 'dona'
-  const unidadesVisiveis = unidades.value.filter((u) => ehDona || membro?.unidades.includes(u.id))
+  const membro = membroAtual.value
+  const ehAdm = ehAdministracao(papel.value)
+  const unidadesVisiveis = unidades.value.filter((u) => ehAdm || membro?.unidades.includes(u.id))
   const unidadeId =
     unidadesVisiveis.find((u) => u.id === unidadeEscolhida.value)?.id ?? unidadesVisiveis[0]?.id ?? undefined
   const diaDeHoje = hoje.value
   const dia = diaEscolhido.value ?? diaDeHoje
   const dias = diasDoIntervalo(somarDias(diaDeHoje, -DIAS_PARA_TRAS), somarDias(diaDeHoje, DIAS_PARA_FRENTE))
-  const professorId = !ehDona && soMinhas.value ? s?.membroId : undefined
+  const professorId = !ehAdm && soMinhas.value ? membro?.id : undefined
   const filtro = { ...(unidadeId ? { unidadeId } : {}), ...(professorId ? { professorId } : {}) }
   const aulas = aulasNoDia(dia, filtro)
   const grupos = agruparPorPeriodo(aulas)
@@ -71,7 +71,7 @@ export function Agenda() {
         </div>
       </header>
 
-      {(unidadesVisiveis.length > 1 || !ehDona) && (
+      {(unidadesVisiveis.length > 1 || !ehAdm) && (
         <div class="agenda-filtros">
           {unidadesVisiveis.length > 1 && (
             <div class="chips" role="radiogroup" aria-label="Unidade">
@@ -82,7 +82,7 @@ export function Agenda() {
               ))}
             </div>
           )}
-          {!ehDona && (
+          {!ehAdm && (
             <Chip ativo={soMinhas.value} aoTocar={() => (soMinhas.value = !soMinhas.value)}>
               Só as minhas aulas
             </Chip>

@@ -5,6 +5,7 @@ import type {
   Configuracao,
   CreditoReposicao,
   DataISO,
+  FinanceiroDoAluno,
   Id,
   MembroEquipe,
   Pagamento,
@@ -13,7 +14,7 @@ import type {
   Unidade,
 } from '../dominio/tipos'
 
-/** O que muda pouco e o app carrega inteiro ao abrir. */
+/** O que muda pouco e o app carrega inteiro ao abrir (sem nada financeiro: o professor lê isto). */
 export interface DadosBase {
   configuracao: Configuracao
   unidades: Unidade[]
@@ -27,10 +28,20 @@ export interface Intervalo {
   ate: DataISO
 }
 
-/** Uma gravação é atômica: ou tudo entra, ou nada (lote no Firebase, uma escrita na demonstração). */
+/**
+ * Uma gravação é atômica: ou tudo entra, ou nada (lote no Firebase, uma escrita na demonstração).
+ * Cadastros vão inteiros (aluno, turma, unidade, membro); registros e créditos seguem as regras
+ * do domínio (`Alteracoes`).
+ */
 export interface Gravacao extends Partial<Alteracoes> {
   pagamentos?: Pagamento[]
   pagamentosRemovidos?: Id[]
+  alunos?: Aluno[]
+  financeiro?: FinanceiroDoAluno[]
+  turmas?: Turma[]
+  unidades?: Unidade[]
+  equipe?: MembroEquipe[]
+  configuracao?: Configuracao
 }
 
 /**
@@ -43,6 +54,8 @@ export interface Repositorio {
   /** registros de aula com data dentro do intervalo (inclusive) */
   registros(intervalo: Intervalo): Promise<RegistroAula[]>
   creditos(): Promise<CreditoReposicao[]>
+  /** valor, forma e vencimento de cada aluno: só a administração pede (o professor não lê) */
+  financeiro(): Promise<FinanceiroDoAluno[]>
   pagamentos(competencias: Competencia[]): Promise<Pagamento[]>
   salvar(gravacao: Gravacao): Promise<void>
 }

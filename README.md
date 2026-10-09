@@ -38,7 +38,7 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
 
 ## Como usar a demonstração
 
-1. Abra o link e escolha **Explorar como dona** ou **Explorar como professor**.
+1. Abra o link e escolha **Explorar como administração** ou **Explorar como professor**.
 2. Os dados são fictícios (nomes genéricos, e-mails em example.com) e ficam guardados só no seu
    aparelho. Em **Mais > Recomeçar demonstração** tudo volta ao começo.
 3. Para ver um dia cheio a qualquer hora, fixe o relógio pela URL:

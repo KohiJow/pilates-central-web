@@ -62,6 +62,15 @@ describe('montar a aula de uma data', () => {
     expect(aula.participantes.at(-1)).toEqual({ alunoId: 'a7', origem: 'fixo', marcacao: 'faltou' })
   })
 
+  it('quem entrou na turma depois da data não aparece naquela aula', () => {
+    const t = turma({ alunosFixos: ['a1', 'a2'], fixosDesde: { a2: '2026-10-09' } })
+    expect(montarAula(t, '2026-10-02').participantes.map((p) => p.alunoId)).toEqual(['a1'])
+    expect(montarAula(t, '2026-10-09').participantes.map((p) => p.alunoId)).toEqual(['a1', 'a2'])
+    // se já tinha marcação (registro antigo), continua aparecendo
+    const r = registro({ turmaId: t.id, data: '2026-10-02', marcacoes: { a2: 'presente' } })
+    expect(montarAula(t, '2026-10-02', r).participantes.map((p) => p.alunoId)).toEqual(['a1', 'a2'])
+  })
+
   it('aula cancelada não tem vaga para encaixe', () => {
     const r = registro({ turmaId: 't-sex-07', data: SEXTA, cancelamento: { motivo: 'feriado', observacao: '' } })
     const aula = montarAula(turma(), SEXTA, r)

@@ -36,6 +36,9 @@ export function montarAula(
     const marcacao = marcacoes[alunoId]
     // quem está pausado some da aula, a não ser que já tenha presença registrada nela
     if (!ehAtivo(alunoId) && marcacao === undefined) continue
+    // quem entrou na turma depois desta data não estava nesta aula
+    const entrou = turma.fixosDesde?.[alunoId]
+    if (entrou !== undefined && entrou > data && marcacao === undefined) continue
     participantes.push(marcacao ? { alunoId, origem: 'fixo', marcacao } : { alunoId, origem: 'fixo' })
     vistos.add(alunoId)
   }

@@ -10,7 +10,7 @@ export function App({ repositorio }: { repositorio: Repositorio }) {
   const s = sessao.value
   return (
     <>
-      {s ? <Estrutura sessao={s} aoRecarregar={() => void carregar(repositorio, hoje.peek())} /> : <Entrar />}
+      {s ? <Estrutura aoRecarregar={() => void carregar(repositorio, hoje.peek())} /> : <Entrar />}
       <Avisos semAbas={!s} />
     </>
   )

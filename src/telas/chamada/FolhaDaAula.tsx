@@ -1,7 +1,7 @@
 import type { JSX } from 'preact'
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { momento } from '../../app/relogio'
-import { sessao } from '../../app/sessao'
+import { papel as papelDaSessao } from '../../app/perfil'
 import { Avatar } from '../../componentes/Avatar'
 import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
@@ -40,7 +40,7 @@ type Etapa = 'chamada' | 'encaixe' | 'cancelar'
 
 const ICONE_DA_MARCACAO: Record<Marcacao, NomeDoIcone> = { presente: 'presente', faltou: 'faltou', avisou: 'avisou' }
 
-/** Folha da aula: chamada, encaixe de reposição e (para a dona) cancelamento. */
+/** Folha da aula: chamada, encaixe de reposição e (para a administração) cancelamento. */
 export function FolhaDaAula() {
   const id = aulaAberta.value
   // mantém o conteúdo enquanto a folha anima a saída
@@ -54,7 +54,7 @@ export function FolhaDaAula() {
   }, [id])
 
   const aula = ultimoId ? aulaPorId(ultimoId) : undefined
-  const papel: Papel = sessao.value?.papel ?? 'professor'
+  const papel: Papel = papelDaSessao.value ?? 'professor'
   if (!aula) return null
 
   const fase = faseDaAula(aula, momento.value)
@@ -212,7 +212,9 @@ function AlunoNaChamada({ aula, participante: p, indice, papel }: PropsAluno) {
     if (nova === 'avisou') {
       texto = r.valor.creditoGerado
         ? `${primeiroNome(nome)} avisou. Tem reposição até ${dataCurta(r.valor.creditoGerado.validoAte)}.`
-        : `${primeiroNome(nome)} avisou em cima da hora: fica sem reposição.`
+        : r.valor.limiteAtingido
+          ? `${primeiroNome(nome)} avisou, mas já usou as reposições do mês.`
+          : `${primeiroNome(nome)} avisou em cima da hora: fica sem reposição.`
     }
     avisar({
       texto,

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { CDPSession, Page, TestInfo } from '@playwright/test'
-import { arrastar, entrarComoDona, esperarFolhaParada, esperarTransicao, folha, irParaAba } from './apoio'
+import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarTransicao, folha, irParaAba } from './apoio'
 
 // Fluidez como requisito: durante cada transição, mede os intervalos entre quadros
 // (requestAnimationFrame) e confere que só transform e opacity são animados.
@@ -175,7 +175,7 @@ test.describe('fluidez das transições', () => {
 
   test('folha, troca de dia, troca de aba e aviso', async ({ page }, info) => {
     test.setTimeout(90_000)
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await page.waitForTimeout(500)
     const referencia = await medirReferencia(page)
     await info.attach('regua-do-ambiente', { body: JSON.stringify({ navegador: info.project.name, cpuLenta: LENTO, p95: referencia }), contentType: 'application/json' })

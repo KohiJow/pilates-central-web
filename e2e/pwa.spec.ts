@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirApp, entrarComoDona } from './apoio'
+import { abrirApp, entrarComoAdministracao } from './apoio'
 
 test.describe('app instalável', () => {
   test('manifesto com nome, tela cheia, cores e ícones (inclusive maskable)', async ({ page, request }) => {
@@ -37,13 +37,13 @@ test.describe('app instalável', () => {
       if (m.type() === 'error') erros.push(m.text())
     })
     page.on('pageerror', (e) => erros.push(e.message))
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1)
     expect(erros).toEqual([])
   })
 
   test('o service worker guarda tudo o que o app precisa para abrir', async ({ page }) => {
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     const resultado = await page.evaluate(async () => {
       const registro = await navigator.serviceWorker.ready
       const chaves = await caches.keys()
@@ -64,7 +64,7 @@ test.describe('app instalável', () => {
     // o WebKit do Playwright não passa a navegação pelo service worker com a rede desligada
     // ("internal error" no recarregar); lá o teste acima confere o que ficou guardado
     test.skip(browserName === 'webkit', 'simulação de rede desligada sem service worker no WebKit do Playwright')
-    await entrarComoDona(page)
+    await entrarComoAdministracao(page)
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready
     })

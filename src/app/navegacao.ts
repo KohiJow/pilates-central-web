@@ -10,14 +10,14 @@ const TODAS: Record<Aba, ItemDeAba<Aba>> = {
   mais: { id: 'mais', rotulo: 'Mais', icone: 'mais' },
 }
 
-// Abas por papel. Na etapa 2 entram "Alunos" (os dois papéis) e "Financeiro" (só a dona).
 const POR_PAPEL: Record<Papel, Aba[]> = {
-  dona: ['hoje', 'agenda', 'mais'],
+  titular: ['hoje', 'agenda', 'mais'],
+  administrador: ['hoje', 'agenda', 'mais'],
   professor: ['hoje', 'agenda', 'mais'],
 }
 
-export function abasDoPapel(papel: Papel): ItemDeAba<Aba>[] {
-  return POR_PAPEL[papel].map((id) => TODAS[id])
+export function abasDoPapel(papel: Papel | undefined): ItemDeAba<Aba>[] {
+  return POR_PAPEL[papel ?? 'professor'].map((id) => TODAS[id])
 }
 
 function abaDoEndereco(): Aba {
@@ -32,10 +32,10 @@ export const aba = signal<Aba>(abaDoEndereco())
  * não fica passeando pelas abas). A tela nova entra deslizando do lado da aba escolhida
  * (animação em CSS, ver .tela em movimento.css).
  */
-export function irPara(nova: Aba, papel: Papel): void {
+export function irPara(nova: Aba, papel: Papel | undefined): void {
   const atual = aba.peek()
   if (nova === atual) return
-  const ordem = POR_PAPEL[papel]
+  const ordem = POR_PAPEL[papel ?? 'professor']
   const direcao = ordem.indexOf(nova) > ordem.indexOf(atual) ? 'frente' : 'tras'
   history.replaceState(history.state, '', `${location.pathname}${location.search}#/${nova}`)
   document.documentElement.dataset.direcao = direcao

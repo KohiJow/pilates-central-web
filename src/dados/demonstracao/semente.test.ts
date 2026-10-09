@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { aulasDoDia, turmasDoAluno } from '../../dominio/agenda'
-import { diasDoIntervalo, minutosDe, periodoDe } from '../../dominio/datas'
-import { resumoFinanceiro } from '../../dominio/pagamentos'
+import { diasDoIntervalo, minutosDe, momentoDe, periodoDe } from '../../dominio/datas'
+import { alunosComAusenciasSeguidas, participacoesNoPeriodo } from '../../dominio/frequencia'
+import { historicoRecebido, resumoDoMes, ultimasCompetencias } from '../../dominio/pagamentos'
 import { coberturaDaSemente, gerarSemente } from './semente'
 
 // sexta-feira, 10h em Campinas
@@ -13,7 +14,8 @@ const registroDe = (id: string) => banco.registros[id]
 describe('dados fictícios da demonstração', () => {
   it('tem o tamanho de um estúdio pequeno', () => {
     expect(base.unidades).toHaveLength(2)
-    expect(base.equipe.filter((e) => e.papel === 'dona')).toHaveLength(1)
+    expect(base.equipe.filter((e) => e.papel === 'titular')).toHaveLength(1)
+    expect(base.equipe.filter((e) => e.papel === 'administrador')).toHaveLength(1)
     expect(base.equipe.filter((e) => e.papel === 'professor')).toHaveLength(3)
     expect(base.alunos).toHaveLength(40)
   })
@@ -95,13 +97,47 @@ describe('dados fictícios da demonstração', () => {
     expect(feriado.every((a) => a.cancelamento?.motivo === 'feriado')).toBe(true)
   })
 
-  it('tem mensalidades pendentes no mês e o mês anterior quase todo pago', () => {
+  it('financeiro fora do cadastro do aluno, com plano de cada um', () => {
+    for (const a of base.alunos) {
+      expect(a).not.toHaveProperty('valorMensal')
+      const fin = banco.financeiro[a.id]
+      expect(fin?.unidadeId).toBe(a.unidadeId)
+      expect(fin?.valorMensal).toBeGreaterThan(0)
+    }
+    const formas = new Set(Object.values(banco.financeiro).map((f) => f.formaPreferida))
+    expect(formas.has('gympass')).toBe(true)
+    expect(formas.has('totalpass')).toBe(true)
+  })
+
+  it('seis meses de mensalidades: o mês atual com gente em aberto, os anteriores quase todos pagos', () => {
     const pagamentos = Object.values(banco.pagamentos)
-    const atual = resumoFinanceiro(base.alunos, pagamentos, '2026-10')
-    const anterior = resumoFinanceiro(base.alunos, pagamentos, '2026-09')
-    expect(atual.pendentes.length).toBeGreaterThan(3)
-    expect(anterior.pendentes.length).toBeLessThan(atual.pendentes.length)
+    const financeiro = new Map(Object.entries(banco.financeiro))
+    const atual = resumoDoMes(base.alunos, financeiro, pagamentos, '2026-10', '2026-10-09')
+    const anterior = resumoDoMes(base.alunos, financeiro, pagamentos, '2026-09', '2026-10-09')
+    expect(atual.abertos.length).toBeGreaterThan(3)
+    expect(anterior.abertos.length).toBeLessThan(atual.abertos.length)
     expect(atual.recebido).toBeGreaterThan(0)
+    expect(atual.abertos.some((s) => s.atrasado)).toBe(true)
+    const meses = historicoRecebido(pagamentos, ultimasCompetencias('2026-10', 6))
+    expect(meses.every((m) => m.recebido > 0)).toBe(true)
+    expect(pagamentos.every((p) => p.registradoPorId === 'e-helena' || p.registradoPorId === 'e-marcos')).toBe(true)
+  })
+
+  it('histórico desde o começo do mês anterior, com créditos vencidos e um aluno sumido', () => {
+    const { de } = coberturaDaSemente('2026-10-09')
+    expect(de).toBe('2026-09-01')
+    const setembro = diasDoIntervalo('2026-09-01', '2026-09-17')
+      .flatMap((d) => aulasDoDia(d, base.turmas, registroDe))
+      .filter((a) => !a.cancelamento)
+    expect(setembro.length).toBeGreaterThan(20)
+    expect(setembro.flatMap((a) => a.participantes).filter((p) => p.marcacao === undefined)).toHaveLength(0)
+    // 7 de setembro é feriado
+    expect(aulasDoDia('2026-09-07', base.turmas, registroDe).every((a) => a.cancelamento?.motivo === 'feriado')).toBe(true)
+    const vencidos = Object.values(banco.creditos).filter((c) => !c.usadoEm && c.validoAte < '2026-10-09')
+    expect(vencidos.length).toBeGreaterThan(0)
+    const participacoes = participacoesNoPeriodo(diasDoIntervalo(de, '2026-10-08'), (d) => aulasDoDia(d, base.turmas, registroDe))
+    const sumidos = alunosComAusenciasSeguidas(participacoes, momentoDe(AGORA), 3)
+    expect(sumidos.length).toBeGreaterThanOrEqual(1)
   })
 
   it('é determinística para o mesmo instante', () => {

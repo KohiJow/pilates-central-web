@@ -14,11 +14,22 @@ export type CodigoRecusa =
   | 'credito-vencido'
   | 'mesma-aula'
   | 'sem-vaga'
+  | 'turma-cheia'
+  | 'conflito'
+  | 'dados-invalidos'
+  | 'sem-permissao'
   | 'nada-a-fazer'
 
 export type Resultado<T> =
   | { ok: true; valor: T }
   | { ok: false; codigo: CodigoRecusa; mensagem: string }
+
+/** Erros de formulário por campo, em português simples. Objeto vazio = tudo certo. */
+export type ErrosDeCampo<C extends string = string> = Partial<Record<C, string>>
+
+export function semErros(erros: ErrosDeCampo): boolean {
+  return Object.keys(erros).length === 0
+}
 
 export function aceito<T>(valor: T): Resultado<T> {
   return { ok: true, valor }

@@ -1,7 +1,7 @@
 import type { JSX } from 'preact'
 import { irPara } from '../app/navegacao'
 import { hoje, momento } from '../app/relogio'
-import { sessao } from '../app/sessao'
+import { membro as membroAtual, papel } from '../app/perfil'
 import { Botao } from '../componentes/Botao'
 import { Card } from '../componentes/Card'
 import { Esqueleto, EsqueletoDeLista } from '../componentes/Esqueleto'
@@ -9,8 +9,9 @@ import { EstadoVazio } from '../componentes/EstadoVazio'
 import { Numero } from '../componentes/Numero'
 import { Icone } from '../componentes/Icone'
 import { Vagas } from '../componentes/Vagas'
-import { aulasNoDia, cargaRecente, equipePorId, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
+import { aulasNoDia, cargaRecente, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
 import { faseDaAula } from '../dominio/agenda'
+import { ehAdministracao } from '../dominio/permissoes'
 import { dataPorExtenso, horaFalada, minutosEntre, momentoDaAula } from '../dominio/datas'
 import { resumoDoDia } from '../dominio/resumo'
 import type { PessoaNaAula } from '../dominio/resumo'
@@ -33,12 +34,11 @@ function quandoComeca(minutosAte: number): string {
 }
 
 export function Hoje() {
-  const s = sessao.value
-  const membro = s ? equipePorId.value.get(s.membroId) : undefined
-  const ehDona = s?.papel === 'dona'
+  const membro = membroAtual.value
+  const ehAdm = ehAdministracao(papel.value)
   const dia = hoje.value
   const agora = momento.value
-  const aulas = aulasNoDia(dia, ehDona ? {} : { professorId: s?.membroId ?? '' })
+  const aulas = aulasNoDia(dia, ehAdm ? {} : { professorId: membro?.id ?? '' })
   const resumo = resumoDoDia(aulas, agora)
   const proxima = resumo.emAndamento ?? resumo.proximas[0]
   const depois = resumo.proximas.filter((a) => a !== proxima)
@@ -50,7 +50,7 @@ export function Hoje() {
         <h1 id="titulo-hoje" class="titulo">
           {saudacao(agora.minutos)}, {primeiroNome(membro?.nome ?? '')}
         </h1>
-        {!ehDona && <p class="texto-secundario">Aqui aparecem só as suas aulas.</p>}
+        {!ehAdm && <p class="texto-secundario">Aqui aparecem só as suas aulas.</p>}
       </header>
 
       {situacao.value !== 'pronto' ? (
@@ -60,14 +60,14 @@ export function Hoje() {
         </>
       ) : resumo.totalDeAulas === 0 ? (
         <EstadoVazio icone="folga" rotulo="Sem aulas hoje" texto="Não tem aula marcada para hoje.">
-          <Botao variante="secundario" icone="agenda" onClick={() => s && irPara('agenda', s.papel)}>
+          <Botao variante="secundario" icone="agenda" onClick={() => irPara('agenda', papel.value)}>
             Ver a agenda
           </Botao>
         </EstadoVazio>
       ) : (
         <>
           {proxima ? (
-            <ProximaAula aula={proxima} minutosAte={minutosEntre(agora, momentoDaAula(dia, proxima.inicio))} mostrarUnidade={ehDona} />
+            <ProximaAula aula={proxima} minutosAte={minutosEntre(agora, momentoDaAula(dia, proxima.inicio))} mostrarUnidade={ehAdm} />
           ) : (
             <Card variante="acento" class="destaque">
               <p class="micro">Fim do dia</p>
@@ -99,7 +99,7 @@ export function Hoje() {
               <ul class={`lista${cargaRecente.value ? ' cascata' : ''}`}>
                 {depois.map((a, i) => (
                   <li key={a.id} style={{ '--i': i } as JSX.CSSProperties}>
-                    <LinhaDeAula aula={a} mostrarUnidade={ehDona} />
+                    <LinhaDeAula aula={a} mostrarUnidade={ehAdm} />
                   </li>
                 ))}
               </ul>

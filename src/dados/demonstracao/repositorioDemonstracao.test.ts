@@ -45,6 +45,29 @@ describe('repositório de demonstração', () => {
     expect(ids).not.toContain(c.id)
   })
 
+  it('grava cadastros: troca os que já existem, acrescenta os novos e mantém a ordem', async () => {
+    const arm = memoria()
+    const repo = criarRepositorioDeDemonstracao({ armazenamento: arm, agora })
+    const base = await repo.carregarBase()
+    const [primeiro, segundo] = base.alunos
+    if (!primeiro || !segundo) throw new Error('esperava alunos')
+    const novo = { ...primeiro, id: 'a-novo', nome: 'Aluno Novo' }
+    const [fin] = await repo.financeiro()
+    if (!fin) throw new Error('esperava financeiro')
+    await repo.salvar({
+      alunos: [{ ...segundo, nome: 'Nome Trocado' }, novo],
+      financeiro: [{ ...fin, alunoId: 'a-novo', valorMensal: 1 }],
+      configuracao: { ...base.configuracao, nomeEstudio: 'Outro Nome' },
+    })
+    const outro = criarRepositorioDeDemonstracao({ armazenamento: arm, agora })
+    const relida = await outro.carregarBase()
+    expect(relida.alunos).toHaveLength(41)
+    expect(relida.alunos[1]?.nome).toBe('Nome Trocado')
+    expect(relida.alunos.at(-1)?.id).toBe('a-novo')
+    expect(relida.configuracao.nomeEstudio).toBe('Outro Nome')
+    expect((await outro.financeiro()).find((f) => f.alunoId === 'a-novo')?.valorMensal).toBe(1)
+  })
+
   it('devolve cópias: mexer no retorno não muda o banco', async () => {
     const repo = criarRepositorioDeDemonstracao({ armazenamento: memoria(), agora })
     const base = await repo.carregarBase()

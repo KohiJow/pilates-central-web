@@ -1,10 +1,12 @@
-// Dados fictícios de um estúdio pequeno: 2 unidades, a dona e 3 professores, cerca de 40 alunos,
-// turmas de manhã, tarde e noite com 4 a 6 lugares, três semanas de histórico (presenças,
-// faltas, avisos com crédito, reposições) e mensalidades com algumas pendentes.
+// Dados fictícios de um estúdio pequeno: 2 unidades, a responsável, uma pessoa na administração e
+// 3 professores, 40 alunos, turmas de manhã, tarde e noite com 4 a 6 lugares, histórico desde o
+// começo do mês anterior (presenças, faltas, avisos com crédito, reposições) e seis meses de
+// mensalidades, com algumas em aberto.
 // Tudo é montado com as mesmas regras do domínio que o app usa, então os dados nunca
 // contradizem as regras (lotação, validade do crédito, reposição só com vaga).
 import { aulasDoDia, idDaAula, montarAula } from '../../dominio/agenda'
 import { CONFIGURACAO_PADRAO } from '../../dominio/configuracao'
+import { deslocarCompetencia, FORMAS, ultimasCompetencias, ultimoDiaDaCompetencia } from '../../dominio/pagamentos'
 import {
   competenciaDe,
   diasEntre,
@@ -25,6 +27,7 @@ import type {
   CreditoReposicao,
   DataISO,
   DiaDaSemana,
+  FinanceiroDoAluno,
   FormaPagamento,
   Id,
   Instante,
@@ -38,7 +41,8 @@ import type { DadosBase } from '../repositorio'
 import { criarAleatorio } from './aleatorio'
 import type { Aleatorio } from './aleatorio'
 
-export const VERSAO_DO_BANCO = 1
+// 2: papéis da administração, financeiro separado do aluno, seis meses de mensalidades
+export const VERSAO_DO_BANCO = 2
 
 export interface BancoDeDemonstracao {
   versao: typeof VERSAO_DO_BANCO
@@ -46,6 +50,7 @@ export interface BancoDeDemonstracao {
   base: DadosBase
   registros: Record<string, RegistroAula>
   creditos: Record<Id, CreditoReposicao>
+  financeiro: Record<Id, FinanceiroDoAluno>
   pagamentos: Record<Id, Pagamento>
 }
 
@@ -61,11 +66,20 @@ const UNIDADES: Unidade[] = [
 
 const EQUIPE: MembroEquipe[] = [
   {
-    id: 'e-dona',
+    id: 'e-helena',
     nome: 'Helena Prado',
-    papel: 'dona',
-    email: 'dona@example.com',
+    papel: 'titular',
+    email: 'helena@example.com',
     telefone: '5511900000001',
+    unidades: ['u-centro', 'u-jardim'],
+    ativo: true,
+  },
+  {
+    id: 'e-marcos',
+    nome: 'Marcos Teles',
+    papel: 'administrador',
+    email: 'marcos@example.com',
+    telefone: '5511900000005',
     unidades: ['u-centro', 'u-jardim'],
     ativo: true,
   },
@@ -111,7 +125,7 @@ const GRADE: {
   { unidadeId: 'u-centro', dias: [1, 3, 5], inicio: '07:00', duracaoMin: 50, capacidade: 5, professorId: 'e-rafael', procura: 3 },
   { unidadeId: 'u-centro', dias: [1, 3, 5], inicio: '08:00', duracaoMin: 50, capacidade: 5, professorId: 'e-camila', procura: 2 },
   { unidadeId: 'u-centro', dias: [2, 4], inicio: '07:00', duracaoMin: 50, capacidade: 5, professorId: 'e-tiago', procura: 2 },
-  { unidadeId: 'u-centro', dias: [2, 4], inicio: '12:00', duracaoMin: 50, capacidade: 4, professorId: 'e-dona', procura: 1 },
+  { unidadeId: 'u-centro', dias: [2, 4], inicio: '12:00', duracaoMin: 50, capacidade: 4, professorId: 'e-helena', procura: 1 },
   { unidadeId: 'u-centro', dias: [1, 3, 5], inicio: '18:00', duracaoMin: 50, capacidade: 6, professorId: 'e-camila', procura: 4 },
   { unidadeId: 'u-centro', dias: [1, 3, 5], inicio: '19:00', duracaoMin: 50, capacidade: 5, professorId: 'e-rafael', procura: 3 },
   { unidadeId: 'u-centro', dias: [2, 4], inicio: '18:00', duracaoMin: 50, capacidade: 6, professorId: 'e-rafael', procura: 3 },
@@ -143,10 +157,11 @@ const OBSERVACOES = [
   'Viaja a trabalho uma semana por mês.',
 ]
 
-// feriados nacionais de data fixa (os móveis a dona marca à mão)
+// feriados nacionais de data fixa (os móveis a administração marca à mão)
 const FERIADOS_FIXOS = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25']
 
-const DIAS_DE_HISTORICO = 21
+// as três semanas que os testes de ponta a ponta conhecem; antes delas, até o começo do mês anterior
+const DIAS_RECENTES = 21
 const DIAS_A_FRENTE = 7
 
 function instanteDe(m: Momento): Instante {
@@ -228,34 +243,58 @@ function distribuirAlunos(alunos: Aluno[], turmas: Turma[], aleatorio: Aleatorio
     }
     for (const t of escolhidas) t.alunosFixos.push(aluno.id)
     aluno.vezesPorSemana = escolhidas.length
-    aluno.valorMensal = escolhidas.length >= 3 ? 36_000 : 28_000
   }
 }
 
-function criarAlunos(hoje: DataISO, aleatorio: Aleatorio): Aluno[] {
-  const formas: { item: FormaPagamento; peso: number }[] = [
+// mensalidade por plano; quem vem pelo Gympass ou TotalPass entra com o repasse da plataforma
+const MENSALIDADE: Record<number, number> = { 1: 18_000, 2: 28_000, 3: 36_000 }
+const REPASSE_DE_PLATAFORMA = 15_000
+
+function criarAlunos(hoje: DataISO, aleatorio: Aleatorio): { alunos: Aluno[]; formas: FormaPagamento[] } {
+  const pesos: { item: FormaPagamento; peso: number }[] = [
     { item: 'pix', peso: 55 },
     { item: 'dinheiro', peso: 12 },
     { item: 'cartao_credito', peso: 20 },
     { item: 'cartao_debito', peso: 13 },
   ]
-  return NOMES.map((nome, i) => {
+  const formas: FormaPagamento[] = []
+  // a ordem dos sorteios (plano, forma, data de início) é a mesma desde a primeira versão:
+  // mudar a ordem mudaria a demonstração inteira
+  const alunos = NOMES.map((nome, i): Aluno => {
     const numero = String(10 + i).padStart(2, '0')
     const situacao = i === 13 || i === 33 ? 'pausado' : i === 38 ? 'inativo' : 'ativo'
+    const vezesPorSemana = aleatorio.chance(0.3) ? 3 : 2
+    const sorteada = aleatorio.escolherPonderado(pesos)
+    formas.push(i === 5 ? 'gympass' : i === 21 ? 'totalpass' : sorteada)
     return {
       id: `a-${numero}`,
       nome: `${nome} ${SOBRENOMES[i] ?? ''}`.trim(),
       unidadeId: i % 10 < 7 ? 'u-centro' : 'u-jardim',
       telefone: `55119000000${numero}`,
       email: `aluno${numero}@example.com`,
-      vezesPorSemana: aleatorio.chance(0.3) ? 3 : 2,
+      vezesPorSemana,
       situacao,
-      valorMensal: 28_000,
-      formaPagamento: aleatorio.escolherPonderado(formas),
       observacao: i % 7 === 3 ? (OBSERVACOES[(i / 7) | 0] ?? '') : '',
       desde: somarDias(hoje, -aleatorio.inteiro(20, 1100)),
     }
   })
+  return { alunos, formas }
+}
+
+function criarFinanceiro(alunos: readonly Aluno[], formas: readonly FormaPagamento[]): Record<Id, FinanceiroDoAluno> {
+  const financeiro: Record<Id, FinanceiroDoAluno> = {}
+  alunos.forEach((aluno, i) => {
+    const forma = formas[i] ?? 'pix'
+    const plataforma = forma === 'gympass' || forma === 'totalpass'
+    financeiro[aluno.id] = {
+      alunoId: aluno.id,
+      unidadeId: aluno.unidadeId,
+      valorMensal: plataforma ? REPASSE_DE_PLATAFORMA : (MENSALIDADE[aluno.vezesPorSemana] ?? 28_000),
+      formaPreferida: forma,
+      diaVencimento: [5, 10, 15][i % 3] ?? 10,
+    }
+  })
+  return financeiro
 }
 
 /** Banco em memória que aplica as alterações do domínio, como o repositório faria. */
@@ -307,39 +346,18 @@ class Montagem {
   }
 }
 
-export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstracao {
-  const aleatorio = criarAleatorio(semente)
-  const momento = momentoDe(agora)
-  const hoje = momento.data
-  const inicio = somarDias(hoje, -DIAS_DE_HISTORICO)
-  const fim = somarDias(hoje, DIAS_A_FRENTE)
-
-  const alunos = criarAlunos(hoje, aleatorio)
-  const turmas = montarTurmas(somarDias(hoje, -400))
-  distribuirAlunos(alunos, turmas, aleatorio)
-  const m = new Montagem(turmas, alunos, CONFIGURACAO)
-  const turmaPorId = new Map(turmas.map((t) => [t.id, t]))
+/** Marcações de um trecho do calendário: avisos (quase sempre na véspera), faltas e presenças. */
+function marcarHistorico(
+  m: Montagem,
+  turmaPorId: ReadonlyMap<Id, Turma>,
+  aleatorio: Aleatorio,
+  de: DataISO,
+  ate: DataISO,
+  momento: Momento,
+): void {
   const jaPassou = (data: DataISO, hora: string) => minutosEntre(momento, momentoDaAula(data, hora)) <= 0
-
-  // feriados no período: aulas canceladas pela dona alguns dias antes, sem reposição
-  for (let d = inicio; d <= somarDias(hoje, 28); d = somarDias(d, 1)) {
-    if (!FERIADOS_FIXOS.includes(d.slice(5))) continue
-    for (const aula of m.aulasDoDia(d)) {
-      const quando = { data: somarDias(d, -3), minutos: 12 * 60 }
-      const r = cancelarAula(
-        aula,
-        m.registros.get(aula.id),
-        { motivo: 'feriado', observacao: 'Feriado nacional', gerarCreditos: false },
-        (id) => m.creditos.get(id),
-        m.contexto(quando),
-      )
-      if (r.ok) m.aplicar(r.valor.alteracoes)
-    }
-  }
-
-  // histórico e próximos dias: avisos de falta (quase sempre na véspera), faltas e presenças
-  const agoraAntes = { data: hoje, minutos: Math.max(0, momento.minutos - 30) }
-  for (let d = inicio; d <= fim; d = somarDias(d, 1)) {
+  const agoraAntes = { data: momento.data, minutos: Math.max(0, momento.minutos - 30) }
+  for (let d = de; d <= ate; d = somarDias(d, 1)) {
     for (const aula of m.aulasDoDia(d)) {
       if (aula.cancelamento) continue
       const turma = turmaPorId.get(aula.turmaId)
@@ -362,13 +380,23 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
       }
     }
   }
+}
 
-  // reposições: parte dos créditos já foi usada, em aulas da mesma unidade com vaga
-  const creditosPorData = [...m.creditos.values()].sort((a, b) => a.origem.data.localeCompare(b.origem.data))
-  for (const credito of creditosPorData) {
+/** Parte dos créditos já foi usada, em aulas da mesma unidade com vaga, até `ultimoDia`. */
+function encaixarReposicoes(
+  m: Montagem,
+  turmaPorId: ReadonlyMap<Id, Turma>,
+  aleatorio: Aleatorio,
+  creditos: readonly CreditoReposicao[],
+  ultimoDia: DataISO,
+  momento: Momento,
+): void {
+  const jaPassou = (data: DataISO, hora: string) => minutosEntre(momento, momentoDaAula(data, hora)) <= 0
+  const porData = [...creditos].sort((a, b) => a.origem.data.localeCompare(b.origem.data))
+  for (const credito of porData) {
     if (!aleatorio.chance(0.6)) continue
     const primeiroDia = somarDias(credito.origem.data, aleatorio.inteiro(1, 6))
-    for (let d = primeiroDia; d <= fim && d <= credito.validoAte; d = somarDias(d, 1)) {
+    for (let d = primeiroDia; d <= ultimoDia && d <= credito.validoAte; d = somarDias(d, 1)) {
       const destino = m
         .aulasDoDia(d)
         .find((a) => a.unidadeId === credito.unidadeId && a.vagas > 0 && !a.cancelamento)
@@ -387,10 +415,64 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
       }
     }
   }
+}
+
+/** Primeiro dia do mês anterior ao de `hoje`: a frequência do mês passado fica completa. */
+function inicioDoHistorico(hoje: DataISO): DataISO {
+  return `${deslocarCompetencia(competenciaDe(hoje), -1)}-01`
+}
+
+export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstracao {
+  const aleatorio = criarAleatorio(semente)
+  // o trecho mais antigo do histórico usa outro sorteio: assim as três semanas recentes (as que
+  // os testes de ponta a ponta conhecem) saem iguais às da primeira versão da demonstração
+  const aleatorioAntigo = criarAleatorio(semente + 1)
+  const momento = momentoDe(agora)
+  const hoje = momento.data
+  const inicio = somarDias(hoje, -DIAS_RECENTES)
+  const inicioAntigo = inicioDoHistorico(hoje)
+  const fim = somarDias(hoje, DIAS_A_FRENTE)
+
+  const { alunos, formas } = criarAlunos(hoje, aleatorio)
+  const turmas = montarTurmas(somarDias(hoje, -400))
+  distribuirAlunos(alunos, turmas, aleatorio)
+  const m = new Montagem(turmas, alunos, CONFIGURACAO)
+  const turmaPorId = new Map(turmas.map((t) => [t.id, t]))
+  const jaPassou = (data: DataISO, hora: string) => minutosEntre(momento, momentoDaAula(data, hora)) <= 0
+
+  // feriados no período: aulas canceladas pela administração alguns dias antes, sem reposição
+  for (let d = inicioAntigo; d <= somarDias(hoje, 28); d = somarDias(d, 1)) {
+    if (!FERIADOS_FIXOS.includes(d.slice(5))) continue
+    for (const aula of m.aulasDoDia(d)) {
+      const quando = { data: somarDias(d, -3), minutos: 12 * 60 }
+      const r = cancelarAula(
+        aula,
+        m.registros.get(aula.id),
+        { motivo: 'feriado', observacao: 'Feriado nacional', gerarCreditos: false },
+        (id) => m.creditos.get(id),
+        m.contexto(quando),
+      )
+      if (r.ok) m.aplicar(r.valor.alteracoes)
+    }
+  }
+
+  // trecho antigo: do começo do mês anterior até três semanas atrás, com reposições só nele
+  const fimAntigo = somarDias(inicio, -1)
+  if (inicioAntigo <= fimAntigo) {
+    marcarHistorico(m, turmaPorId, aleatorioAntigo, inicioAntigo, fimAntigo, momento)
+    const antigos = [...m.creditos.values()].filter((c) => c.origem.data < inicio)
+    encaixarReposicoes(m, turmaPorId, aleatorioAntigo, antigos, fimAntigo, momento)
+  }
+
+  // três semanas recentes e próximos dias
+  marcarHistorico(m, turmaPorId, aleatorio, inicio, fim, momento)
+  const recentes = [...m.creditos.values()].filter((c) => c.origem.data >= inicio)
+  encaixarReposicoes(m, turmaPorId, aleatorio, recentes, fim, momento)
 
   // garante movimento hoje: pelo menos duas reposições e dois avisos nas aulas que ainda vão acontecer
+  const agoraAntes = { data: hoje, minutos: Math.max(0, momento.minutos - 30) }
   const aulasDeHojeAFrente = () => m.aulasDoDia(hoje).filter((a) => !a.cancelamento && !jaPassou(hoje, a.inicio))
-  const livres = () => [...m.creditos.values()].filter((c) => !c.usadoEm && c.origem.data < hoje)
+  const livres = () => [...m.creditos.values()].filter((c) => !c.usadoEm && c.origem.data >= inicio && c.origem.data < hoje)
   let reposicoesHoje = m.aulasDoDia(hoje).flatMap((a) => a.participantes.filter((p) => p.origem === 'reposicao')).length
   for (const aula of aulasDeHojeAFrente()) {
     if (reposicoesHoje >= 2) break
@@ -408,6 +490,8 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
     if (turma && fixo && m.marcar(turma, hoje, fixo.alunoId, 'avisou', agoraAntes)) avisosHoje++
   }
 
+  sumirDasUltimasAulas(m, turmaPorId, alunos, inicio, hoje)
+
   return {
     versao: VERSAO_DO_BANCO,
     criadoEm: agora.toISOString(),
@@ -420,34 +504,75 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
     },
     registros: Object.fromEntries(m.registros),
     creditos: Object.fromEntries(m.creditos),
-    pagamentos: gerarPagamentos(alunos, hoje, aleatorio),
+    financeiro: criarFinanceiro(alunos, formas),
+    pagamentos: gerarPagamentos(alunos, criarFinanceiro(alunos, formas), hoje, aleatorio),
   }
 }
 
-function gerarPagamentos(alunos: Aluno[], hoje: DataISO, aleatorio: Aleatorio): Record<Id, Pagamento> {
-  const pagamentos: Record<Id, Pagamento> = {}
-  const atual = competenciaDe(hoje)
-  const anterior = competenciaDe(somarDias(`${atual}-01`, -1))
-  const diaDeHoje = Number(hoje.slice(8, 10))
+/**
+ * Um aluno que veio sempre e faltou as três últimas aulas: o caso que a lista de alunos destaca
+ * (sem sorteio, para não mexer no resto da demonstração).
+ */
+function sumirDasUltimasAulas(m: Montagem, turmaPorId: ReadonlyMap<Id, Turma>, alunos: readonly Aluno[], de: DataISO, hoje: DataISO) {
+  const passadas = new Map<Id, { turma: Turma; data: DataISO; marcacao?: string; origem: string }[]>()
+  for (let d = de; d < hoje; d = somarDias(d, 1)) {
+    for (const aula of m.aulasDoDia(d)) {
+      if (aula.cancelamento) continue
+      const turma = turmaPorId.get(aula.turmaId)
+      if (!turma) continue
+      for (const p of aula.participantes) {
+        const lista = passadas.get(p.alunoId) ?? []
+        lista.push(p.marcacao ? { turma, data: d, marcacao: p.marcacao, origem: p.origem } : { turma, data: d, origem: p.origem })
+        passadas.set(p.alunoId, lista)
+      }
+    }
+  }
   for (const aluno of alunos) {
     if (aluno.situacao !== 'ativo') continue
-    for (const competencia of [anterior, atual]) {
+    const ultimas = (passadas.get(aluno.id) ?? []).slice(-3)
+    if (ultimas.length < 3 || !ultimas.every((u) => u.marcacao === 'presente' && u.origem === 'fixo')) continue
+    for (const u of ultimas) m.marcar(u.turma, u.data, aluno.id, 'faltou', { data: u.data, minutos: 23 * 60 })
+    return
+  }
+}
+
+function gerarPagamentos(
+  alunos: readonly Aluno[],
+  financeiro: Record<Id, FinanceiroDoAluno>,
+  hoje: DataISO,
+  aleatorio: Aleatorio,
+): Record<Id, Pagamento> {
+  const pagamentos: Record<Id, Pagamento> = {}
+  const atual = competenciaDe(hoje)
+  const anterior = deslocarCompetencia(atual, -1)
+  const diaDeHoje = Number(hoje.slice(8, 10))
+  const quemLanca = ['e-helena', 'e-marcos'] as const
+  let n = 0
+  for (const competencia of ultimasCompetencias(atual, 6)) {
+    for (const aluno of alunos) {
+      const fin = financeiro[aluno.id]
+      if (!fin || aluno.desde > ultimoDiaDaCompetencia(competencia)) continue
+      // pausados e arquivados pagaram os meses mais antigos (ainda vinham)
+      if (aluno.situacao !== 'ativo' && competencia >= anterior) continue
       const ehAtual = competencia === atual
-      // no mês anterior quase todo mundo pagou; no atual, depende de que dia é hoje
-      const probabilidade = ehAtual ? (diaDeHoje >= 10 ? 0.72 : 0.4) : 0.95
+      const probabilidade = ehAtual ? (diaDeHoje >= fin.diaVencimento ? 0.8 : 0.35) : competencia === anterior ? 0.93 : 0.97
       if (!aleatorio.chance(probabilidade)) continue
-      const ultimoDia = ehAtual ? Math.min(diaDeHoje, 12) : 12
+      const ultimoDia = ehAtual ? Math.min(diaDeHoje, fin.diaVencimento + 3) : fin.diaVencimento + 3
       const dia = String(aleatorio.inteiro(1, Math.max(1, ultimoDia))).padStart(2, '0')
+      // de vez em quando paga de outro jeito ou só uma parte
+      const forma = aleatorio.chance(0.1) ? (FORMAS[aleatorio.inteiro(0, 4)] ?? fin.formaPreferida) : fin.formaPreferida
+      const parcial = ehAtual && aleatorio.chance(0.06)
       const id = `pg_${aluno.id}_${competencia}`
       pagamentos[id] = {
         id,
         alunoId: aluno.id,
         unidadeId: aluno.unidadeId,
         competencia,
-        valor: aluno.valorMensal,
-        forma: aluno.formaPagamento,
+        valor: parcial ? fin.valorMensal / 2 : fin.valorMensal,
+        forma,
         pagoEm: `${competencia}-${dia}`,
-        observacao: '',
+        observacao: parcial ? 'Metade agora, o resto no fim do mês.' : '',
+        registradoPorId: quemLanca[n++ % 2] ?? 'e-helena',
       }
     }
   }
@@ -456,8 +581,7 @@ function gerarPagamentos(alunos: Aluno[], hoje: DataISO, aleatorio: Aleatorio): 
 
 /** Quantos dias o banco cobre a partir do dia em que foi gerado (usado pelos testes). */
 export function coberturaDaSemente(criadoEm: DataISO): { de: DataISO; ate: DataISO; dias: number } {
-  const de = somarDias(criadoEm, -DIAS_DE_HISTORICO)
+  const de = inicioDoHistorico(criadoEm)
   const ate = somarDias(criadoEm, DIAS_A_FRENTE)
   return { de, ate, dias: diasEntre(de, ate) + 1 }
 }
-

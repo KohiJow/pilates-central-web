@@ -9,9 +9,9 @@ export async function abrirApp(page: Page, agora = AGORA_PADRAO, extra = ''): Pr
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 }
 
-export async function entrarComoDona(page: Page, agora = AGORA_PADRAO): Promise<void> {
+export async function entrarComoAdministracao(page: Page, agora = AGORA_PADRAO): Promise<void> {
   await abrirApp(page, agora)
-  await page.getByRole('button', { name: 'Explorar como dona' }).click()
+  await page.getByRole('button', { name: 'Explorar como administração' }).click()
   await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
 }
 
