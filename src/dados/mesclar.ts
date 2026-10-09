@@ -16,12 +16,22 @@ export function mesclarPorId<T>(lista: readonly T[], novos: readonly T[] | undef
 
 /** Os cadastros depois de uma gravação (mesma regra no repositório de demonstração e na tela). */
 export function mesclarBase(base: DadosBase, g: Gravacao): DadosBase {
-  if (!g.configuracao && !g.unidades?.length && !g.equipe?.length && !g.alunos?.length && !g.turmas?.length) return base
+  if (
+    !g.configuracao &&
+    !g.unidades?.length &&
+    !g.equipe?.length &&
+    !g.alunos?.length &&
+    !g.alunosRemovidos?.length &&
+    !g.turmas?.length
+  ) {
+    return base
+  }
+  const removidos = new Set(g.alunosRemovidos ?? [])
   return {
     configuracao: g.configuracao ?? base.configuracao,
     unidades: mesclarPorId(base.unidades, g.unidades, (u) => u.id),
     equipe: mesclarPorId(base.equipe, g.equipe, (m) => m.id),
-    alunos: mesclarPorId(base.alunos, g.alunos, (a) => a.id),
+    alunos: mesclarPorId(base.alunos, g.alunos, (a) => a.id).filter((a) => !removidos.has(a.id)),
     turmas: mesclarPorId(base.turmas, g.turmas, (t) => t.id),
   }
 }

@@ -69,6 +69,11 @@ export interface Aluno {
   observacao: string
   /** desde quando é aluno */
   desde: DataISO
+  /**
+   * Acesso liberado ao app do aluno (pela administração, na ficha). Com o login de verdade, o
+   * convite fica no e-mail do aluno; tirar o acesso apaga o convite e corta o papel.
+   */
+  acesso?: { convidadoEm: Instante; porId: Id }
   // As turmas fixas do aluno não ficam aqui: a fonte é Turma.alunosFixos (ver turmasDoAluno).
   // Valor e forma de pagamento também não: ficam em FinanceiroDoAluno, que o professor não lê.
 }
@@ -172,6 +177,63 @@ export interface Configuracao {
   /** a partir de quantas ausências seguidas o aluno ganha um destaque na lista */
   alertaAusenciasSeguidas: number
   capacidadePadrao: number
+  /** alunos com acesso liberado entram no app para avisar falta e escolher reposição */
+  acessoDoAluno: boolean
+  /** a página pública mostra os horários com vaga para aula experimental */
+  paginaExperimental: boolean
+}
+
+// ---------- cópias para quem não pode ler tudo (projeções) ----------
+// Gravadas pela equipe junto com cada mudança, porque o aluno e a página pública não leem
+// turmas, registros nem cadastros: só estas cópias sem nomes de outros alunos.
+
+/** A aula de uma data sem ninguém dentro: só lugares, para o aluno e para a página pública. */
+export interface VagaDaAula {
+  turmaId: Id
+  unidadeId: Id
+  data: DataISO
+  inicio: Hora
+  fim: Hora
+  capacidade: number
+  ocupadas: number
+  cancelada: boolean
+  atualizadoEm: Instante
+}
+
+export interface TurmaDoPortal {
+  turmaId: Id
+  diaDaSemana: DiaDaSemana
+  inicio: Hora
+  fim: Hora
+  /** primeira data em que o aluno está nesta turma */
+  desde: DataISO
+}
+
+/** O que o aluno lê de si: primeiro nome, unidade e as turmas fixas, sem os colegas. */
+export interface PortalDoAluno {
+  alunoId: Id
+  nome: string
+  unidadeId: Id
+  turmas: TurmaDoPortal[]
+  atualizadoEm: Instante
+}
+
+export interface HorarioPublico {
+  data: DataISO
+  inicio: Hora
+  fim: Hora
+  unidadeId: Id
+  vagas: number
+}
+
+/** Documento público (sem login): a página de aula experimental lê só isto. */
+export interface PaginaPublica {
+  nomeEstudio: string
+  whatsapp: string
+  unidades: Pick<Unidade, 'id' | 'nome' | 'endereco'>[]
+  experimental: boolean
+  horarios: HorarioPublico[]
+  atualizadoEm: Instante
 }
 
 // ---------- visões derivadas (calculadas, nunca gravadas) ----------

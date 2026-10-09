@@ -505,17 +505,26 @@ service cloud.firestore {
 
     // ---------- registros de aula ----------
 
+    // marcações e reposições podem faltar (o aluno grava só a dele, por mescla, sem ler o resto)
+    function marcacoes(r) {
+      return r.get('marcacoes', {});
+    }
+
+    function reposicoes(r) {
+      return r.get('reposicoes', {});
+    }
+
     function registroValido(id, r) {
-      return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'atualizadoEm'])
+      return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'atualizadoEm'])
         && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'cancelamento', 'atualizadoEm'])
         && r.id == id
         && id == r.turmaId + '_' + r.data
         && ehId(r.turmaId)
         && ehId(r.unidadeId)
         && ehData(r.data)
-        && r.marcacoes is map && r.marcacoes.size() <= 40
-        && r.marcacoes.values().hasOnly(['presente', 'faltou', 'avisou'])
-        && r.reposicoes is map && r.reposicoes.size() <= 30
+        && marcacoes(r) is map && marcacoes(r).size() <= 40
+        && marcacoes(r).values().hasOnly(['presente', 'faltou', 'avisou'])
+        && reposicoes(r) is map && reposicoes(r).size() <= 30
         && (!('cancelamento' in r) || (r.cancelamento is map
               && r.cancelamento.keys().hasOnly(['motivo', 'observacao'])
               && r.cancelamento.motivo in ['feriado', 'estudio']
@@ -593,17 +602,17 @@ service cloud.firestore {
 
     // a aula como estava e como fica (registro e vaga), do ponto de vista de um aluno
     function situacaoNaAula(q, aulaId) {
-      let rAntes = dados(caminho('registros', aulaId), {'marcacoes': {}, 'reposicoes': {}});
-      let rDepois = dadosDepois(caminho('registros', aulaId), {'marcacoes': {}, 'reposicoes': {}});
+      let rAntes = dados(caminho('registros', aulaId), {});
+      let rDepois = dadosDepois(caminho('registros', aulaId), {});
       return {
-        'avisouAntes': rAntes.marcacoes.get(q.id, '') == 'avisou',
-        'avisouDepois': rDepois.marcacoes.get(q.id, '') == 'avisou',
-        'marcadoAntes': q.id in rAntes.marcacoes,
-        'marcadoDepois': q.id in rDepois.marcacoes,
-        'repondoAntes': q.id in rAntes.reposicoes,
-        'repondoDepois': q.id in rDepois.reposicoes,
-        'creditoAntes': rAntes.reposicoes.get(q.id, ''),
-        'creditoDepois': rDepois.reposicoes.get(q.id, '')
+        'avisouAntes': marcacoes(rAntes).get(q.id, '') == 'avisou',
+        'avisouDepois': marcacoes(rDepois).get(q.id, '') == 'avisou',
+        'marcadoAntes': q.id in marcacoes(rAntes),
+        'marcadoDepois': q.id in marcacoes(rDepois),
+        'repondoAntes': q.id in reposicoes(rAntes),
+        'repondoDepois': q.id in reposicoes(rDepois),
+        'creditoAntes': reposicoes(rAntes).get(q.id, ''),
+        'creditoDepois': reposicoes(rDepois).get(q.id, '')
       };
     }
 
@@ -695,9 +704,9 @@ service cloud.firestore {
       let v = vagaDaAula(aulaId);
       let s = situacaoNaAula(q, aulaId);
       return registroDoAluno(aulaId, v, r)
-        && ((r.marcacoes.keys().hasOnly([q.id]) && r.marcacoes.size() == 1 && r.reposicoes.size() == 0
+        && ((marcacoes(r).keys().hasOnly([q.id]) && marcacoes(r).size() == 1 && reposicoes(r).size() == 0
               && avisoValido(q, aulaId, v, s))
-          || (r.reposicoes.keys().hasOnly([q.id]) && r.reposicoes.size() == 1 && r.marcacoes.size() == 0
+          || (reposicoes(r).keys().hasOnly([q.id]) && reposicoes(r).size() == 1 && marcacoes(r).size() == 0
               && encaixeValido(q, aulaId, v, s)));
     }
 
@@ -705,8 +714,8 @@ service cloud.firestore {
       let r = request.resource.data;
       let v = vagaDaAula(aulaId);
       let s = situacaoNaAula(q, aulaId);
-      let marcacoesMudaram = r.marcacoes.diff(resource.data.marcacoes).affectedKeys();
-      let reposicoesMudaram = r.reposicoes.diff(resource.data.reposicoes).affectedKeys();
+      let marcacoesMudaram = marcacoes(r).diff(marcacoes(resource.data)).affectedKeys();
+      let reposicoesMudaram = reposicoes(r).diff(reposicoes(resource.data)).affectedKeys();
       return registroDoAluno(aulaId, v, r)
         && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data', 'cancelamento'])
         && (

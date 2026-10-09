@@ -1,3 +1,4 @@
+import { completarConfiguracao } from '../../dominio/configuracao'
 import type { Competencia } from '../../dominio/tipos'
 import { mesclarBase } from '../mesclar'
 import type { Gravacao, Intervalo, RepositorioDeDemonstracao } from '../repositorio'
@@ -88,7 +89,8 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
 
     async carregarBase() {
       await esperar()
-      return copia(obter().base)
+      const b = copia(obter().base)
+      return { ...b, configuracao: completarConfiguracao(b.configuracao) }
     },
 
     async registros({ de, ate }: Intervalo) {
@@ -124,6 +126,7 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
         pagamentos: { ...atual.pagamentos },
       }
       for (const f of g.financeiro ?? []) proximo.financeiro[f.alunoId] = copia(f)
+      for (const id of g.financeiroRemovido ?? []) delete proximo.financeiro[id]
       for (const r of g.registros ?? []) proximo.registros[r.id] = copia(r)
       for (const id of g.creditosRemovidos ?? []) delete proximo.creditos[id]
       for (const c of g.creditos ?? []) proximo.creditos[c.id] = copia(c)

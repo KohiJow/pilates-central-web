@@ -525,15 +525,12 @@ function avisar(db: Firestore, opcoes: { alunoId?: string; aula?: string; turmaI
   const data = opcoes.data ?? AMANHA.data
   const aula = opcoes.aula ?? aulaId(turmaId, data)
   const b = writeBatch(db)
-  b.set(doc(db, `registros/${aula}`), {
-    id: aula,
-    turmaId,
-    unidadeId: 'u-centro',
-    data,
-    marcacoes: { [alunoId]: 'avisou' },
-    reposicoes: {},
-    atualizadoEm: instante,
-  })
+  // como o app faz: o aluno não lê o registro, então grava só a marcação dele, por mescla
+  b.set(
+    doc(db, `registros/${aula}`),
+    { id: aula, turmaId, unidadeId: 'u-centro', data, marcacoes: { [alunoId]: 'avisou' }, atualizadoEm: instante },
+    { merge: true },
+  )
   const id = `cr_${alunoId}_${turmaId}_${data}`
   b.set(doc(db, `creditos/${id}`), credito(id, alunoId, { turmaId, data }, { validoAte: opcoes.validoAte ?? validade(data, 30) }))
   if (!opcoes.semVaga) b.update(doc(db, `vagas/${aula}`), { ocupadas: increment(-1), atualizadoEm: instante })
@@ -545,7 +542,8 @@ function encaixar(db: Firestore, creditoId: string, turmaId: string, quando: { d
   const b = writeBatch(db)
   b.set(
     doc(db, `registros/${aula}`),
-    { id: aula, turmaId, unidadeId: 'u-centro', data: quando.data, marcacoes: {}, reposicoes: { [alunoId]: creditoId }, atualizadoEm: instante },
+    { id: aula, turmaId, unidadeId: 'u-centro', data: quando.data, reposicoes: { [alunoId]: creditoId }, atualizadoEm: instante },
+    { merge: true },
   )
   b.update(doc(db, `creditos/${creditoId}`), { usadoEm: { turmaId, data: quando.data } })
   b.update(doc(db, `vagas/${aula}`), { ocupadas: increment(extra), atualizadoEm: instante })
@@ -584,15 +582,30 @@ describe('aluno: avisar a própria falta', () => {
     await assertFails(avisar(como('aluno'), { validoAte: validade(AMANHA.data, 90) }))
   })
 
-  it('dois alunos avisam na mesma aula (o segundo atualiza o registro)', async () => {
+  it('dois alunos avisam na mesma aula (o segundo mescla no registro do primeiro)', async () => {
     await assertSucceeds(avisar(como('aluno')))
-    const db = como('aluno2')
-    const b = writeBatch(db)
-    b.update(doc(db, `registros/${AULA}`), { 'marcacoes.a-2': 'avisou', atualizadoEm: instante })
-    const id = `cr_a-2_t-1_${AMANHA.data}`
-    b.set(doc(db, `creditos/${id}`), credito(id, 'a-2', { turmaId: 't-1', data: AMANHA.data }, { validoAte: validade(AMANHA.data, 30) }))
-    b.update(doc(db, `vagas/${AULA}`), { ocupadas: increment(-1), atualizadoEm: instante })
-    await assertSucceeds(b.commit())
+    await assertSucceeds(avisar(como('aluno2'), { alunoId: 'a-2' }))
+    let marcacoes: Record<string, string> = {}
+    await ambiente.withSecurityRulesDisabled(async (ctx) => {
+      const r = await getDoc(doc(ctx.firestore() as unknown as Firestore, `registros/${AULA}`))
+      marcacoes = (r.data()?.marcacoes ?? {}) as Record<string, string>
+    })
+    if (marcacoes['a-1'] !== 'avisou' || marcacoes['a-2'] !== 'avisou') throw new Error('um aviso apagou o outro')
+  })
+
+  it('a mescla do aluno não apaga a chamada que a equipe já fez', async () => {
+    await ambiente.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore() as unknown as Firestore, `registros/${AULA}`), {
+        id: AULA,
+        turmaId: 't-1',
+        unidadeId: 'u-centro',
+        data: AMANHA.data,
+        marcacoes: { 'a-4': 'avisou' },
+        reposicoes: { 'a-5': 'cr-x' },
+        atualizadoEm: instante,
+      })
+    })
+    await assertSucceeds(avisar(como('aluno')))
   })
 
   it('não marca presença em si mesmo nem troca o aviso por presença', async () => {

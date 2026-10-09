@@ -42,7 +42,8 @@ import { criarAleatorio } from './aleatorio'
 import type { Aleatorio } from './aleatorio'
 
 // 2: papéis da administração, financeiro separado do aluno, seis meses de mensalidades
-export const VERSAO_DO_BANCO = 2
+// 3: acesso do aluno e página pública ligados, alguns alunos com acesso liberado
+export const VERSAO_DO_BANCO = 3
 
 export interface BancoDeDemonstracao {
   versao: typeof VERSAO_DO_BANCO
@@ -57,7 +58,12 @@ export interface BancoDeDemonstracao {
 const CONFIGURACAO: Configuracao = {
   ...CONFIGURACAO_PADRAO,
   whatsapp: '5511900000000',
+  acessoDoAluno: true,
+  paginaExperimental: true,
 }
+
+/** Alunos que já receberam acesso ao app (posição na lista de nomes). */
+const COM_ACESSO = [1, 4, 11, 16, 22, 27]
 
 const UNIDADES: Unidade[] = [
   { id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100, Centro', ativa: true },
@@ -436,6 +442,11 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
   const { alunos, formas } = criarAlunos(hoje, aleatorio)
   const turmas = montarTurmas(somarDias(hoje, -400))
   distribuirAlunos(alunos, turmas, aleatorio)
+  // sem sorteio: não muda o resto da demonstração
+  for (const i of COM_ACESSO) {
+    const aluno = alunos[i]
+    if (aluno?.situacao === 'ativo') aluno.acesso = { convidadoEm: instanteDe({ data: somarDias(hoje, -20), minutos: 10 * 60 }), porId: 'e-helena' }
+  }
   const m = new Montagem(turmas, alunos, CONFIGURACAO)
   const turmaPorId = new Map(turmas.map((t) => [t.id, t]))
   const jaPassou = (data: DataISO, hora: string) => minutosEntre(momento, momentoDaAula(data, hora)) <= 0

@@ -37,7 +37,10 @@ export interface Gravacao extends Partial<Alteracoes> {
   pagamentos?: Pagamento[]
   pagamentosRemovidos?: Id[]
   alunos?: Aluno[]
+  /** exclusão a pedido do aluno (LGPD): o cadastro some; pagamentos ficam só com o código */
+  alunosRemovidos?: Id[]
   financeiro?: FinanceiroDoAluno[]
+  financeiroRemovido?: Id[]
   turmas?: Turma[]
   unidades?: Unidade[]
   equipe?: MembroEquipe[]

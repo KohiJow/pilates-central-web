@@ -242,9 +242,10 @@ function aplicarGravacao(g: Gravacao): void {
     }
     const b = base.peek()
     if (b) base.value = mesclarBase(b, g)
-    if (g.financeiro?.length) {
+    if (g.financeiro?.length || g.financeiroRemovido?.length) {
       const mapa = new Map(financeiro.peek())
-      for (const f of g.financeiro) mapa.set(f.alunoId, f)
+      for (const id of g.financeiroRemovido ?? []) mapa.delete(id)
+      for (const f of g.financeiro ?? []) mapa.set(f.alunoId, f)
       financeiro.value = mapa
     }
     if (g.pagamentos?.length || g.pagamentosRemovidos?.length) {

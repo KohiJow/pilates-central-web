@@ -10,6 +10,9 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
   limiteReposicoesMes: 0,
   alertaAusenciasSeguidas: 3,
   capacidadePadrao: 5,
+  // os dois começam desligados: a administração liga quando quiser
+  acessoDoAluno: false,
+  paginaExperimental: false,
 }
 
 export type CampoConfiguracao = keyof Configuracao

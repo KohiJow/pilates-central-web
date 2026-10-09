@@ -15,6 +15,8 @@ describe('configuração', () => {
       limiteReposicoesMes: -1,
       alertaAusenciasSeguidas: 1,
       capacidadePadrao: 1.5,
+      acessoDoAluno: false,
+      paginaExperimental: false,
     })
     expect(Object.keys(erros).sort()).toEqual([
       'alertaAusenciasSeguidas',
