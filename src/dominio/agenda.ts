@@ -125,9 +125,3 @@ export function faseDaAula(aula: Pick<Aula, 'data' | 'inicio' | 'fim'>, agora: M
 export function turmasDoAluno(alunoId: Id, turmas: readonly Turma[]): Turma[] {
   return turmas.filter((t) => t.ativa && t.alunosFixos.includes(alunoId))
 }
-
-/** Lugares ocupados de uma turma na semana-modelo (sem exceções), para montar turmas. */
-export function lotacaoFixa(turma: Turma): { ocupadas: number; vagas: number } {
-  const ocupadas = turma.alunosFixos.length
-  return { ocupadas, vagas: Math.max(0, turma.capacidade - ocupadas) }
-}

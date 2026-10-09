@@ -14,6 +14,8 @@ import { carregar } from './dados/estado'
 import { deveUsarTransicaoDeVista, movimentoReduzido, transicaoDeVista } from './movimento/preferencias'
 import { ativarRetornoDeToque } from './movimento/toque'
 
+// ?agora= só faz sentido na demonstração; com o Firebase (etapa 2) isto precisa ficar desligado,
+// senão um link mudaria a data das marcações gravadas
 fixarAgora(lerAgoraDaUrl(location.search))
 iniciarRelogio()
 acompanharTemaDoSistema()

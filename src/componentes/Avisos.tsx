@@ -37,11 +37,6 @@ export function avisar(aviso: Omit<Aviso, 'id'>): void {
   relogio = setTimeout(() => fechar(id), aviso.duracao ?? (aviso.acao ? 6000 : 3500))
 }
 
-export function fecharAviso(): void {
-  const a = atual.peek()
-  if (a) fechar(a.id)
-}
-
 /**
  * Fica fora do #app (portal no body): quando uma folha abre, o resto do app fica inerte,
  * mas o "Desfazer" do aviso precisa continuar tocável. Com folha aberta, o aviso sobe para o topo.

@@ -20,7 +20,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 
 ### Identidade
 - [x] Logo vetorizado com potrace (`src/assets/marca/logo.svg`), anel refeito em geometria
-- [x] Figura do logo separada (`figura.svg`) para ilustração; monograma para o favicon
+- [x] Figura do logo separada (`figura.svg`, ainda sem uso: pensada para estados vazios e a página pública); monograma para o favicon
 - [x] Tokens de cor, tipo, forma e movimento em `src/estilos/tokens.css`, com tema escuro
 - [x] Fontes Playfair Display e Figtree servidas pelo próprio site (só o subconjunto latino)
 - [x] Ícones de traço próprios (`src/componentes/Icone.tsx`), marca d'água PILATES, chevrons duplos, pílulas de contorno, card terracota, sombra tingida
@@ -62,6 +62,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [ ] Gravação por campo (`updateDoc` com `marcacoes.<aluno>`) em lote, para duas pessoas marcarem a mesma aula sem uma apagar a outra
 - [ ] Login com e-mail e senha na tela Entrar; equipe com papel guardado em `equipe/{uid}`
 - [ ] Regras do Firestore por papel seguindo `src/dominio/permissoes.ts` e a tabela de coleções em [modelo-de-dados.md](modelo-de-dados.md), testadas no emulador (`firebase emulators:exec --project demo-pilates`), nunca em projeto real
+- [ ] Desligar `?agora=` e `?atraso=` fora do modo demonstração (`src/main.tsx` e `src/dados/criar.ts`)
 - [ ] Ampliar `connect-src` da política de segurança para os domínios do Firebase (e do emulador em desenvolvimento)
 - [ ] Aba Alunos (dona e professor): lista por unidade, busca, ficha com turmas fixas, créditos e histórico de presença; cadastro e edição só para a dona
 - [ ] Turmas: criar, editar capacidade e horário, mover aluno de turma (conferindo lotação)
