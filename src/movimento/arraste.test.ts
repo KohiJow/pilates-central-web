@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deveFechar, direcaoDaTroca, eixoDoGesto, resistencia, Velocimetro } from './arraste'
-import { duracaoPelaVelocidade } from './animar'
+import { curvaQueContinua, duracaoPelaVelocidade } from './animar'
 
 describe('gestos', () => {
   it('mede a velocidade só no fim do gesto', () => {
@@ -49,5 +49,19 @@ describe('gestos', () => {
     expect(duracaoPelaVelocidade(300, 2)).toBe(180)
     expect(duracaoPelaVelocidade(300, 0)).toBe(320)
     expect(duracaoPelaVelocidade(250, 1)).toBe(250)
+  })
+
+  it('depois de soltar, a curva sai na velocidade do dedo e nunca passa do destino', () => {
+    const inclinacao = (curva: string) => {
+      const [x1, y1, , y2] = (curva.match(/[\d.]+/g) ?? []).map(Number)
+      return { saida: (y1 ?? 0) / (x1 ?? 1), chegada: y2 }
+    }
+    // 250 px a 1 px/ms em 250 ms: a curva começa na mesma velocidade (inclinação 1)
+    expect(inclinacao(curvaQueContinua(1, 250, 250)).saida).toBeCloseTo(1, 2)
+    // arremesso forte encurtado para 180 ms: sai mais rápido que a média, como o dedo
+    expect(inclinacao(curvaQueContinua(3, 300, 180)).saida).toBeCloseTo(1.8, 2)
+    // nada de passar do ponto (y2 = 1) e nem inclinação absurda
+    expect(inclinacao(curvaQueContinua(50, 10, 320))).toEqual({ saida: 4, chegada: 1 })
+    expect(inclinacao(curvaQueContinua(0, 100, 240)).saida).toBe(0)
   })
 })

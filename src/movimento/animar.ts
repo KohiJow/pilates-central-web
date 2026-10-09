@@ -62,6 +62,20 @@ export function duracaoPelaVelocidade(distancia: number, velocidade: number, min
   return Math.round(Math.min(maximo, Math.max(minimo, Math.abs(distancia) / v)))
 }
 
+/**
+ * Curva para depois de soltar o dedo: começa na mesma velocidade do gesto e desacelera até o
+ * destino. As curvas comuns começam paradas (inclinação zero), e a peça que vinha no embalo do
+ * dedo dava um tranco: parava no instante de soltar e arrancava de novo.
+ * `velocidade` em px/ms, `distancia` em px até o destino, `duracao` em ms.
+ */
+export function curvaQueContinua(velocidade: number, distancia: number, duracao: number): string {
+  const inclinacao = distancia ? (Math.abs(velocidade) * duracao) / Math.abs(distancia) : 0
+  // no cubic-bezier, a inclinação de saída é y1 / x1
+  const x1 = 0.25
+  const y1 = Math.min(1, x1 * inclinacao)
+  return `cubic-bezier(${x1}, ${Number(y1.toFixed(3))}, 0.5, 1)`
+}
+
 const proximoQuadro = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
 
 /**

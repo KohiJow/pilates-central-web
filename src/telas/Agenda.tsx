@@ -14,7 +14,7 @@ import { dataPorExtenso, diaDaSemana, diasDoIntervalo, nomeDoMes, somarDias } fr
 import { ehAdministracao } from '../dominio/permissoes'
 import { maiuscula, plural } from '../dominio/texto'
 import type { DataISO } from '../dominio/tipos'
-import { animar, animarDepoisDePintar } from '../movimento/animar'
+import { animar, animarDepoisDePintar, curvaQueContinua, duracaoPelaVelocidade } from '../movimento/animar'
 import { direcaoDaTroca, eixoDoGesto, resistencia, Velocimetro } from '../movimento/arraste'
 import { CURVA, DURACAO } from '../movimento/tempos'
 import { diaEscolhido, escolherUnidade, soMinhas, unidadeEscolhida } from './agenda/estadoDaAgenda'
@@ -258,9 +258,16 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
       return
     }
     veioDoGesto.current = true
-    void animar(el, [de, { transform: `translateX(${-direcao * largura * 0.5}px)`, opacity: 0 }], {
-      duration: DURACAO.curta,
-      easing: CURVA.saida,
+    // a lista sai no embalo do dedo (se ele ia para o mesmo lado), sem parar no instante de soltar,
+    // e sempre para a frente de onde o dedo largou: com destino fixo na metade da largura, um
+    // arraste longo largava a lista além dele e ela voltava um pedaço antes de sumir
+    const destino = g.dx - direcao * largura * 0.3
+    const falta = Math.abs(destino - g.dx)
+    const noEmbalo = Math.sign(vx) === -direcao ? Math.abs(vx) : 0
+    const duracao = noEmbalo ? duracaoPelaVelocidade(falta, noEmbalo, DURACAO.curta, DURACAO.media) : DURACAO.curta
+    void animar(el, [de, { transform: `translateX(${destino}px)`, opacity: 0 }], {
+      duration: duracao,
+      easing: noEmbalo ? curvaQueContinua(noEmbalo, falta, duracao) : CURVA.saida,
     }).then(() => aoTrocar(direcao))
   }
 

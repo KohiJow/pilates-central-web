@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { extname, join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { expect, test } from './base'
-import { entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
+import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
 
 // Coisas de celular que o resto da suíte não pega, cada uma achada na revisão no iPhone e no
 // Android (vídeo quadro a quadro, medição na tela) e conferida aqui nos dois motores.
@@ -116,5 +116,36 @@ test.describe('celular', () => {
     await expect(page.getByText('Próxima aula')).toBeVisible()
     await irParaAba(page, 'Agenda')
     await expect(page.locator('.cartao-aula').first()).toBeVisible()
+  })
+
+  test('soltar o dedo depois de arrastar o dia: a lista continua para o mesmo lado, sem voltar', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    await irParaAba(page, 'Agenda')
+    await page.evaluate(() => {
+      const w = window as unknown as { __x: number[]; __solto: boolean }
+      w.__x = []
+      w.__solto = false
+      document.addEventListener('pointerup', () => (w.__solto = true), { capture: true })
+      const quadro = () => {
+        const el = document.querySelector('.agenda-dia-conteudo')
+        if (w.__solto && el) {
+          const t = getComputedStyle(el).transform
+          w.__x.push(t === 'none' ? 0 : new DOMMatrixReadOnly(t).m41)
+        }
+        if (w.__x.length < 40) requestAnimationFrame(quadro)
+      }
+      requestAnimationFrame(quadro)
+    })
+    const caixa = await page.locator('.agenda-dia').boundingBox()
+    if (!caixa) throw new Error('lista sem caixa')
+    const y = caixa.y + 60
+    // arraste longo, para além da metade: antes, a lista largada voltava um pedaço antes de sumir
+    await arrastar(page, { x: caixa.x + caixa.width * 0.9, y }, { x: caixa.x + caixa.width * 0.1, y: y + 4 }, 16)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sábado, 10 de outubro')
+    await esperarParado(page, '.agenda-dia-conteudo')
+    const x = await page.evaluate(() => (window as unknown as { __x: number[] }).__x)
+    // até o dia novo entrar (quando o x pula para o outro lado), só anda para a esquerda
+    const saida = x.slice(0, Math.max(1, x.findIndex((v) => v > 0)))
+    for (let i = 1; i < saida.length; i++) expect(saida[i], `quadro ${i}: ${saida.join(', ')}`).toBeLessThanOrEqual((saida[i - 1] ?? 0) + 0.5)
   })
 })
