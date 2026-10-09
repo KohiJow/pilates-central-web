@@ -1,0 +1,137 @@
+/* Tokens de cor, tipo, forma e movimento. Cores medidas do material do estúdio.
+   Regras de contraste (conferidas em src/estilos/contraste.test.ts):
+   - --brand-muted e --brand-soft não são cor de texto pequeno; servem para ícone, borda e ponto.
+   - --accent-amber nunca é texto (2,2:1 sobre o creme). */
+
+:root {
+  color-scheme: light;
+
+  /* superfícies */
+  --surface: #f5f1ee;
+  --surface-raised: #fffcfa;
+  --surface-sunken: #edecea;
+  --surface-accent: #fdd6bc;
+  --surface-inverse: #2a1710;
+
+  /* marca */
+  --brand: #6b250e;
+  --brand-strong: #5b2a14;
+  --brand-muted: #a4715f;
+  --brand-soft: #d2a68f;
+  --brand-ghost: #e8e6e7;
+  --brand-pressed: #561d0a;
+
+  /* acentos, uso raro e pontual */
+  --accent-amber: #f08e3f;
+  --accent-rose: #e3c8d2;
+  --accent-sage: #788b56;
+
+  /* texto */
+  --text: #2a1710;
+  --text-secondary: #6b5a50;
+  --text-on-brand: #fffcfa;
+  --text-on-accent: #5b2a14;
+  --text-on-inverse: #f5e8e0;
+
+  /* semânticos (versões escurecidas para passar 4.5:1 como texto) */
+  --success: #4e6b40;
+  --success-surface: #e4ecdc;
+  --warning: #8a4d12;
+  --warning-surface: #fbe7cf;
+  --danger: #9a3412;
+  --danger-surface: #f8ddd2;
+
+  --backdrop: rgba(42, 23, 16, 0.4);
+  --sombra-1: 0 1px 2px rgba(91, 42, 20, 0.06), 0 8px 24px rgba(91, 42, 20, 0.08);
+  --sombra-2: 0 2px 6px rgba(91, 42, 20, 0.1), 0 16px 40px rgba(91, 42, 20, 0.16);
+  --marca-dagua: rgba(91, 42, 20, 0.045);
+
+  /* tipografia */
+  --fonte-display: 'Playfair Display Variable', 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --fonte-ui: 'Figtree Variable', Figtree, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* forma e espaço (grade de 4px) */
+  --raio-pilula: 999px;
+  --raio-card: 16px;
+  --raio-campo: 12px;
+  --raio-folha: 24px;
+  --margem: 16px;
+  --toque: 48px;
+  --altura-abas: 64px;
+
+  /* movimento: só transform e opacity, de 180 a 320 ms */
+  --dur-curta: 180ms;
+  --dur-media: 240ms;
+  --dur-longa: 320ms;
+  --curva-saida: cubic-bezier(0.4, 0, 1, 1);
+  --curva-padrao: cubic-bezier(0.2, 0, 0, 1);
+  /* molas: alternativa em cubic-bezier; navegadores com linear() recebem a mola de verdade
+     em movimento.css */
+  --mola-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --mola-viva: cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+
+/* tema escuro: escurece o eixo quente, sem cinza */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface: #1c120d;
+    --surface-raised: #2a1c15;
+    --surface-sunken: #150d09;
+    --surface-accent: #4a2a1c;
+    --surface-inverse: #f5e8e0;
+    --brand: #e09a72;
+    --brand-strong: #f0c4a8;
+    --brand-muted: #c99a82;
+    --brand-soft: #7a4a35;
+    --brand-ghost: #33241c;
+    --brand-pressed: #c9845e;
+    --accent-rose: #5a3a44;
+    --text: #f5e8e0;
+    --text-secondary: #bfa698;
+    --text-on-brand: #1c120d;
+    --text-on-accent: #f0c4a8;
+    --text-on-inverse: #2a1710;
+    --success: #9cc189;
+    --success-surface: #26301f;
+    --warning: #e8b070;
+    --warning-surface: #3a2615;
+    --danger: #f19a7c;
+    --danger-surface: #3d1d13;
+    --backdrop: rgba(0, 0, 0, 0.55);
+    --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(12, 5, 2, 0.45);
+    --sombra-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(12, 5, 2, 0.6);
+    --marca-dagua: rgba(240, 196, 168, 0.05);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #1c120d;
+  --surface-raised: #2a1c15;
+  --surface-sunken: #150d09;
+  --surface-accent: #4a2a1c;
+  --surface-inverse: #f5e8e0;
+  --brand: #e09a72;
+  --brand-strong: #f0c4a8;
+  --brand-muted: #c99a82;
+  --brand-soft: #7a4a35;
+  --brand-ghost: #33241c;
+  --brand-pressed: #c9845e;
+  --accent-rose: #5a3a44;
+  --text: #f5e8e0;
+  --text-secondary: #bfa698;
+  --text-on-brand: #1c120d;
+  --text-on-accent: #f0c4a8;
+  --text-on-inverse: #2a1710;
+  --success: #9cc189;
+  --success-surface: #26301f;
+  --warning: #e8b070;
+  --warning-surface: #3a2615;
+  --danger: #f19a7c;
+  --danger-surface: #3d1d13;
+  --backdrop: rgba(0, 0, 0, 0.55);
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(12, 5, 2, 0.45);
+  --sombra-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(12, 5, 2, 0.6);
+  --marca-dagua: rgba(240, 196, 168, 0.05);
+}
