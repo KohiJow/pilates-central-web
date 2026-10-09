@@ -622,8 +622,9 @@ button.card:disabled {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  /* sem esmaecer: em 13px, a cor secundária dos dias sem aula já está no limite (medido na
+     tela: com opacidade 0,85, "dom" ficava em 4,2:1 no tema claro) */
   color: inherit;
-  opacity: 0.85;
 }
 
 .dia-numero {

@@ -169,4 +169,94 @@ test.describe('acessibilidade para uso com uma mão', () => {
     expect(longas).toEqual([])
     await expect(page.getByRole('dialog')).toBeVisible()
   })
+
+  // Contraste medido na tela, e não só nos pares de tokens: pega opacidade, fundo composto de
+  // camadas semitransparentes e cor herdada. Texto pequeno 4,5:1; grande (24px, ou 18,66px em
+  // negrito) 3:1.
+  for (const esquema of ['light', 'dark'] as const) {
+    test(`contraste medido na tela, tema ${esquema === 'light' ? 'claro' : 'escuro'}`, async ({ page }) => {
+      test.setTimeout(90_000)
+      await page.emulateMedia({ colorScheme: esquema, reducedMotion: 'reduce' })
+      await abrirApp(page, '2026-10-09T17:45')
+      await medirContraste(page, 'entrada')
+      await page.getByRole('button', { name: 'Explorar como administração' }).click()
+      await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
+      await medirContraste(page, 'hoje')
+      await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
+      await esperarFolhaParada(page)
+      await medirContraste(page, 'chamada')
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+      // agenda com domingo e feriado à vista (dias sem aula ficam com a cor secundária)
+      for (const tela of ['#/agenda', '#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/financeiro', '#/mais']) {
+        await irPara(page, tela)
+        await medirContraste(page, tela)
+      }
+      await page.goto('./experimental/?demo&agora=2026-10-09T10:00')
+      await expect(page.locator('.horario').first()).toBeVisible()
+      await medirContraste(page, 'página de aula experimental')
+    })
+  }
 })
+
+async function medirContraste(page: Page, onde: string) {
+  const ruins = await page.evaluate(() => {
+    type Cor = [number, number, number, number]
+    const ler = (c: string): Cor | null => {
+      const m = c.match(/rgba?\(([^)]+)\)/)
+      if (!m?.[1]) return null
+      const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number)
+      return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0, p[3] ?? 1]
+    }
+    const linear = (v: number) => {
+      const x = v / 255
+      return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+    }
+    const luz = (c: Cor) => 0.2126 * linear(c[0]) + 0.7152 * linear(c[1]) + 0.0722 * linear(c[2])
+    const sobre = (cima: Cor, baixo: Cor): Cor => {
+      const a = cima[3]
+      return [cima[0] * a + baixo[0] * (1 - a), cima[1] * a + baixo[1] * (1 - a), cima[2] * a + baixo[2] * (1 - a), 1]
+    }
+    const fundoDe = (el: Element): Cor => {
+      const camadas: Cor[] = []
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        const c = ler(getComputedStyle(n).backgroundColor)
+        if (c && c[3] > 0) {
+          camadas.push(c)
+          if (c[3] >= 1) break
+        }
+      }
+      let base: Cor = ler(getComputedStyle(document.documentElement).backgroundColor) ?? [255, 255, 255, 1]
+      for (let i = camadas.length - 1; i >= 0; i--) base = sobre(camadas[i] as Cor, base)
+      return base
+    }
+    const opacidade = (el: Element) => {
+      let o = 1
+      for (let n: Element | null = el; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity)
+      return o
+    }
+    const saida: string[] = []
+    const vistos = new Set<Element>()
+    const andar = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+    for (let t = andar.nextNode(); t; t = andar.nextNode()) {
+      const el = t.parentElement
+      if (!t.textContent?.trim() || !el || vistos.has(el)) continue
+      vistos.add(el)
+      const r = el.getBoundingClientRect()
+      const s = getComputedStyle(el)
+      if (r.width === 0 || r.height === 0 || s.visibility === 'hidden') continue
+      if (el.closest('.so-leitor, [aria-hidden="true"], .marca-dagua, [inert]')) continue
+      const cor = ler(s.color)
+      if (!cor) continue
+      const fundo = fundoDe(el)
+      const frente = sobre([cor[0], cor[1], cor[2], cor[3] * opacidade(el)], fundo)
+      const [a, b] = [luz(frente), luz(fundo)]
+      const razao = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+      const px = parseFloat(s.fontSize)
+      const grande = px >= 24 || (px >= 18.66 && Number(s.fontWeight) >= 700)
+      if (razao < (grande ? 3 : 4.5)) saida.push(`${razao.toFixed(2)}:1 em ${px}px: ${(t.textContent ?? '').trim().slice(0, 30)}`)
+    }
+    return [...new Set(saida)]
+  })
+  expect(ruins, onde).toEqual([])
+}
