@@ -200,6 +200,37 @@ test.describe('celular', () => {
     expect(inerte.every(Boolean)).toBe(true)
   })
 
+  test('o aviso que estava no alto com a folha aberta reaparece embaixo quando ela fecha', async ({ page }) => {
+    await entrarComoAdministracao(page, '2026-10-09T17:45')
+    await page.getByRole('button', { name: 'Abrir chamada', exact: true }).click()
+    await esperarFolhaParada(page)
+    await folha(page).locator('[data-aluno]').nth(1).getByRole('button', { name: 'Presente' }).click()
+    await expect(page.locator('.avisos--topo .aviso')).toBeVisible()
+    // o aviso já terminou de entrar no alto
+    await page.waitForFunction(() => document.querySelector('.aviso')?.getAnimations().every((a) => a.playState !== 'running'))
+    await page.evaluate(() => {
+      const w = window as unknown as { __entrou: boolean }
+      w.__entrou = false
+      const caixa = document.querySelector('.avisos')
+      if (!caixa) return
+      // quando o aviso troca de lugar, ele entra de novo (opacidade e deslocamento), sem saltar
+      new MutationObserver(() => {
+        if (caixa.classList.contains('avisos--topo')) return
+        const aviso = caixa.querySelector<HTMLElement>('.aviso')
+        const quadros =
+          aviso
+            ?.getAnimations()
+            .filter((a) => a.playState === 'running')
+            .flatMap((a) => (a.effect as KeyframeEffect | null)?.getKeyframes() ?? []) ?? []
+        if (quadros.some((k) => Number(k.opacity) === 0)) w.__entrou = true
+      }).observe(caixa, { attributes: true, attributeFilter: ['class'] })
+    })
+    await page.keyboard.press('Escape')
+    await expect(folha(page)).toHaveCount(0)
+    await expect(page.locator('.avisos:not(.avisos--topo) .aviso')).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { __entrou: boolean }).__entrou)).toBe(true)
+  })
+
   test('soltar o dedo depois de arrastar o dia: a lista continua para o mesmo lado, sem voltar', async ({ page }) => {
     await entrarComoAdministracao(page)
     await irParaAba(page, 'Agenda')

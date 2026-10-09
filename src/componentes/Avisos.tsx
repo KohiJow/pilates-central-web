@@ -1,6 +1,8 @@
 import { signal } from '@preact/signals'
 import { createPortal } from 'preact/compat'
-import { useEffect } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks'
+import { animar } from '../movimento/animar'
+import { CURVA, DURACAO } from '../movimento/tempos'
 import { folhasAbertas } from './FolhaInferior'
 import { Icone } from './Icone'
 import type { NomeDoIcone } from './Icone'
@@ -45,8 +47,25 @@ export function Avisos({ semAbas = false }: { semAbas?: boolean }) {
   const aviso = atual.value
   useEffect(() => () => clearTimeout(relogio), [])
   const posicao = folhasAbertas.value > 0 ? ' avisos--topo' : semAbas ? ' avisos--sem-abas' : ''
+  const caixa = useRef<HTMLDivElement>(null)
+  const posicaoAnterior = useRef(posicao)
+
+  // a folha abriu ou fechou com o aviso na tela: ele troca de lugar (pé ou topo) aparecendo de
+  // novo no lugar novo, em vez de saltar de uma ponta à outra da tela
+  useLayoutEffect(() => {
+    const anterior = posicaoAnterior.current
+    posicaoAnterior.current = posicao
+    const el = caixa.current?.querySelector<HTMLElement>('.aviso:not(.aviso--saindo)')
+    if (anterior === posicao || !el) return
+    const deslocamento = posicao === ' avisos--topo' ? -12 : 12
+    void animar(el, [{ opacity: 0, transform: `translateY(${deslocamento}px)` }, { opacity: 1, transform: 'translateY(0px)' }], {
+      duration: DURACAO.media,
+      easing: CURVA.suave,
+    })
+  }, [posicao])
+
   return createPortal(
-    <div class={`avisos${posicao}`} aria-live="polite" aria-atomic="true">
+    <div ref={caixa} class={`avisos${posicao}`} aria-live="polite" aria-atomic="true">
       {aviso && (
         <div key={aviso.id} class={`aviso${aviso.saindo ? ' aviso--saindo' : ''}`} role="status">
           {aviso.icone && (
