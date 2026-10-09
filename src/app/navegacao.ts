@@ -145,6 +145,17 @@ export function voltar(): void {
   mudar(r, 'tras', rolagens.get(chaveDe(r)) ?? 0)
 }
 
+/**
+ * Ao sair (ou trocar de perfil na demonstração), quem entrar depois começa no Hoje, e não na tela
+ * em que a pessoa anterior estava (a aba Mais, de onde se sai).
+ */
+export function voltarAoInicio(): void {
+  rolagens.clear()
+  const r: Rota = { aba: 'hoje', caminho: [] }
+  history.replaceState({ tela: 0 }, '', enderecoDe(r))
+  rota.value = r
+}
+
 /** "voltar" do celular (ou history.back de uma tela aberta pelo app). */
 export function acompanharHistorico(): void {
   window.addEventListener('popstate', () => {

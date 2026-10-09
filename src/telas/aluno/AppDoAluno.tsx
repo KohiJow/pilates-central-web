@@ -1,6 +1,7 @@
 // O app do aluno: as próximas aulas (avisar que não vem), a reposição (escolher onde repor) e
 // Mais (tema, instalar, privacidade, sair). Abas simples, sem endereço por tela: são três.
 import { signal } from '@preact/signals'
+import { useLayoutEffect } from 'preact/hooks'
 import { QuadroDeTela } from '../../app/Estrutura'
 import { avisar } from '../../componentes/Avisos'
 import { BarraAbas } from '../../componentes/BarraAbas'
@@ -35,6 +36,10 @@ export function irParaAbaDoAluno(nova: AbaDoAluno): void {
 const TELAS = { aulas: AulasDoAluno, repor: ReposicaoDoAluno, mais: MaisDoAluno }
 
 export function AppDoAluno() {
+  // quem entra (ou troca de perfil na demonstração) começa nas próprias aulas
+  useLayoutEffect(() => {
+    abaDoAluno.value = 'aulas'
+  }, [])
   const aba = abaDoAluno.value
   const Tela = TELAS[aba]
   const demo = repositorioDoAluno.value?.modo === 'demonstracao'

@@ -8,6 +8,9 @@ test.describe('entrar na demonstração', () => {
     await expect(page.getByText(/dados são fictícios/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Explorar como administração' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Explorar como professor' })).toBeVisible()
+    // a página pública que o estúdio divulga e o aviso de privacidade estão a um toque
+    await expect(page.getByRole('link', { name: 'Ver a página de aula experimental' })).toHaveAttribute('href', /\/experimental\/$/)
+    await expect(page.getByRole('link', { name: 'Aviso de privacidade' })).toHaveAttribute('href', /\/privacidade\/$/)
   })
 
   test('como administração: abas com rótulo e o selo discreto de demonstração', async ({ page }) => {
@@ -45,5 +48,10 @@ test.describe('entrar na demonstração', () => {
     await irParaAba(page, 'Mais')
     await page.getByRole('button', { name: 'Trocar de perfil' }).click()
     await expect(page.getByRole('button', { name: 'Explorar como administração' })).toBeVisible()
+    // quem entra depois começa no Hoje, não na aba Mais de quem saiu
+    await page.getByRole('button', { name: 'Explorar como professor' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /Rafael Moreira/ }).click()
+    await expect(page.getByRole('heading', { name: /Rafael/ })).toBeVisible()
+    await expect(aba(page, 'Hoje')).toHaveAttribute('aria-current', 'page')
   })
 })

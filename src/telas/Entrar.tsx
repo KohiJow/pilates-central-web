@@ -13,6 +13,7 @@ import { base, nomeDaUnidade, situacao } from '../dados/estado'
 import { ordenarEquipe } from '../dominio/equipe'
 import { ehAdministracao, NOME_DO_PAPEL } from '../dominio/permissoes'
 import { listaFalada } from '../dominio/texto'
+import { ENDERECO_DA_PAGINA_PUBLICA } from './conta/TelaDeEntrada'
 import type { MembroEquipe } from '../dominio/tipos'
 
 type Escolha = 'professor' | 'equipe' | 'aluno' | null
@@ -30,6 +31,8 @@ export function Entrar() {
     .filter((a) => a.acesso && a.situacao === 'ativo')
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   const acessoDoAlunoLigado = base.value?.configuracao.acessoDoAluno ?? false
+  // a página que o estúdio divulga para quem quer conhecer: na demonstração dá para ver como fica
+  const paginaPublicaLigada = base.value?.configuracao.paginaExperimental ?? false
   const pronto = situacao.value === 'pronto'
 
   const entrarComo = (m: MembroEquipe) => {
@@ -90,6 +93,12 @@ export function Entrar() {
           Entrar como outra pessoa da equipe
         </Botao>
 
+        {paginaPublicaLigada && (
+          <a class="botao botao--terciario botao--largo tocavel" href={ENDERECO_DA_PAGINA_PUBLICA}>
+            <span>Ver a página de aula experimental</span>
+          </a>
+        )}
+
         {temProjeto ? (
           <Botao variante="terciario" icone="voltar" onClick={voltarAsPortas}>
             Voltar e entrar com e-mail
@@ -99,6 +108,11 @@ export function Entrar() {
             Com o projeto do estúdio configurado, aqui aparece também o login com <span class="sem-quebra">e-mail</span> e senha.
           </p>
         )}
+        <p class="entrar-rodape">
+          <a class="link" href={`${import.meta.env.BASE_URL}privacidade/`}>
+            Aviso de privacidade
+          </a>
+        </p>
       </div>
 
       <FolhaInferior

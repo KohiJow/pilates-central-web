@@ -2,6 +2,7 @@ import { signal } from '@preact/signals'
 import { ehPapel } from '../dominio/permissoes'
 import type { Id, Papel } from '../dominio/tipos'
 import { gravarLocal, lerLocal } from './armazenamento'
+import { voltarAoInicio } from './navegacao'
 
 /**
  * Quem está usando o app. O papel guardado aqui é só para a primeira pintura: assim que os
@@ -70,6 +71,7 @@ export function entrarComoAluno(alunoId: Id): void {
 }
 
 export function sair(): void {
+  voltarAoInicio()
   sessao.value = null
   sessaoDoAluno.value = null
   if (guardarNoAparelho) {
