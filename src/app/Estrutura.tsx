@@ -77,7 +77,9 @@ function QuadroDeTela({ children }: { children: ComponentChildren }) {
     const entrada = animarDepoisDePintar(
       el,
       [
-        { transform: `translateX(${lado * 24}px)`, opacity: 0.01 },
+        // começa visível, ainda que esmaecida: em aparelho lento, enquanto a tela é pintada,
+        // aparece o conteúdo novo e não um vão em branco
+        { transform: `translateX(${lado * 24}px)`, opacity: 0.35 },
         { transform: 'translateX(0px)', opacity: 1 },
       ],
       { duration: DURACAO.media, easing: CURVA.suave },

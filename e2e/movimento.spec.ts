@@ -16,6 +16,7 @@ interface Janela {
   __quadros: number[]
   __geracao: number
   __props: string[]
+  __toque: number
 }
 
 async function comecarMedicao(page: Page) {
@@ -26,6 +27,12 @@ async function comecarMedicao(page: Page) {
     w.__geracao = geracao
     w.__quadros = []
     w.__props = []
+    w.__toque = Infinity
+    // momento do primeiro toque ou tecla depois que a medição começou
+    const marcar = () => {
+      if (w.__geracao === geracao && w.__toque === Infinity) w.__toque = performance.now()
+    }
+    for (const tipo of ['pointerdown', 'click', 'keydown']) document.addEventListener(tipo, marcar, { capture: true, once: true })
     const quadro = (t: number) => {
       if (w.__geracao !== geracao) return
       w.__quadros.push(t)
@@ -45,15 +52,24 @@ function percentil(valores: number[], p: number): number {
 }
 
 async function terminarMedicao(page: Page, nome: string, info: TestInfo) {
-  const { intervalos, props } = await page.evaluate(() => {
+  const { intervalos, props, primeiroDepoisDoToque } = await page.evaluate(() => {
     const w = window as unknown as Janela
     w.__geracao += 1
     const q = w.__quadros
-    return { intervalos: q.slice(1).map((t, i) => t - (q[i] ?? t)), props: [...new Set(w.__props)] }
+    const k = q.findIndex((t) => t > w.__toque)
+    return {
+      intervalos: q.slice(1).map((t, i) => t - (q[i] ?? t)),
+      props: [...new Set(w.__props)],
+      // índice (em intervalos) do primeiro quadro que termina depois do toque
+      primeiroDepoisDoToque: k < 1 ? 0 : k - 1,
+    }
   })
-  // O primeiro intervalo depois do toque inclui montar e pintar a tela nova (custo de render);
-  // os seguintes são a animação em si. Os dois são relatados; o p95 é o da animação.
-  const indiceDoMaior = intervalos.slice(0, 4).reduce((m, v, i, a) => (v > (a[m] ?? 0) ? i : m), 0)
+  // Um dos primeiros quadros depois do toque inclui montar e pintar a tela nova (custo de
+  // render, antes de a animação começar); os outros são a animação. Os dois são relatados;
+  // o p95 é o da animação.
+  const janelaDoRender = intervalos.slice(primeiroDepoisDoToque, primeiroDepoisDoToque + 3)
+  const indiceDoMaior =
+    primeiroDepoisDoToque + janelaDoRender.reduce((m, v, i, a) => (v > (a[m] ?? 0) ? i : m), 0)
   const animacao = intervalos.filter((_, i) => i !== indiceDoMaior)
   const resultado = {
     nome,
@@ -109,16 +125,19 @@ async function medirReferencia(page: Page): Promise<number> {
 
 /**
  * Limite do p95 no Chromium: 60 Hz = 16,7 ms, então dois quadros perdidos (34 ms) reprova; com
- * a CPU 4x mais lenta, 50 ms.
+ * a CPU 4x mais lenta, 50 ms. Se a régua do ambiente já perde quadros (máquina disputada), o
+ * limite passa a ser a régua mais dois quadros.
  * No WebKit do contêiner não há GPU: tudo é pintado e composto na CPU, dividida com outros
  * processos, e até a régua (uma camada só, sem nada do app) fica longe de 60 Hz e varia muito
  * de uma rodada para outra (p95 da régua entre 50 e 190 ms nas medições). Lá os tempos ficam
  * registrados (anexo e console) para comparar com a régua, sem reprovar; o que reprova no
  * WebKit é animação de outra propriedade que não transform e opacity.
  */
-function limiteDoP95(info: TestInfo): number | undefined {
+function limiteDoP95(info: TestInfo, referencia: number): number | undefined {
   if (info.project.name === 'webkit') return undefined
-  return LENTO ? 50 : 34
+  // com a máquina disputada, a própria régua perde quadros: a transição pode perder até dois
+  // quadros a mais que ela
+  return Math.max(LENTO ? 50 : 34, referencia + 2 * 16.7)
 }
 
 async function medir(
@@ -136,7 +155,7 @@ async function medir(
   const proibidas = r.propriedades.filter((p) => !PROPRIEDADES_PERMITIDAS.has(p))
   expect(proibidas, `${nome}: só transform e opacity`).toEqual([])
   expect(r.quadros, `${nome}: houve quadros`).toBeGreaterThan(2)
-  const limite = limiteDoP95(info)
+  const limite = limiteDoP95(info, referencia)
   if (limite !== undefined) {
     expect.soft(r.p95, `${nome}: p95 dos intervalos entre quadros (régua ${referencia.toFixed(1)} ms)`).toBeLessThan(limite)
     expect.soft(Math.max(r.maior, r.quadroDeRender), `${nome}: nenhum quadro travado`).toBeLessThan(250)

@@ -185,7 +185,7 @@ function DiaDeslizante({ dia, temAnterior, temProximo, aoTrocar, children }: Pro
     const animacao = animarDepoisDePintar(
       el,
       [
-        { transform: `translateX(${direcao * distancia}px)`, opacity: 0.01 },
+        { transform: `translateX(${direcao * distancia}px)`, opacity: 0.35 },
         { transform: 'translateX(0px)', opacity: 1 },
       ],
       { duration: DURACAO.media, easing: CURVA.suave },
