@@ -35,6 +35,24 @@ jobs:
           path: dist
           retention-days: 7
 
+  regras:
+    name: regras do firestore (emulador)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # o emulador do Firestore roda em Java
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm i -g firebase-tools@15.31.0
+      - run: npm run regras
+
   e2e:
     name: ponta a ponta (${{ matrix.projeto }})
     needs: verificar
@@ -69,7 +87,7 @@ jobs:
   publicar:
     name: publicar no GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: [verificar, e2e]
+    needs: [verificar, regras, e2e]
     runs-on: ubuntu-latest
     permissions:
       pages: write

@@ -11,3 +11,8 @@ blob-report/
 !.env.exemplo
 /quadros/
 /videos/
+# logs dos emuladores do Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log

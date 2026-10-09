@@ -23,7 +23,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    files: ['*.config.{js,ts}', 'scripts/**', 'e2e/**'],
+    files: ['*.config.{js,ts}', 'scripts/**', 'e2e/**', 'testes-de-regras/**'],
     languageOptions: { globals: globals.node },
   },
 )

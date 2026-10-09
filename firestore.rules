@@ -1,0 +1,885 @@
+rules_version = '2';
+
+// Regras do Firestore do Pilates Central.
+//
+// Um projeto Firebase = um estúdio. Quem pode o quê:
+//   titular (Responsável)  tudo o que a administração faz, mais: convidar, promover e tirar
+//                          administradores, passar a conta adiante
+//   administrador          o dia a dia inteiro, financeiro incluído; convida professores e alunos
+//   professor              agenda, turmas e alunos (sem valores); grava presença, aviso e reposição
+//                          nas unidades em que dá aula
+//   aluno                  só os próprios dados e as vagas (sem nomes); avisa a própria falta e
+//                          encaixa a própria reposição, no prazo e com vaga
+//   qualquer pessoa        só o documento público (página de aula experimental)
+//
+// Ninguém tem papel por ter conta: o papel vem de um convite feito pela administração para o
+// e-mail da pessoa, e só vale com o e-mail confirmado e igual ao do convite. Sem Cloud Functions
+// (plano gratuito): as gravações que mexem em mais de um documento conferem umas às outras com
+// getAfter, então uma não passa sem a outra. O que não está escrito aqui é negado.
+//
+// Quem está pedindo é calculado uma vez por pedido (quemSou) e passado adiante: as regras têm
+// um teto de expressões avaliadas por pedido, e repetir a busca do papel em cada função estoura.
+// Os testes ficam em testes-de-regras/ e rodam no emulador (projeto demo-pilates).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- antes de publicar ----------
+
+    // E-mail de quem faz o primeiro acesso e vira responsável pela conta. Troque pelo e-mail
+    // real antes de publicar as regras no console: sem esta trava, quem criasse uma conta
+    // primeiro poderia reivindicar o estúdio.
+    function emailDoPrimeiroAcesso() {
+      return 'responsavel@example.com';
+    }
+
+    // ---------- caminhos e tipos ----------
+
+    function caminho(colecao, id) {
+      return /databases/$(database)/documents/$(colecao)/$(id);
+    }
+
+    function texto(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    function ehId(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,120}$');
+    }
+
+    function ehData(v) {
+      return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+
+    function ehHora(v) {
+      return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function ehCompetencia(v) {
+      return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
+    }
+
+    function ehInstante(v) {
+      return v is string && v.size() >= 10 && v.size() <= 40;
+    }
+
+    function inteiro(v, min, max) {
+      return v is int && v >= min && v <= max;
+    }
+
+    function ehTelefone(v) {
+      return v is string && v.matches('^[0-9]{0,15}$');
+    }
+
+    function ehEmail(v) {
+      return v is string && v.size() <= 120 && v.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') && v == v.lower();
+    }
+
+    // Data 'AAAA-MM-DD' como instante (meia-noite UTC), para somar dias.
+    function dia(d) {
+      return timestamp.date(int(d[0:4]), int(d[5:7]), int(d[8:10]));
+    }
+
+    // Início da aula como instante: Campinas está em UTC-3 o ano todo desde 2019.
+    function inicioDaAula(v) {
+      return dia(v.data) + duration.value(int(v.inicio[0:2]) * 60 + int(v.inicio[3:5]) + 180, 'm');
+    }
+
+    // documento como mapa, ou o padrão quando não existe (get devolve null): uma leitura só,
+    // em vez de exists e get, porque o número de leituras por pedido tem teto
+    function dados(p, padrao) {
+      let d = get(p);
+      return d == null ? padrao : d.data;
+    }
+
+    function dadosDepois(p, padrao) {
+      let d = getAfter(p);
+      return d == null ? padrao : d.data;
+    }
+
+    function mudou() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---------- quem está pedindo ----------
+
+    function emailConfirmado() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function meuEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // O papel de quem pede, com o que as regras precisam saber dele:
+    //   papel     'administrador', 'professor', 'aluno' ou '' (nenhum)
+    //   id        cadastro da pessoa (equipe ou aluno)
+    //   unidades  onde o professor dá aula
+    //   ativo     aluno ativo (pausado não avisa nem repõe)
+    //   cfg       configuração do estúdio (só carregada para aluno)
+    // O papel da equipe vale com o acesso ligado ao cadastro (uid igual), cadastro ativo e o
+    // e-mail confirmado igual ao do cadastro. O do aluno, com o acesso liberado na ficha, aluno
+    // não arquivado e o acesso dos alunos ligado nas configurações.
+    function quemSou() {
+      let confirmado = emailConfirmado();
+      let a = confirmado ? dados(caminho('acessos', request.auth.uid), {'tipo': '', 'pessoaId': ''}) : {'tipo': '', 'pessoaId': ''};
+      let m = a.tipo == 'equipe' ? dados(caminho('equipe', a.pessoaId), {}) : {};
+      let equipeOk = a.tipo == 'equipe'
+        && m.get('uid', '') == request.auth.uid
+        && m.get('ativo', false) == true
+        && m.get('email', '') == meuEmail();
+      let al = a.tipo == 'aluno' ? dados(caminho('alunos', a.pessoaId), {}) : {};
+      let cfg = a.tipo == 'aluno' ? dados(caminho('configuracao', 'estudio'), {}) : {};
+      let alunoOk = a.tipo == 'aluno'
+        && al.get('email', '') == meuEmail()
+        && al.get('acesso', null) != null
+        && al.get('situacao', 'inativo') != 'inativo'
+        && cfg.get('acessoDoAluno', false) == true;
+      return {
+        'papel': equipeOk ? m.papel : (alunoOk ? 'aluno' : ''),
+        'id': a.pessoaId,
+        'unidades': equipeOk ? m.get('unidades', []) : [],
+        'ativo': alunoOk && al.get('situacao', '') == 'ativo',
+        'cfg': cfg
+      };
+    }
+
+    function equipe(q) {
+      return q.papel == 'administrador' || q.papel == 'professor';
+    }
+
+    function adm(q) {
+      return q.papel == 'administrador';
+    }
+
+    function professor(q) {
+      return q.papel == 'professor';
+    }
+
+    function aluno(q) {
+      return q.papel == 'aluno';
+    }
+
+    function titular(q) {
+      return adm(q) && dados(caminho('estudio', 'posse'), {}).get('titularUid', '') == request.auth.uid;
+    }
+
+    // professor só mexe nas unidades em que dá aula; a administração, em todas
+    function naUnidade(q, unidadeId) {
+      return adm(q) || (professor(q) && unidadeId in q.unidades);
+    }
+
+    // ---------- posse do estúdio ----------
+
+    // Criada uma vez, no primeiro acesso, junto com o cadastro de quem reivindica e o acesso
+    // dela. Depois só muda pela passagem da conta, feita por quem é titular agora.
+    match /estudio/posse {
+      allow get: if emailConfirmado();
+      allow create: if reivindicar();
+      allow update: if passarAConta(quemSou());
+      allow delete: if false;
+    }
+
+    function reivindicar() {
+      let p = request.resource.data;
+      return emailConfirmado()
+        && meuEmail() == emailDoPrimeiroAcesso()
+        && p.keys().hasOnly(['titularUid', 'titularMembroId', 'criadoEm'])
+        && p.titularUid == request.auth.uid
+        && ehId(p.titularMembroId)
+        && p.criadoEm == request.time
+        && getAfter(caminho('equipe', p.titularMembroId)).data.get('uid', '') == request.auth.uid
+        && getAfter(caminho('acessos', request.auth.uid)).data.pessoaId == p.titularMembroId;
+    }
+
+    // a conta só passa para alguém da administração, ativo, que já entrou com o e-mail
+    // confirmado (o uid só é gravado no cadastro quando o convite é aceito assim)
+    function passarAConta(q) {
+      let p = request.resource.data;
+      let alvo = dados(caminho('equipe', p.titularMembroId), {});
+      return titular(q)
+        && mudou().hasOnly(['titularUid', 'titularMembroId'])
+        && p.titularMembroId != resource.data.titularMembroId
+        && ehId(p.titularUid)
+        && alvo.get('papel', '') == 'administrador'
+        && alvo.get('ativo', false) == true
+        && !('convite' in alvo)
+        && alvo.get('uid', '') == p.titularUid;
+    }
+
+    // ---------- configuração e unidades ----------
+
+    function configuracaoValida(c) {
+      return c.keys().hasAll(['nomeEstudio', 'whatsapp', 'validadeCreditoDias', 'antecedenciaAvisoHoras',
+          'limiteReposicoesMes', 'alertaAusenciasSeguidas', 'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+        && c.keys().hasOnly(['nomeEstudio', 'whatsapp', 'validadeCreditoDias', 'antecedenciaAvisoHoras',
+          'limiteReposicoesMes', 'alertaAusenciasSeguidas', 'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+        && texto(c.nomeEstudio, 2, 80)
+        && ehTelefone(c.whatsapp)
+        && inteiro(c.validadeCreditoDias, 1, 180)
+        && inteiro(c.antecedenciaAvisoHoras, 0, 72)
+        && inteiro(c.limiteReposicoesMes, 0, 20)
+        && inteiro(c.alertaAusenciasSeguidas, 2, 10)
+        && inteiro(c.capacidadePadrao, 1, 20)
+        && c.acessoDoAluno is bool
+        && c.paginaExperimental is bool;
+    }
+
+    match /configuracao/estudio {
+      allow get: if quemSou().papel != '';
+      allow create, update: if adm(quemSou()) && configuracaoValida(request.resource.data);
+      allow delete: if false;
+    }
+
+    function unidadeValida(id, u) {
+      return u.keys().hasAll(['id', 'nome', 'endereco', 'ativa'])
+        && u.keys().hasOnly(['id', 'nome', 'endereco', 'ativa'])
+        && u.id == id
+        && texto(u.nome, 1, 60)
+        && texto(u.endereco, 0, 160)
+        && u.ativa is bool;
+    }
+
+    match /unidades/{unidadeId} {
+      allow read: if quemSou().papel != '';
+      allow create, update: if adm(quemSou()) && ehId(unidadeId) && unidadeValida(unidadeId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---------- equipe, convites e acessos ----------
+
+    function membroValido(id, m) {
+      return m.keys().hasAll(['id', 'nome', 'papel', 'email', 'telefone', 'unidades', 'ativo'])
+        && m.keys().hasOnly(['id', 'nome', 'papel', 'email', 'telefone', 'unidades', 'ativo', 'convite', 'uid'])
+        && m.id == id
+        && texto(m.nome, 1, 80)
+        && m.papel in ['administrador', 'professor']
+        && ehEmail(m.email)
+        && ehTelefone(m.telefone)
+        && m.unidades is list && m.unidades.size() <= 20
+        && m.ativo is bool
+        && (!('convite' in m) || (m.convite is map
+              && m.convite.keys().hasOnly(['enviadoEm', 'porId'])
+              && ehInstante(m.convite.enviadoEm) && ehId(m.convite.porId)))
+        && (!('uid' in m) || ehId(m.uid));
+    }
+
+    match /equipe/{membroId} {
+      allow read: if equipe(quemSou());
+      allow create: if cadastrarNaEquipe(quemSou(), membroId) || primeiroCadastro(membroId);
+      allow update: if membroValido(membroId, request.resource.data)
+        && (aceiteDoConvite(membroId) || edicaoNaEquipe(quemSou(), membroId));
+      allow delete: if false;
+    }
+
+    // convite: a administração cadastra professores; só o titular cadastra administradores.
+    // Ninguém nasce com uid: ele só entra quando a própria pessoa aceita o convite.
+    function cadastrarNaEquipe(q, membroId) {
+      let m = request.resource.data;
+      return adm(q)
+        && ehId(membroId)
+        && membroValido(membroId, m)
+        && !('uid' in m)
+        && 'convite' in m
+        && m.ativo == true
+        && (m.papel == 'professor' || titular(q));
+    }
+
+    // primeiro acesso: o cadastro de quem reivindica o estúdio, no mesmo lote da posse
+    function primeiroCadastro(membroId) {
+      let m = request.resource.data;
+      return emailConfirmado()
+        && !exists(caminho('estudio', 'posse'))
+        && getAfter(caminho('estudio', 'posse')).data.titularUid == request.auth.uid
+        && getAfter(caminho('estudio', 'posse')).data.titularMembroId == membroId
+        && membroValido(membroId, m)
+        && m.papel == 'administrador'
+        && m.uid == request.auth.uid
+        && m.email == meuEmail()
+        && m.ativo == true
+        && !('convite' in m);
+    }
+
+    // a própria pessoa aceita: e-mail confirmado e igual ao do convite, grava só o uid
+    function aceiteDoConvite(membroId) {
+      return emailConfirmado()
+        && resource.data.email == meuEmail()
+        && resource.data.ativo == true
+        && !('uid' in resource.data)
+        && 'convite' in resource.data
+        && mudou().hasOnly(['uid', 'convite'])
+        && request.resource.data.uid == request.auth.uid
+        && !('convite' in request.resource.data)
+        && exists(caminho('convites', meuEmail()))
+        && get(caminho('convites', meuEmail())).data.pessoaId == membroId
+        && getAfter(caminho('acessos', request.auth.uid)).data.pessoaId == membroId;
+    }
+
+    // Cada um atualiza o próprio contato; quem é da administração também as próprias unidades.
+    // Professores: a administração. Administradores: só o titular. O cadastro do titular só ele
+    // mesmo muda, e só o contato. O e-mail só muda enquanto o convite não foi aceito, porque é
+    // ele que liga a conta ao papel. O uid nunca muda depois de gravado.
+    function edicaoNaEquipe(q, membroId) {
+      return equipe(q) && (
+        (q.id == membroId
+          && (mudou().hasOnly(['nome', 'telefone']) || (adm(q) && mudou().hasOnly(['nome', 'telefone', 'unidades']))))
+        || (adm(q)
+          && q.id != membroId
+          && dados(caminho('estudio', 'posse'), {}).get('titularMembroId', '') != membroId
+          && (resource.data.papel == 'professor' || titular(q))
+          && (request.resource.data.papel == 'professor' || titular(q))
+          && mudou().hasOnly(['nome', 'telefone', 'unidades', 'ativo', 'papel', 'email', 'convite'])
+          && (!mudou().hasAny(['email', 'convite']) || !('uid' in resource.data)))
+      );
+    }
+
+    function conviteValido(q, email, c) {
+      let m = dadosDepois(caminho('equipe', c.pessoaId), {});
+      let al = dadosDepois(caminho('alunos', c.pessoaId), {});
+      return c.keys().hasAll(['email', 'papel', 'pessoaId', 'porId', 'criadoEm'])
+        && c.keys().hasOnly(['email', 'papel', 'pessoaId', 'porId', 'criadoEm'])
+        && c.email == email
+        && ehEmail(email)
+        && ehId(c.pessoaId)
+        && c.porId == q.id
+        && ehInstante(c.criadoEm)
+        && (
+          (c.papel in ['professor', 'administrador']
+            && (c.papel == 'professor' || titular(q))
+            && m.get('email', '') == email
+            && m.get('papel', '') == c.papel
+            && !('uid' in m))
+          || (c.papel == 'aluno'
+            && al.get('email', '') == email
+            && al.get('acesso', null) != null)
+        );
+    }
+
+    // Convite: documento com o e-mail da pessoa como id. Quem foi convidado lê o seu (com o
+    // e-mail confirmado) e apaga ao aceitar.
+    match /convites/{email} {
+      allow get: if (emailConfirmado() && email == meuEmail()) || adm(quemSou());
+      allow list: if adm(quemSou());
+      allow create, update: if adm(quemSou()) && conviteValido(quemSou(), email, request.resource.data);
+      allow delete: if (emailConfirmado() && email == meuEmail()) || adm(quemSou());
+    }
+
+    // Liga a conta (uid) à pessoa (cadastro da equipe ou do aluno). Só a própria pessoa cria,
+    // e só a partir de um convite para o e-mail dela (ou do primeiro acesso, para o titular).
+    match /acessos/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create: if criarAcesso(uid);
+      // apagar o próprio acesso é inofensivo (perde o papel) e permite aceitar outro convite
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow update: if false;
+    }
+
+    function criarAcesso(uid) {
+      let a = request.resource.data;
+      let c = emailConfirmado() ? dados(caminho('convites', meuEmail()), {}) : {};
+      return emailConfirmado()
+        && request.auth.uid == uid
+        && a.keys().hasOnly(['tipo', 'pessoaId', 'email', 'criadoEm'])
+        && a.keys().hasAll(['tipo', 'pessoaId', 'email', 'criadoEm'])
+        && a.email == meuEmail()
+        && ehId(a.pessoaId)
+        && ehInstante(a.criadoEm)
+        && (
+          // aceite de convite da equipe: o cadastro, depois do lote, tem este uid
+          (a.tipo == 'equipe'
+            && c.get('pessoaId', '') == a.pessoaId
+            && c.get('papel', '') in ['administrador', 'professor']
+            && getAfter(caminho('equipe', a.pessoaId)).data.get('uid', '') == uid)
+          // primeiro acesso do titular, no mesmo lote da posse
+          || (a.tipo == 'equipe'
+            && !exists(caminho('estudio', 'posse'))
+            && getAfter(caminho('estudio', 'posse')).data.titularUid == uid
+            && getAfter(caminho('estudio', 'posse')).data.titularMembroId == a.pessoaId)
+          // aceite de convite de aluno
+          || (a.tipo == 'aluno'
+            && c.get('pessoaId', '') == a.pessoaId
+            && c.get('papel', '') == 'aluno'
+            && alunoPodeEntrar(a.pessoaId))
+        );
+    }
+
+    function alunoPodeEntrar(alunoId) {
+      let al = dados(caminho('alunos', alunoId), {});
+      let cfg = dados(caminho('configuracao', 'estudio'), {});
+      return al.get('email', '') == meuEmail()
+        && al.get('acesso', null) != null
+        && al.get('situacao', 'inativo') != 'inativo'
+        && cfg.get('acessoDoAluno', false) == true;
+    }
+
+    // ---------- alunos e financeiro ----------
+
+    function alunoValido(id, a) {
+      return a.keys().hasAll(['id', 'nome', 'unidadeId', 'telefone', 'email', 'vezesPorSemana', 'situacao', 'observacao', 'desde'])
+        && a.keys().hasOnly(['id', 'nome', 'unidadeId', 'telefone', 'email', 'vezesPorSemana', 'situacao', 'observacao', 'desde', 'acesso'])
+        && a.id == id
+        && texto(a.nome, 1, 80)
+        && ehId(a.unidadeId)
+        && ehTelefone(a.telefone)
+        && (a.email == '' || ehEmail(a.email))
+        && inteiro(a.vezesPorSemana, 1, 7)
+        && a.situacao in ['ativo', 'pausado', 'inativo']
+        && texto(a.observacao, 0, 500)
+        && ehData(a.desde)
+        && (!('acesso' in a) || (a.acesso is map
+              && a.acesso.keys().hasOnly(['convidadoEm', 'porId'])
+              && ehInstante(a.acesso.convidadoEm) && ehId(a.acesso.porId)
+              && ehEmail(a.email)));
+    }
+
+    // O cadastro do aluno (com a observação, que é só da equipe) não é lido pelo aluno: ele lê o
+    // portal, uma cópia enxuta mantida pela administração.
+    match /alunos/{alunoId} {
+      allow read: if equipe(quemSou());
+      allow create, update: if adm(quemSou()) && ehId(alunoId) && alunoValido(alunoId, request.resource.data);
+      allow delete: if adm(quemSou());
+    }
+
+    function financeiroValido(id, f) {
+      return f.keys().hasAll(['alunoId', 'unidadeId', 'valorMensal', 'formaPreferida', 'diaVencimento'])
+        && f.keys().hasOnly(['alunoId', 'unidadeId', 'valorMensal', 'formaPreferida', 'diaVencimento'])
+        && f.alunoId == id
+        && ehId(f.unidadeId)
+        && inteiro(f.valorMensal, 0, 10000000)
+        && f.formaPreferida in ['pix', 'cartao_credito', 'cartao_debito', 'dinheiro', 'transferencia', 'gympass', 'totalpass', 'outro']
+        && inteiro(f.diaVencimento, 1, 28);
+    }
+
+    // valor, forma e vencimento: só a administração (o professor nem pede)
+    match /financeiroDosAlunos/{alunoId} {
+      allow read: if adm(quemSou());
+      allow create, update: if adm(quemSou()) && ehId(alunoId) && financeiroValido(alunoId, request.resource.data);
+      allow delete: if adm(quemSou());
+    }
+
+    function pagamentoValido(id, p) {
+      return p.keys().hasAll(['id', 'alunoId', 'unidadeId', 'competencia', 'valor', 'forma', 'pagoEm', 'observacao'])
+        && p.keys().hasOnly(['id', 'alunoId', 'unidadeId', 'competencia', 'valor', 'forma', 'pagoEm', 'observacao', 'registradoPorId'])
+        && p.id == id
+        && ehId(p.alunoId)
+        && ehId(p.unidadeId)
+        && ehCompetencia(p.competencia)
+        && inteiro(p.valor, 1, 10000000)
+        && p.forma in ['pix', 'cartao_credito', 'cartao_debito', 'dinheiro', 'transferencia', 'gympass', 'totalpass', 'outro']
+        && ehData(p.pagoEm)
+        && texto(p.observacao, 0, 300)
+        && (!('registradoPorId' in p) || ehId(p.registradoPorId));
+    }
+
+    match /pagamentos/{pagamentoId} {
+      allow read: if adm(quemSou());
+      allow create, update: if adm(quemSou()) && ehId(pagamentoId) && pagamentoValido(pagamentoId, request.resource.data);
+      allow delete: if adm(quemSou());
+    }
+
+    // ---------- turmas ----------
+
+    function turmaValida(id, t) {
+      return t.keys().hasAll(['id', 'unidadeId', 'diaDaSemana', 'inicio', 'duracaoMin', 'capacidade', 'professorId', 'alunosFixos', 'ativa', 'desde'])
+        && t.keys().hasOnly(['id', 'unidadeId', 'diaDaSemana', 'inicio', 'duracaoMin', 'capacidade', 'professorId', 'alunosFixos', 'fixosDesde', 'ativa', 'desde'])
+        && t.id == id
+        && ehId(t.unidadeId)
+        && inteiro(t.diaDaSemana, 0, 6)
+        && ehHora(t.inicio)
+        && inteiro(t.duracaoMin, 10, 240)
+        && inteiro(t.capacidade, 1, 30)
+        && ehId(t.professorId)
+        && t.alunosFixos is list && t.alunosFixos.size() <= 30
+        && (!('fixosDesde' in t) || (t.fixosDesde is map && t.fixosDesde.size() <= 60))
+        && t.ativa is bool
+        && ehData(t.desde);
+    }
+
+    match /turmas/{turmaId} {
+      allow read: if equipe(quemSou());
+      allow create, update: if adm(quemSou()) && ehId(turmaId) && turmaValida(turmaId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---------- registros de aula ----------
+
+    function registroValido(id, r) {
+      return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'atualizadoEm'])
+        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'cancelamento', 'atualizadoEm'])
+        && r.id == id
+        && id == r.turmaId + '_' + r.data
+        && ehId(r.turmaId)
+        && ehId(r.unidadeId)
+        && ehData(r.data)
+        && r.marcacoes is map && r.marcacoes.size() <= 40
+        && r.marcacoes.values().hasOnly(['presente', 'faltou', 'avisou'])
+        && r.reposicoes is map && r.reposicoes.size() <= 30
+        && (!('cancelamento' in r) || (r.cancelamento is map
+              && r.cancelamento.keys().hasOnly(['motivo', 'observacao'])
+              && r.cancelamento.motivo in ['feriado', 'estudio']
+              && texto(r.cancelamento.observacao, 0, 200)))
+        && ehInstante(r.atualizadoEm);
+    }
+
+    match /registros/{aulaId} {
+      allow read: if equipe(quemSou());
+      allow create: if criarRegistro(quemSou(), aulaId);
+      allow update: if alterarRegistro(quemSou(), aulaId);
+      allow delete: if false;
+    }
+
+    // equipe: presença, aviso e reposição; cancelar aula é só da administração
+    function criarRegistro(q, aulaId) {
+      let r = request.resource.data;
+      return (equipe(q)
+          && registroValido(aulaId, r)
+          && naUnidade(q, r.unidadeId)
+          && (adm(q) || !('cancelamento' in r)))
+        || (aluno(q) && alunoCriaRegistro(q, aulaId));
+    }
+
+    function alterarRegistro(q, aulaId) {
+      return (equipe(q)
+          && registroValido(aulaId, request.resource.data)
+          && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data'])
+          && naUnidade(q, resource.data.unidadeId)
+          && (adm(q) || !mudou().hasAny(['cancelamento'])))
+        || (aluno(q) && alunoAlteraRegistro(q, aulaId));
+    }
+
+    // ---------- vagas: a aula sem nomes, para o aluno ----------
+
+    function vagaValida(id, v) {
+      return v.keys().hasAll(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'atualizadoEm'])
+        && v.keys().hasOnly(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'atualizadoEm'])
+        && id == v.turmaId + '_' + v.data
+        && ehId(v.turmaId)
+        && ehId(v.unidadeId)
+        && ehData(v.data)
+        && ehHora(v.inicio)
+        && ehHora(v.fim)
+        && inteiro(v.capacidade, 1, 30)
+        && inteiro(v.ocupadas, -30, 60)
+        && v.cancelada is bool
+        && ehInstante(v.atualizadoEm);
+    }
+
+    match /vagas/{aulaId} {
+      allow read: if quemSou().papel != '';
+      allow create: if criarVaga(quemSou(), aulaId);
+      allow update: if alterarVaga(quemSou(), aulaId);
+      allow delete: if adm(quemSou());
+    }
+
+    function criarVaga(q, aulaId) {
+      return equipe(q)
+        && vagaValida(aulaId, request.resource.data)
+        && naUnidade(q, request.resource.data.unidadeId);
+    }
+
+    function alterarVaga(q, aulaId) {
+      return (equipe(q)
+          && vagaValida(aulaId, request.resource.data)
+          && !mudou().hasAny(['turmaId', 'unidadeId', 'data'])
+          && naUnidade(q, resource.data.unidadeId))
+        || (aluno(q) && alunoMexeNaVaga(q, aulaId));
+    }
+
+    // ---------- o que o aluno faz sozinho ----------
+    // Três documentos mudam juntos (registro da aula, crédito e vaga); cada regra confere as
+    // outras pelo estado depois do lote, então nenhum muda sozinho.
+
+    // a aula como estava e como fica (registro e vaga), do ponto de vista de um aluno
+    function situacaoNaAula(q, aulaId) {
+      let rAntes = dados(caminho('registros', aulaId), {'marcacoes': {}, 'reposicoes': {}});
+      let rDepois = dadosDepois(caminho('registros', aulaId), {'marcacoes': {}, 'reposicoes': {}});
+      return {
+        'avisouAntes': rAntes.marcacoes.get(q.id, '') == 'avisou',
+        'avisouDepois': rDepois.marcacoes.get(q.id, '') == 'avisou',
+        'marcadoAntes': q.id in rAntes.marcacoes,
+        'marcadoDepois': q.id in rDepois.marcacoes,
+        'repondoAntes': q.id in rAntes.reposicoes,
+        'repondoDepois': q.id in rDepois.reposicoes,
+        'creditoAntes': rAntes.reposicoes.get(q.id, ''),
+        'creditoDepois': rDepois.reposicoes.get(q.id, '')
+      };
+    }
+
+    // ainda dá tempo: a aula começa daqui a pelo menos a antecedência combinada
+    function noPrazo(q, v) {
+      return request.time + duration.value(q.cfg.antecedenciaAvisoHoras, 'h') <= inicioDaAula(v);
+    }
+
+    function vagaDaAula(aulaId) {
+      return dados(caminho('vagas', aulaId), {});
+    }
+
+    function ocupadasDepois(aulaId) {
+      return dadosDepois(caminho('vagas', aulaId), {'ocupadas': -100}).ocupadas;
+    }
+
+    function turmaDaVaga(v) {
+      return dados(caminho('turmas', v.turmaId), {'ativa': false, 'alunosFixos': []});
+    }
+
+    // registro escrito pelo aluno: mesma aula da vaga, sem cancelamento
+    function registroDoAluno(aulaId, v, r) {
+      return registroValido(aulaId, r)
+        && !('cancelamento' in r)
+        && v.get('turmaId', '') == r.turmaId
+        && v.get('unidadeId', '') == r.unidadeId
+        && v.get('data', '') == r.data;
+    }
+
+    // avisar a própria falta: aluno fixo da turma, aula de pé, no prazo, e a vaga abre
+    function avisoValido(q, aulaId, v, s) {
+      let t = turmaDaVaga(v);
+      return q.ativo
+        && v.cancelada == false
+        && noPrazo(q, v)
+        && t.ativa == true
+        && q.id in t.alunosFixos
+        && t.get('fixosDesde', {}).get(q.id, '0000-00-00') <= v.data
+        && !s.marcadoAntes
+        && !s.repondoAntes
+        && s.avisouDepois
+        && ocupadasDepois(aulaId) == v.ocupadas - 1;
+    }
+
+    // desfazer o aviso: no prazo, só se ainda houver lugar
+    function desfazerAvisoValido(q, aulaId, v, s) {
+      return q.ativo
+        && v.cancelada == false
+        && noPrazo(q, v)
+        && s.avisouAntes
+        && !s.marcadoDepois
+        && ocupadasDepois(aulaId) == v.ocupadas + 1
+        && ocupadasDepois(aulaId) <= v.capacidade;
+    }
+
+    // encaixar a reposição: crédito dele, livre, da mesma unidade e na validade; aula com vaga
+    function encaixeValido(q, aulaId, v, s) {
+      let creditoId = s.creditoDepois;
+      let c = dados(caminho('creditos', creditoId), {});
+      let cDepois = dadosDepois(caminho('creditos', creditoId), {});
+      return q.ativo
+        && v.cancelada == false
+        && noPrazo(q, v)
+        && !s.marcadoAntes
+        && !s.repondoAntes
+        && s.repondoDepois
+        && c.get('alunoId', '') == q.id
+        && !('usadoEm' in c)
+        && c.get('unidadeId', '') == v.unidadeId
+        && v.data <= c.get('validoAte', '')
+        && !(c.get('origem', {}).get('turmaId', '') == v.turmaId && c.get('origem', {}).get('data', '') == v.data)
+        && cDepois.get('usadoEm', null) == {'turmaId': v.turmaId, 'data': v.data}
+        && ocupadasDepois(aulaId) == v.ocupadas + 1
+        && ocupadasDepois(aulaId) <= v.capacidade;
+    }
+
+    // desistir da reposição: no prazo e antes de ter presença marcada
+    function desistirValido(q, aulaId, v, s) {
+      return q.ativo
+        && noPrazo(q, v)
+        && s.repondoAntes
+        && !s.repondoDepois
+        && !s.marcadoAntes
+        && ocupadasDepois(aulaId) == v.ocupadas - 1;
+    }
+
+    function alunoCriaRegistro(q, aulaId) {
+      let r = request.resource.data;
+      let v = vagaDaAula(aulaId);
+      let s = situacaoNaAula(q, aulaId);
+      return registroDoAluno(aulaId, v, r)
+        && ((r.marcacoes.keys().hasOnly([q.id]) && r.marcacoes.size() == 1 && r.reposicoes.size() == 0
+              && avisoValido(q, aulaId, v, s))
+          || (r.reposicoes.keys().hasOnly([q.id]) && r.reposicoes.size() == 1 && r.marcacoes.size() == 0
+              && encaixeValido(q, aulaId, v, s)));
+    }
+
+    function alunoAlteraRegistro(q, aulaId) {
+      let r = request.resource.data;
+      let v = vagaDaAula(aulaId);
+      let s = situacaoNaAula(q, aulaId);
+      let marcacoesMudaram = r.marcacoes.diff(resource.data.marcacoes).affectedKeys();
+      let reposicoesMudaram = r.reposicoes.diff(resource.data.reposicoes).affectedKeys();
+      return registroDoAluno(aulaId, v, r)
+        && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data', 'cancelamento'])
+        && (
+          // avisar ou desfazer o aviso: só a marcação dele muda
+          (reposicoesMudaram.size() == 0 && marcacoesMudaram.hasOnly([q.id])
+            && (avisoValido(q, aulaId, v, s) || desfazerAvisoValido(q, aulaId, v, s)))
+          // encaixar ou desistir: só a reposição dele muda
+          || (marcacoesMudaram.size() == 0 && reposicoesMudaram.hasOnly([q.id])
+            && (encaixeValido(q, aulaId, v, s) || desistirValido(q, aulaId, v, s)))
+        );
+    }
+
+    function alunoMexeNaVaga(q, aulaId) {
+      let s = situacaoNaAula(q, aulaId);
+      let novo = request.resource.data.ocupadas;
+      let antes = resource.data.ocupadas;
+      return mudou().hasOnly(['ocupadas', 'atualizadoEm'])
+        && ehInstante(request.resource.data.atualizadoEm)
+        && (
+          // avisou ou desistiu da reposição: a vaga abre
+          (novo == antes - 1
+            && ((!s.avisouAntes && s.avisouDepois) || (s.repondoAntes && !s.repondoDepois)))
+          // encaixou ou desfez o aviso: ocupa um lugar, sem passar da capacidade
+          || (novo == antes + 1
+            && novo <= resource.data.capacidade
+            && ((!s.repondoAntes && s.repondoDepois) || (s.avisouAntes && !s.avisouDepois)))
+        );
+    }
+
+    // ---------- créditos de reposição ----------
+
+    function creditoValido(id, c) {
+      return c.keys().hasAll(['id', 'alunoId', 'unidadeId', 'origem', 'criadoEm', 'validoAte'])
+        && c.keys().hasOnly(['id', 'alunoId', 'unidadeId', 'motivo', 'origem', 'criadoEm', 'validoAte', 'usadoEm'])
+        && c.id == id
+        && ehId(c.alunoId)
+        && ehId(c.unidadeId)
+        && (!('motivo' in c) || c.motivo in ['aviso', 'cancelamento', 'cortesia'])
+        && c.origem is map && c.origem.keys().hasOnly(['turmaId', 'data'])
+        && ehId(c.origem.turmaId) && ehData(c.origem.data)
+        && ehInstante(c.criadoEm)
+        && ehData(c.validoAte)
+        && (!('usadoEm' in c) || (c.usadoEm is map && c.usadoEm.keys().hasOnly(['turmaId', 'data'])
+              && ehId(c.usadoEm.turmaId) && ehData(c.usadoEm.data)));
+    }
+
+    function aulaDe(ref) {
+      return ref.turmaId + '_' + ref.data;
+    }
+
+    match /creditos/{creditoId} {
+      allow read: if lerCredito(quemSou());
+      allow create: if criarCredito(quemSou(), creditoId);
+      allow update: if alterarCredito(quemSou(), creditoId);
+      allow delete: if apagarCredito(quemSou());
+    }
+
+    function lerCredito(q) {
+      return equipe(q) || (aluno(q) && resource.data.alunoId == q.id);
+    }
+
+    // professor só cria crédito de aviso; cortesia e cancelamento são da administração
+    function criarCredito(q, creditoId) {
+      let c = request.resource.data;
+      return (equipe(q)
+          && creditoValido(creditoId, c)
+          && naUnidade(q, c.unidadeId)
+          && (adm(q) || c.get('motivo', 'aviso') == 'aviso'))
+        || (aluno(q) && alunoCriaCredito(q, creditoId, c));
+    }
+
+    // o crédito do aviso: id fixo por aula, validade dentro da combinada, junto com o aviso
+    function alunoCriaCredito(q, creditoId, c) {
+      let v = vagaDaAula(aulaDe(c.origem));
+      let s = situacaoNaAula(q, aulaDe(c.origem));
+      return creditoValido(creditoId, c)
+        && c.alunoId == q.id
+        && c.motivo == 'aviso'
+        && !('usadoEm' in c)
+        && creditoId == 'cr_' + q.id + '_' + c.origem.turmaId + '_' + c.origem.data
+        && c.unidadeId == v.get('unidadeId', '')
+        && dia(c.validoAte) >= dia(c.origem.data)
+        && dia(c.validoAte) <= dia(c.origem.data) + duration.value(q.cfg.validadeCreditoDias, 'd')
+        && !s.avisouAntes
+        && s.avisouDepois;
+    }
+
+    function alterarCredito(q, creditoId) {
+      return (equipe(q)
+          && creditoValido(creditoId, request.resource.data)
+          && naUnidade(q, resource.data.unidadeId)
+          && (adm(q) || mudou().hasOnly(['usadoEm'])))
+        || (aluno(q) && alunoMexeNoCredito(q));
+    }
+
+    // usar (encaixe) ou devolver (desistência) o próprio crédito, junto com o registro da aula
+    function alunoMexeNoCredito(q) {
+      let usando = 'usadoEm' in request.resource.data;
+      let aula = usando ? aulaDe(request.resource.data.usadoEm) : aulaDe(resource.data.usadoEm);
+      let s = situacaoNaAula(q, aula);
+      return resource.data.alunoId == q.id
+        && mudou().hasOnly(['usadoEm'])
+        && creditoValido(resource.data.id, request.resource.data)
+        && ((usando && !('usadoEm' in resource.data) && !s.repondoAntes && s.creditoDepois == resource.data.id)
+          || (!usando && 'usadoEm' in resource.data && s.creditoAntes == resource.data.id && !s.repondoDepois));
+    }
+
+    function apagarCredito(q) {
+      return adm(q)
+        || (professor(q)
+          && naUnidade(q, resource.data.unidadeId)
+          && !('usadoEm' in resource.data)
+          && resource.data.get('motivo', 'aviso') == 'aviso')
+        || (aluno(q) && alunoApagaCredito(q));
+    }
+
+    // desfazer o aviso devolve o crédito, se ainda não foi usado
+    function alunoApagaCredito(q) {
+      let s = situacaoNaAula(q, aulaDe(resource.data.origem));
+      return resource.data.alunoId == q.id
+        && !('usadoEm' in resource.data)
+        && resource.data.get('motivo', 'aviso') == 'aviso'
+        && s.avisouAntes
+        && !s.avisouDepois;
+    }
+
+    // ---------- portal do aluno ----------
+
+    function portalValido(id, p) {
+      return p.keys().hasAll(['alunoId', 'nome', 'unidadeId', 'turmas', 'atualizadoEm'])
+        && p.keys().hasOnly(['alunoId', 'nome', 'unidadeId', 'turmas', 'atualizadoEm'])
+        && p.alunoId == id
+        && texto(p.nome, 1, 40)
+        && ehId(p.unidadeId)
+        && p.turmas is list && p.turmas.size() <= 14
+        && ehInstante(p.atualizadoEm);
+    }
+
+    // o que o aluno vê de si: primeiro nome, unidade e as turmas fixas (sem os colegas)
+    match /portal/{alunoId} {
+      allow read: if lerPortal(quemSou(), alunoId);
+      allow create, update: if adm(quemSou()) && ehId(alunoId) && portalValido(alunoId, request.resource.data);
+      allow delete: if adm(quemSou());
+    }
+
+    function lerPortal(q, alunoId) {
+      return equipe(q) || (aluno(q) && alunoId == q.id);
+    }
+
+    // ---------- página pública ----------
+
+    function publicoValido(p) {
+      return p.keys().hasAll(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
+        && p.keys().hasOnly(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
+        && texto(p.nomeEstudio, 2, 80)
+        && ehTelefone(p.whatsapp)
+        && p.unidades is list && p.unidades.size() <= 10
+        && p.experimental is bool
+        && p.horarios is list && p.horarios.size() <= 120
+        && ehInstante(p.atualizadoEm);
+    }
+
+    // Lido por qualquer pessoa, sem login: nome, WhatsApp, unidades e horários com vaga, sem
+    // nenhum nome de aluno ou professor. Ninguém de fora grava nada.
+    match /publico/estudio {
+      allow get: if true;
+      allow create, update: if gravarPublico(quemSou());
+      allow delete: if adm(quemSou());
+    }
+
+    function gravarPublico(q) {
+      return publicoValido(request.resource.data)
+        && (adm(q) || (professor(q) && resource != null && mudou().hasOnly(['horarios', 'atualizadoEm'])));
+    }
+  }
+}
