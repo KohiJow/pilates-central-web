@@ -17,6 +17,9 @@ interface Janela {
   __geracao: number
   __props: string[]
   __toque: number
+  // deslocamentos de layout sem toque recente (o que conta no CLS) e tarefas longas, em ms
+  __deslocamentos: number[]
+  __tarefasLongas: number[]
 }
 
 async function comecarMedicao(page: Page) {
@@ -28,6 +31,22 @@ async function comecarMedicao(page: Page) {
     w.__quadros = []
     w.__props = []
     w.__toque = Infinity
+    w.__deslocamentos = []
+    w.__tarefasLongas = []
+    // só o Chromium tem as duas APIs; no WebKit as listas ficam vazias
+    try {
+      new PerformanceObserver((lista) => {
+        if (w.__geracao !== geracao) return
+        for (const e of lista.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[])
+          if (!e.hadRecentInput) w.__deslocamentos.push(e.value)
+      }).observe({ type: 'layout-shift' })
+      new PerformanceObserver((lista) => {
+        if (w.__geracao !== geracao) return
+        for (const e of lista.getEntries()) w.__tarefasLongas.push(e.duration)
+      }).observe({ type: 'longtask' })
+    } catch {
+      // sem suporte
+    }
     // momento do primeiro toque ou tecla depois que a medição começou
     const marcar = () => {
       if (w.__geracao === geracao && w.__toque === Infinity) w.__toque = performance.now()
@@ -52,12 +71,16 @@ function percentil(valores: number[], p: number): number {
 }
 
 async function terminarMedicao(page: Page, nome: string, info: TestInfo) {
-  const { intervalos, props, primeiroDepoisDoToque } = await page.evaluate(() => {
+  // as entradas de desempenho chegam aos observadores depois do quadro: dá tempo a elas
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 50)))
+  const { intervalos, props, primeiroDepoisDoToque, cls, tarefasLongas } = await page.evaluate(() => {
     const w = window as unknown as Janela
     w.__geracao += 1
     const q = w.__quadros
     const k = q.findIndex((t) => t > w.__toque)
     return {
+      cls: w.__deslocamentos.reduce((a, b) => a + b, 0),
+      tarefasLongas: w.__tarefasLongas.map((d) => Math.round(d)),
       intervalos: q.slice(1).map((t, i) => t - (q[i] ?? t)),
       props: [...new Set(w.__props)],
       // índice (em intervalos) do primeiro quadro que termina depois do toque
@@ -80,6 +103,8 @@ async function terminarMedicao(page: Page, nome: string, info: TestInfo) {
     p95: Number(percentil(animacao, 0.95).toFixed(1)),
     mediana: Number(percentil(animacao, 0.5).toFixed(1)),
     maior: Number(Math.max(0, ...animacao).toFixed(1)),
+    cls: Number(cls.toFixed(4)),
+    tarefasLongas,
     propriedades: props,
   }
   await info.attach(`quadros-${nome}`, { body: JSON.stringify(resultado, null, 2), contentType: 'application/json' })
@@ -156,9 +181,12 @@ async function medir(
   expect(proibidas, `${nome}: só transform e opacity`).toEqual([])
   expect(r.quadros, `${nome}: houve quadros`).toBeGreaterThan(2)
   const limite = limiteDoP95(info, referencia)
+  // nada se desloca sozinho na tela: tudo o que muda de lugar é por transform (CLS zero)
+  expect(r.cls, `${nome}: deslocamento de layout sem toque`).toBe(0)
   if (limite !== undefined) {
     expect.soft(r.p95, `${nome}: p95 dos intervalos entre quadros (régua ${referencia.toFixed(1)} ms)`).toBeLessThan(limite)
     expect.soft(Math.max(r.maior, r.quadroDeRender), `${nome}: nenhum quadro travado`).toBeLessThan(250)
+    expect.soft(Math.max(0, ...r.tarefasLongas), `${nome}: tarefa longa`).toBeLessThan(250)
   }
   return r
 }
