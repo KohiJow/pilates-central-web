@@ -83,7 +83,8 @@ test.describe('Firebase (emuladores)', () => {
     const aluno = alunoDoMotor(info)
     await entrarComo(page, aluno.email)
     await expect(page.getByRole('heading', { level: 1, name: /^Olá, / })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('Sua próxima aula')).toBeVisible()
+    // o emulador usa o relógio de verdade: no horário da aula do aluno o destaque diz "Aula agora"
+    await expect(page.getByText(/^(Sua próxima aula|Aula agora)$/)).toBeVisible()
 
     // a primeira aula da lista que ainda dá para avisar
     const linhas = page.locator('#conteudo .lista .lista-item')
