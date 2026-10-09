@@ -62,7 +62,8 @@ test.describe('app instalável', () => {
 
   test('depois da primeira visita, abre sem internet no modo demonstração', async ({ page, context, browserName }) => {
     // o WebKit do Playwright não passa a navegação pelo service worker com a rede desligada
-    // ("internal error" no recarregar); lá o teste acima confere o que ficou guardado
+    // ("internal error" no recarregar); lá vale o teste com o servidor desligado de verdade,
+    // em celular.spec.ts
     test.skip(browserName === 'webkit', 'simulação de rede desligada sem service worker no WebKit do Playwright')
     await entrarComoAdministracao(page)
     await page.evaluate(async () => {
