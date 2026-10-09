@@ -474,7 +474,8 @@ button.card:disabled {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* com o teclado aberto num campo da folha, ela fica em cima dele (FolhaInferior mede) */
+  bottom: var(--teclado, 0px);
   z-index: 51;
   display: flex;
   flex-direction: column;
@@ -489,6 +490,13 @@ button.card:disabled {
   padding-bottom: env(safe-area-inset-bottom);
   outline: none;
   will-change: transform;
+}
+
+/* digitando: a folha cabe no pedaço de tela acima do teclado, e o pé dela já não encosta
+   na barra do sistema (o teclado cobre essa faixa) */
+.folha[data-teclado] {
+  max-height: calc(var(--janela-visivel, 100dvh) - 16px);
+  padding-bottom: 0;
 }
 
 /* um pedaço de "tecido" abaixo da folha, para o repique da mola não mostrar o vão */

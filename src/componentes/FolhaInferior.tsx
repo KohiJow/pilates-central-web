@@ -2,8 +2,9 @@ import { signal } from '@preact/signals'
 import type { ComponentChildren } from 'preact'
 import { createPortal } from 'preact/compat'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { animar, animarDepoisDePintar, duracaoPelaVelocidade } from '../movimento/animar'
+import { animar, animarDepoisDePintar, curvaQueContinua, duracaoPelaVelocidade } from '../movimento/animar'
 import { deveFechar, resistencia, Velocimetro } from '../movimento/arraste'
+import { coberturaDoTeclado, digitandoEm } from '../movimento/teclado'
 import { CURVA, DURACAO } from '../movimento/tempos'
 import { Icone } from './Icone'
 
@@ -26,6 +27,17 @@ interface Props {
 const FOCAVEIS = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
 let sequenciaDeHistorico = 0
 
+/** Rola o corpo da folha até o campo ficar inteiro à vista, acima do teclado. */
+function mostrarCampo(folha: HTMLElement, campo: HTMLElement): void {
+  const corpo = folha.querySelector<HTMLElement>('.folha-corpo')
+  if (!corpo?.contains(campo)) return
+  const caixa = corpo.getBoundingClientRect()
+  const alvo = campo.getBoundingClientRect()
+  const folga = 12
+  if (alvo.bottom > caixa.bottom - folga) corpo.scrollTop += alvo.bottom - caixa.bottom + folga
+  else if (alvo.top < caixa.top + folga) corpo.scrollTop -= caixa.top + folga - alvo.top
+}
+
 function translateYAtual(el: HTMLElement): number {
   const t = getComputedStyle(el).transform
   if (!t || t === 'none') return 0
@@ -45,6 +57,14 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
   const aoFecharAtual = useRef(aoFechar)
   aoFecharAtual.current = aoFechar
   const idTitulo = `folha-${useId()}`
+
+  // Enquanto desce, a folha continua mostrando o que mostrava aberta. Quem abre costuma limpar o
+  // próprio estado ao fechar (a aula ou o crédito escolhido), e o conteúdo trocava no meio da
+  // saída: no vídeo, a lista da equipe inteira no lugar da dos professores e um "sem vaga" no
+  // lugar da aula que acabou de ser marcada.
+  const conteudo = useRef({ titulo, rotulo, subtitulo, rodape, children })
+  if (aberta) conteudo.current = { titulo, rotulo, subtitulo, rodape, children }
+  const mostrado = conteudo.current
 
   useEffect(() => {
     if (aberta) setMontada(true)
@@ -81,7 +101,8 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
     void animar(b, [{ opacity: Number(opacidade) }, { opacity: 0 }], { duration: duracao, easing: CURVA.padrao })
     void animar(f, [{ transform: `translateY(${atual}px)` }, { transform: 'translateY(100%)' }], {
       duration: duracao,
-      easing: v > 0 ? CURVA.padrao : CURVA.saida,
+      // solta pelo dedo: sai no embalo dele; pelo X, Esc ou fundo: acelera para fora
+      easing: v > 0 ? curvaQueContinua(v, altura - atual, duracao) : CURVA.saida,
     }).then(() => {
       setMontada(false)
       const anterior = focoAnterior.current
@@ -139,6 +160,51 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
   // arrastar para fechar, pelo pegador (alça + cabeçalho)
   const arraste = useRef<{ inicioY: number; base: number; atual: number; id: number; quadro: number } | null>(null)
   const velocimetro = useRef(new Velocimetro())
+
+  // teclado aberto num campo da folha: a folha sobe até a borda do teclado e encolhe para caber
+  // no que sobrou da tela (sem isto, o campo e o botão de confirmar ficam atrás do teclado)
+  useEffect(() => {
+    const visual = window.visualViewport
+    if (!aberta || !visual) return
+    let quadro = 0
+    const ajustar = () => {
+      quadro = 0
+      const f = folha.current
+      if (!f) return
+      const campo = digitandoEm(f)
+      const coberto = campo ? coberturaDoTeclado(window.innerHeight, visual) : 0
+      if (coberto) f.style.setProperty('--janela-visivel', `${Math.round(visual.height)}px`)
+      if (coberto === Number(f.dataset.teclado ?? 0)) return
+      const topoAntes = f.getBoundingClientRect().top
+      if (coberto) {
+        f.dataset.teclado = String(coberto)
+        f.style.setProperty('--teclado', `${coberto}px`)
+      } else {
+        delete f.dataset.teclado
+        f.style.removeProperty('--teclado')
+        f.style.removeProperty('--janela-visivel')
+      }
+      // a folha acompanha o teclado deslizando (só transform), em vez de pular para o lugar novo
+      const deslocou = topoAntes - f.getBoundingClientRect().top
+      if (deslocou && !arraste.current && !f.getAnimations().some((a) => a.playState === 'running')) {
+        void animar(f, [{ transform: `translateY(${deslocou}px)` }, { transform: 'translateY(0px)' }], {
+          duration: DURACAO.media,
+          easing: CURVA.suave,
+        })
+      }
+      if (campo && coberto) mostrarCampo(f, campo)
+    }
+    const agendar = () => {
+      if (!quadro) quadro = requestAnimationFrame(ajustar)
+    }
+    visual.addEventListener('resize', agendar)
+    visual.addEventListener('scroll', agendar)
+    return () => {
+      cancelAnimationFrame(quadro)
+      visual.removeEventListener('resize', agendar)
+      visual.removeEventListener('scroll', agendar)
+    }
+  }, [aberta])
 
   const aoApertar = (e: PointerEvent) => {
     const f = folha.current
@@ -210,6 +276,8 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
         aria-labelledby={idTitulo}
         tabIndex={-1}
         data-aberta={aberta ? 'sim' : 'nao'}
+        // saindo: nada dentro dela responde a toque nem aparece para o leitor de tela
+        inert={!aberta}
       >
         <div
           class="folha-pegador"
@@ -221,19 +289,19 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
           <div class="folha-alca" aria-hidden="true" />
           <div class="folha-cabeca">
             <div class="folha-titulos">
-              {rotulo && <p class="micro">{rotulo}</p>}
+              {mostrado.rotulo && <p class="micro">{mostrado.rotulo}</p>}
               <h2 id={idTitulo} class="titulo">
-                {titulo}
+                {mostrado.titulo}
               </h2>
-              {subtitulo && <div class="texto-secundario">{subtitulo}</div>}
+              {mostrado.subtitulo && <div class="texto-secundario">{mostrado.subtitulo}</div>}
             </div>
             <button type="button" class="folha-fechar tocavel" onClick={() => aoFecharAtual.current()} aria-label="Fechar">
               <Icone nome="fechar" />
             </button>
           </div>
         </div>
-        <div class="folha-corpo">{children}</div>
-        {rodape && <div class="folha-rodape">{rodape}</div>}
+        <div class="folha-corpo">{mostrado.children}</div>
+        {mostrado.rodape && <div class="folha-rodape">{mostrado.rodape}</div>}
       </section>
     </>,
     document.body,

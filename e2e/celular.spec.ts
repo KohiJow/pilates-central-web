@@ -4,12 +4,63 @@ import type { AddressInfo } from 'node:net'
 import { extname, join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { expect, test } from './base'
-import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
+import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
 
 // Coisas de celular que o resto da suíte não pega, cada uma achada na revisão no iPhone e no
 // Android (vídeo quadro a quadro, medição na tela) e conferida aqui nos dois motores.
 
 test.describe('celular', () => {
+  test('teclado aberto num campo da folha: a folha sobe até ele e o campo fica à vista', async ({ page }) => {
+    // O Playwright não abre teclado de verdade; a janela visual (visualViewport) é trocada por
+    // uma que encolhe como no iPhone quando o teclado sobe, sem mudar o tamanho da página
+    await page.addInitScript(() => {
+      const visual = new EventTarget()
+      let teclado = 0
+      Object.defineProperties(visual, {
+        height: { get: () => window.innerHeight - teclado },
+        width: { get: () => window.innerWidth },
+        offsetTop: { get: () => 0 },
+        offsetLeft: { get: () => 0 },
+        scale: { get: () => 1 },
+      })
+      Object.defineProperty(window, 'visualViewport', { configurable: true, get: () => visual })
+      ;(window as unknown as { __teclado: (px: number) => void }).__teclado = (px: number) => {
+        teclado = px
+        visual.dispatchEvent(new Event('resize'))
+      }
+    })
+    await entrarComoAdministracao(page)
+    await irParaAba(page, 'Financeiro')
+    await page.getByRole('button', { name: 'Lançar pagamento', exact: true }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('button').filter({ hasText: 'Ana Almeida' }).click()
+    const observacao = folha(page).getByLabel('Observação (opcional)')
+    await observacao.focus()
+    const altura = await page.evaluate(() => window.innerHeight)
+    const TECLADO = Math.round(altura * 0.4)
+    await page.evaluate((px) => (window as unknown as { __teclado: (px: number) => void }).__teclado(px), TECLADO)
+    await expect(page.locator('.folha[data-teclado]')).toHaveCount(1)
+    await esperarFolhaParada(page)
+    const pe = await page.evaluate(() => document.querySelector('.folha')?.getBoundingClientRect().bottom ?? 0)
+    expect(Math.abs(pe - (altura - TECLADO))).toBeLessThan(2)
+    // o campo e o botão de lançar ficam acima do teclado
+    const campo = await observacao.boundingBox()
+    expect((campo?.y ?? 0) + (campo?.height ?? 0)).toBeLessThanOrEqual(altura - TECLADO + 1)
+    const lancar = await folha(page).getByRole('button', { name: /^Lançar/ }).boundingBox()
+    expect((lancar?.y ?? 0) + (lancar?.height ?? 0)).toBeLessThanOrEqual(altura - TECLADO + 1)
+    // e a folha inteira cabe no que sobrou da tela
+    const topo = await page.evaluate(() => document.querySelector('.folha')?.getBoundingClientRect().top ?? -1)
+    expect(topo).toBeGreaterThanOrEqual(0)
+
+    // teclado fecha (o foco sai do campo): a folha volta para o pé da tela
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await page.evaluate(() => (window as unknown as { __teclado: (px: number) => void }).__teclado(0))
+    await expect(page.locator('.folha[data-teclado]')).toHaveCount(0)
+    await esperarFolhaParada(page)
+    const peDepois = await page.evaluate(() => document.querySelector('.folha')?.getBoundingClientRect().bottom ?? 0)
+    expect(Math.abs(peDepois - altura)).toBeLessThan(2)
+  })
+
   test('as fontes baixam uma vez só (a pré-carga casa com o pedido do CSS em cada motor)', async ({ page }) => {
     const pedidos: string[] = []
     page.on('request', (r) => {
@@ -116,6 +167,37 @@ test.describe('celular', () => {
     await expect(page.getByText('Próxima aula')).toBeVisible()
     await irParaAba(page, 'Agenda')
     await expect(page.locator('.cartao-aula').first()).toBeVisible()
+  })
+
+  test('a folha desce com o conteúdo que tinha, e não responde enquanto sai', async ({ page }) => {
+    await abrirApp(page)
+    await page.getByRole('button', { name: 'Explorar como professor' }).click()
+    await esperarFolhaParada(page)
+    // anota cada texto que a folha mostrar dali em diante, até ela sair da página
+    await page.evaluate(() => {
+      const w = window as unknown as { __textos: string[]; __inerte: boolean[] }
+      w.__textos = []
+      w.__inerte = []
+      const f = document.querySelector('.folha')
+      if (!f) return
+      new MutationObserver(() => {
+        w.__textos.push(f.textContent ?? '')
+        w.__inerte.push((f as HTMLElement).inert)
+      }).observe(f, { subtree: true, childList: true, characterData: true, attributes: true })
+    })
+    await page.keyboard.press('Escape')
+    await expect(folha(page)).toHaveCount(0)
+    const { textos, inerte } = await page.evaluate(() => {
+      const w = window as unknown as { __textos: string[]; __inerte: boolean[] }
+      return { textos: w.__textos, inerte: w.__inerte }
+    })
+    expect(textos.length).toBeGreaterThan(0)
+    for (const t of textos) {
+      expect(t).toContain('Explorar como professor')
+      // a lista da equipe inteira (com a responsável) nunca aparece no lugar da dos professores
+      expect(t).not.toContain('Helena Prado')
+    }
+    expect(inerte.every(Boolean)).toBe(true)
   })
 
   test('soltar o dedo depois de arrastar o dia: a lista continua para o mesmo lado, sem voltar', async ({ page }) => {
