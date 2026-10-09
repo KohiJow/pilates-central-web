@@ -69,17 +69,24 @@ A fluidez no celular é requisito, não enfeite. Regras: só `transform` e `opac
 `prefers-reduced-motion` respeitado. Os testes de ponta a ponta medem os intervalos entre quadros
 durante cada transição e reprovam qualquer animação de outra propriedade.
 
-Medições no Chromium (perfil Pixel 7), p95 dos intervalos entre quadros:
+Medições no Chromium (perfil Pixel 7), p95 dos intervalos entre quadros durante a animação
+(60 Hz = 16,7 ms). Com a CPU 4x mais lenta, duas rodadas, e à parte o quadro em que a tela nova
+é montada e pintada, antes de a animação começar:
 
-| Transição | Normal | CPU 4x mais lenta |
-|---|---|---|
-| Troca de aba | 16,7 ms | 16,8 ms |
-| Troca de dia (faixa) | 16,7 ms | 16,8 ms |
-| Troca de dia (dedo) | 16,7 ms | 16,7 ms |
-| Abrir a folha da aula | 16,8 ms | 16,8 ms |
-| Marcar e aviso flutuante | 16,8 ms | 16,8 ms |
-| Fechar a folha arrastando | 16,7 ms | 16,7 ms |
-| Troca de tema | 16,8 ms | 16,7 ms |
+| Transição | Normal | CPU 4x mais lenta | Quadro de montar (CPU 4x) |
+|---|---|---|---|
+| Troca de aba | 16,8 ms | 16,8 a 33,3 ms | 100 a 150 ms |
+| Troca de dia pela faixa | 16,8 ms | 16,8 ms | 33 a 67 ms |
+| Troca de dia com o dedo | 16,7 ms | 16,7 a 16,8 ms | 16,7 ms |
+| Abrir a folha da aula | 16,7 ms | 33,3 a 33,4 ms | 50 a 67 ms |
+| Marcar presença e aviso flutuante | 16,8 ms | 16,7 a 16,8 ms | 50 a 83 ms |
+| Fechar a folha arrastando | 16,8 ms | 16,8 a 33,3 ms | 16,7 ms |
+| Troca de tema (View Transition) | 16,8 ms | 16,7 a 33,3 ms | 33 a 50 ms |
+
+Medido no contêiner do Playwright, num servidor ARM de 4 núcleos dividido com outros processos.
+No WebKit desse contêiner não há GPU e tudo é pintado na CPU: até a régua (uma camada sem nada do
+app animando só transform e opacity) deu p95 entre 50 e 190 ms conforme a carga da máquina. Lá os
+tempos ficam registrados no relatório do teste, e o que reprova é animar outra propriedade.
 
 O que as medições mudaram:
 
