@@ -59,6 +59,22 @@ test.describe('página pública de aula experimental', () => {
     await expect(dezoito.locator('.lista-item-sub')).toHaveText(`${antes + 1} ${antes + 1 === 1 ? 'vaga' : 'vagas'}`)
   })
 
+  test('em Mais, a equipe vê e passa adiante o link da página', async ({ page, context, browserName }) => {
+    await entrarComoAdministracao(page)
+    await irPara(page, '#/mais')
+    const secao = page.locator('section.secao', { has: page.getByRole('heading', { name: 'Página de aula experimental' }) })
+    await expect(secao).toContainText('/pilates-central-web/experimental/')
+    await expect(secao.getByRole('link', { name: 'Ver a página' })).toHaveAttribute('href', /\/experimental\/$/)
+    const botao = secao.getByRole('button', { name: /^(Compartilhar|Copiar link)$/ })
+    await expect(botao).toBeVisible()
+    if (browserName === 'chromium' && (await botao.textContent())?.includes('Copiar')) {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+      await botao.click()
+      await expect(aviso(page, /Link copiado/)).toBeVisible()
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/pilates-central-web\/experimental\/$/)
+    }
+  })
+
   test('aviso de privacidade em português simples, com o caminho de volta', async ({ page }) => {
     await page.goto('./privacidade/')
     await expect(page.getByRole('heading', { level: 1, name: 'Aviso de privacidade' })).toBeVisible()

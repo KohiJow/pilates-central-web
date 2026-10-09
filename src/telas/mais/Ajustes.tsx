@@ -59,6 +59,53 @@ function resumoDaEquipe(): string {
   return `${plural(adm, 'pessoa', 'pessoas')} na administração, ${plural(prof, 'professor', 'professores')}`
 }
 
+const ENDERECO_DA_EXPERIMENTAL = `${import.meta.env.BASE_URL}experimental/`
+
+/**
+ * O link da página de aula experimental, para pôr no Instagram e mandar a quem pergunta no
+ * WhatsApp: no celular abre o compartilhar do sistema; sem ele, copia.
+ */
+function PaginaDeExperimental() {
+  const endereco = new URL(ENDERECO_DA_EXPERIMENTAL, location.href).href
+  const podeCompartilhar = typeof navigator.share === 'function'
+  const compartilhar = async () => {
+    if (podeCompartilhar) {
+      try {
+        await navigator.share({ title: 'Aula experimental', url: endereco })
+      } catch {
+        // a pessoa fechou o compartilhar: nada a fazer
+      }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(endereco)
+      avisar({ texto: 'Link copiado. É só colar no Instagram ou no WhatsApp.', icone: 'compartilhar' })
+    } catch {
+      avisar({ texto: `Não deu para copiar. O link é ${endereco}`, icone: 'info', duracao: 8000 })
+    }
+  }
+  return (
+    <section class="secao" aria-labelledby="titulo-experimental">
+      <h2 id="titulo-experimental" class="micro">
+        Página de aula experimental
+      </h2>
+      <p class="texto-secundario">
+        Quem quer conhecer o estúdio vê os horários com vaga e pede a aula pelo WhatsApp. Ponha o link no Instagram e mande para quem
+        perguntar.
+      </p>
+      <p class="endereco-da-pagina">{endereco.replace(/^https?:\/\//, '')}</p>
+      <div class="linha-acoes">
+        <a class="botao botao--secundario tocavel" href={ENDERECO_DA_EXPERIMENTAL}>
+          <span>Ver a página</span>
+        </a>
+        <Botao variante="secundario" icone="compartilhar" onClick={() => void compartilhar()}>
+          {podeCompartilhar ? 'Compartilhar' : 'Copiar link'}
+        </Botao>
+      </div>
+    </section>
+  )
+}
+
 export function Ajustes() {
   const eu = membro.value
   const meuPapel = papel.value
@@ -128,6 +175,8 @@ export function Ajustes() {
           </section>
         )
       )}
+
+      {config?.paginaExperimental && <PaginaDeExperimental />}
 
       <section class="secao" aria-labelledby="titulo-aparencia">
         <h2 id="titulo-aparencia" class="micro">

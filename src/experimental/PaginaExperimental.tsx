@@ -10,9 +10,10 @@ import { FaixaDias } from '../componentes/FaixaDias'
 import { Icone } from '../componentes/Icone'
 import { Logo, MarcaDagua } from '../componentes/Marca'
 import { Pilula } from '../componentes/Pilula'
-import { dataPorExtenso, diaRelativo, horaFalada } from '../dominio/datas'
+import { dataPorExtenso, diaRelativo, horaFalada, minutosDe } from '../dominio/datas'
 import { horariosAindaAbertos, mensagemDaExperimental } from '../dominio/experimental'
 import { linkDoWhatsApp, plural } from '../dominio/texto'
+import { movimentoReduzido } from '../movimento/preferencias'
 import type { HorarioPublico, PaginaPublica } from '../dominio/tipos'
 import { carregarPagina, origemDaPagina } from './dados'
 import figuraUrl from '../assets/marca/figura.svg'
@@ -33,6 +34,22 @@ const idDoHorario = (h: HorarioPublico) => `${h.data}_${h.inicio}_${h.unidadeId}
 
 function linkDoMapa(endereco: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`
+}
+
+/** "A aula dura 50 minutos." ou, quando as turmas variam, "As aulas duram de 50 a 60 minutos." */
+function textoDaDuracao(horarios: readonly HorarioPublico[]): string | null {
+  const duracoes = horarios.map((h) => minutosDe(h.fim) - minutosDe(h.inicio)).filter((m) => m > 0)
+  if (duracoes.length === 0) return null
+  const menor = Math.min(...duracoes)
+  const maior = Math.max(...duracoes)
+  return menor === maior ? `A aula dura ${menor} minutos.` : `As aulas duram de ${menor} a ${maior} minutos.`
+}
+
+function irParaOsHorarios(e: Event) {
+  const alvo = document.getElementById('horarios')
+  if (!alvo) return
+  e.preventDefault()
+  alvo.scrollIntoView({ behavior: movimentoReduzido.peek() ? 'auto' : 'smooth', block: 'start' })
 }
 
 type Estado = { situacao: 'carregando' } | { situacao: 'pronto'; pagina: PaginaPublica | null } | { situacao: 'erro' }
@@ -63,6 +80,7 @@ export function PaginaExperimental() {
   const nomeDaUnidade = (id: string) => unidades.find((u) => u.id === id)?.nome ?? ''
   const variasUnidades = unidades.length > 1
   const whatsapp = pagina?.whatsapp ?? ''
+  const duracao = textoDaDuracao(horarios)
   const mensagem = mensagemDaExperimental(horario ? { ...horario, unidade: variasUnidades ? nomeDaUnidade(horario.unidadeId) : '' } : null)
 
   return (
@@ -101,6 +119,10 @@ export function PaginaExperimental() {
               <Pilula key={f}>{f}</Pilula>
             ))}
           </div>
+          {/* no celular pequeno os horários ficam abaixo das fotos: um toque leva até eles */}
+          <a class="link vitrine-atalho tocavel" href="#horarios" style={{ '--i': 4 } as JSX.CSSProperties} onClick={irParaOsHorarios}>
+            Ver os horários com vaga
+          </a>
         </section>
 
         <section class="vitrine-fotos" aria-label="Fotos do espaço">
@@ -122,7 +144,7 @@ export function PaginaExperimental() {
           </ul>
         </section>
 
-        <section class="secao" aria-labelledby="titulo-horarios">
+        <section id="horarios" class="secao vitrine-horarios" aria-labelledby="titulo-horarios">
           <div class="secao-cabeca">
             <h2 id="titulo-horarios" class="titulo">
               Escolha o horário
@@ -165,7 +187,7 @@ export function PaginaExperimental() {
                     <span class="opcao-aula-hora">{horaFalada(h.inicio)}</span>
                     <span class="opcao-aula-texto">
                       <span class="lista-item-titulo">
-                        {variasUnidades ? nomeDaUnidade(h.unidadeId) : `Até ${horaFalada(h.fim)}`}
+                        {variasUnidades ? `${nomeDaUnidade(h.unidadeId)}, até ${horaFalada(h.fim)}` : `Até ${horaFalada(h.fim)}`}
                       </span>
                       <span class="lista-item-sub">{plural(h.vagas, 'vaga')}</span>
                     </span>
@@ -223,6 +245,17 @@ export function PaginaExperimental() {
               <span>O estúdio confirma a aula com você por lá.</span>
             </li>
           </ol>
+        </section>
+
+        <section class="secao" aria-labelledby="titulo-primeira-vez">
+          <h2 id="titulo-primeira-vez" class="micro">
+            Primeira vez?
+          </h2>
+          <ul class="lista-texto">
+            <li>Não precisa ter experiência nem estar em forma: a aula experimental é para você conhecer.</li>
+            <li>Venha com uma roupa confortável, que deixe você se mexer à vontade.</li>
+            {duracao && <li>{duracao}</li>}
+          </ul>
         </section>
 
         <footer class="vitrine-rodape">

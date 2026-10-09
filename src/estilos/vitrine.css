@@ -90,6 +90,19 @@
   gap: 8px;
 }
 
+.vitrine-atalho {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  font-size: 17px;
+}
+
+/* o atalho da capa para aqui sem o título ficar embaixo do topo fixo */
+.vitrine-horarios {
+  scroll-margin-top: 64px;
+}
+
 /* fotos do espaço em 4:5, deslizando de lado e parando em cada uma; texto nunca sobre foto */
 .fotos {
   display: flex;
