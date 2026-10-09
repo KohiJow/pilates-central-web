@@ -208,7 +208,9 @@ test.describe('Firebase (emuladores)', () => {
 
     // reposição encaixada pela equipe: registro, crédito e vaga numa transação
     await irPara(page, '#/alunos/reposicoes')
-    const credito = page.locator('[data-credito]').first()
+    // o emulador usa o relógio de verdade: o primeiro da lista vence hoje e, à noite, já não
+    // tem aula com vaga; o último vale por mais tempo
+    const credito = page.locator('[data-credito]').last()
     const creditoId = (await credito.getAttribute('data-credito')) ?? ''
     await credito.getByRole('button', { name: 'Encaixar' }).click()
     await esperarFolhaParada(page)
