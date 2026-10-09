@@ -1,9 +1,9 @@
 {
   "name": "pilates-central-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Agenda, presença e reposição para estúdio pequeno, como web app instalável.",
+  "description": "Agenda, presença, reposição, alunos, turmas e financeiro para estúdio pequeno, como web app instalável.",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=22"

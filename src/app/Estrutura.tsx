@@ -1,26 +1,31 @@
 import { avisar } from '../componentes/Avisos'
 import { BarraAbas } from '../componentes/BarraAbas'
 import { Logo } from '../componentes/Marca'
-import { repositorio, situacao } from '../dados/estado'
+import { base, repositorio, situacao } from '../dados/estado'
 import { Agenda } from '../telas/Agenda'
+import { Alunos } from '../telas/alunos/Alunos'
 import { FolhaDaAula } from '../telas/chamada/FolhaDaAula'
+import { Financeiro } from '../telas/financeiro/Financeiro'
 import { Hoje } from '../telas/Hoje'
 import { Mais } from '../telas/Mais'
 import { Botao } from '../componentes/Botao'
 import { EstadoVazio } from '../componentes/EstadoVazio'
 import { useLayoutEffect, useRef } from 'preact/hooks'
-import type { ComponentChildren } from 'preact'
+import type { ComponentChildren, JSX } from 'preact'
 import { animarDepoisDePintar } from '../movimento/animar'
 import { CURVA, DURACAO } from '../movimento/tempos'
-import { aba, abasDoPapel, irPara } from './navegacao'
+import { abasDoPapel, chaveDaTela, irPara, rota } from './navegacao'
+import type { Aba } from './navegacao'
 import { papel } from './perfil'
 
-const TELAS = { hoje: Hoje, agenda: Agenda, mais: Mais }
+const TELAS: Record<Aba, () => JSX.Element> = { hoje: Hoje, agenda: Agenda, alunos: Alunos, financeiro: Financeiro, mais: Mais }
 
 /** Casca do app logado: topo com a marca, a tela da aba e a barra de abas do papel. */
 export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
   const itens = abasDoPapel(papel.value)
-  const atual = itens.some((i) => i.id === aba.value) ? aba.value : 'hoje'
+  // aba que o papel não tem (professor com link do financeiro, por exemplo) cai no Hoje
+  const permitida = itens.some((i) => i.id === rota.value.aba)
+  const atual = permitida ? rota.value.aba : 'hoje'
   const Tela = TELAS[atual]
   const demo = repositorio.value?.modo === 'demonstracao'
 
@@ -29,7 +34,7 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
       <header class="topo">
         <div class="topo-marca">
           <Logo tamanho={34} monograma />
-          <span class="topo-nome">Pilates Central</span>
+          <span class="topo-nome">{base.value?.configuracao.nomeEstudio ?? 'Pilates Central'}</span>
         </div>
         {demo && (
           <button
@@ -52,7 +57,7 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
             </Botao>
           </EstadoVazio>
         ) : (
-          <QuadroDeTela key={atual}>
+          <QuadroDeTela key={permitida ? chaveDaTela.value : 'hoje'}>
             <Tela />
           </QuadroDeTela>
         )}

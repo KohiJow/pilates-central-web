@@ -73,6 +73,12 @@ describe('encaixar reposição', () => {
     })
   })
 
+  it('reposição de aula que já terminou não sai mais (fica no histórico)', () => {
+    const r0 = registro({ turmaId: 't-sex-07', data: SEXTA, reposicoes: { a9: 'cr_x' }, marcacoes: { a9: 'presente' } })
+    const aula = montarAula(turma(), SEXTA, r0)
+    expect(desfazerEncaixe(aula, r0, 'a9', buscaEm([]), contexto(SEXTA, '08:00'))).toMatchObject({ ok: false, codigo: 'aula-encerrada' })
+  })
+
   it('desfazer o encaixe devolve o crédito', () => {
     const c = credito()
     const r0 = registro({

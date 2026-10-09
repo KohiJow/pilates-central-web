@@ -1,0 +1,234 @@
+import type { JSX } from 'preact'
+import { useState } from 'preact/hooks'
+import { abrir } from '../../app/navegacao'
+import { membro, papel, pode } from '../../app/perfil'
+import { hoje } from '../../app/relogio'
+import { sair } from '../../app/sessao'
+import { escolherTema, tema } from '../../app/tema'
+import type { Tema } from '../../app/tema'
+import { ehIPhone, estaInstalado, instalar, podeInstalar } from '../../app/instalacao'
+import { Avatar } from '../../componentes/Avatar'
+import { avisar } from '../../componentes/Avisos'
+import { Botao } from '../../componentes/Botao'
+import { Card } from '../../componentes/Card'
+import { FolhaInferior } from '../../componentes/FolhaInferior'
+import { Chevrons, Icone } from '../../componentes/Icone'
+import type { NomeDoIcone } from '../../componentes/Icone'
+import { Chip } from '../../componentes/Pilula'
+import { base, carregar, nomeDaUnidade, repositorio, unidades } from '../../dados/estado'
+import { textoDasRegras } from '../../dominio/configuracao'
+import { ehAdministracao, NOME_DO_PAPEL } from '../../dominio/permissoes'
+import { listaFalada, plural, telefoneLegivel } from '../../dominio/texto'
+import type { RepositorioDeDemonstracao } from '../../dados/repositorio'
+
+const TEMAS: { id: Tema; rotulo: string }[] = [
+  { id: 'automatico', rotulo: 'Automático' },
+  { id: 'claro', rotulo: 'Claro' },
+  { id: 'escuro', rotulo: 'Escuro' },
+]
+
+/** Linha de menu que abre uma tela de ajustes. */
+function ItemDeMenu({ icone, titulo, sub, aoTocar }: { icone: NomeDoIcone; titulo: string; sub: string; aoTocar: () => void }) {
+  return (
+    <button type="button" class="lista-item tocavel" onClick={aoTocar}>
+      <span class="item-icone" aria-hidden="true">
+        <Icone nome={icone} tamanho={22} />
+      </span>
+      <span class="lista-item-texto">
+        <span class="lista-item-titulo">{titulo}</span>
+        <span class="lista-item-sub">{sub}</span>
+      </span>
+      <Chevrons tamanho={16} />
+    </button>
+  )
+}
+
+function resumoDaEquipe(): string {
+  const equipe = (base.value?.equipe ?? []).filter((m) => m.ativo)
+  const adm = equipe.filter((m) => ehAdministracao(m.papel)).length
+  const prof = equipe.filter((m) => m.papel === 'professor').length
+  return `${plural(adm, 'pessoa', 'pessoas')} na administração, ${plural(prof, 'professor', 'professores')}`
+}
+
+export function Ajustes() {
+  const eu = membro.value
+  const meuPapel = papel.value
+  const config = base.value?.configuracao
+  const [confirmando, setConfirmando] = useState(false)
+  const repo = repositorio.value
+  const demo = repo?.modo === 'demonstracao' ? (repo as RepositorioDeDemonstracao) : null
+
+  const recomecar = async () => {
+    if (!demo) return
+    setConfirmando(false)
+    await demo.recomecar()
+    await carregar(demo, hoje.peek())
+    avisar({ texto: 'Demonstração recomeçada com os dados do começo.', icone: 'recomecar' })
+  }
+
+  return (
+    <section class="tela" aria-labelledby="titulo-mais">
+      <header class="cabecalho-de-tela">
+        <p class="micro">Mais</p>
+        <h1 id="titulo-mais" class="titulo">
+          Ajustes
+        </h1>
+      </header>
+
+      {eu && meuPapel && (
+        <Card class="perfil">
+          <Avatar nome={eu.nome} tamanho={56} />
+          <span class="lista-item-texto">
+            <span class="subtitulo">{eu.nome}</span>
+            <span class="lista-item-sub">
+              {NOME_DO_PAPEL[meuPapel]},{' '}
+              {ehAdministracao(meuPapel) ? 'todas as unidades' : listaFalada(eu.unidades.map(nomeDaUnidade))}
+            </span>
+            {eu.telefone && <span class="lista-item-sub">{telefoneLegivel(eu.telefone)}</span>}
+          </span>
+        </Card>
+      )}
+
+      {pode('editar-configuracao') && config ? (
+        <section class="secao" aria-labelledby="titulo-estudio">
+          <h2 id="titulo-estudio" class="micro">
+            Estúdio
+          </h2>
+          <ul class="lista">
+            {(
+              [
+                ['local', 'Nome e WhatsApp', config.whatsapp ? `${config.nomeEstudio}, ${telefoneLegivel(config.whatsapp)}` : config.nomeEstudio, 'estudio'],
+                ['regras', 'Regras de reposição', textoDasRegras(config), 'regras'],
+                ['grade', 'Unidades', plural(unidades.value.length, 'unidade aberta', 'unidades abertas'), 'unidades'],
+                ['alunos', 'Equipe', resumoDaEquipe(), 'equipe'],
+              ] as [NomeDoIcone, string, string, string][]
+            ).map(([icone, titulo, sub, caminho], i) => (
+              <li key={caminho} style={{ '--i': i } as JSX.CSSProperties}>
+                <ItemDeMenu icone={icone} titulo={titulo} sub={sub} aoTocar={() => abrir(caminho)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        config && (
+          <section class="secao" aria-labelledby="titulo-regras-prof">
+            <h2 id="titulo-regras-prof" class="micro">
+              Regras de reposição
+            </h2>
+            <p class="texto-secundario">{textoDasRegras(config)}</p>
+          </section>
+        )
+      )}
+
+      <section class="secao" aria-labelledby="titulo-aparencia">
+        <h2 id="titulo-aparencia" class="micro">
+          Aparência
+        </h2>
+        <div class="chips" role="radiogroup" aria-label="Tema">
+          {TEMAS.map((t) => (
+            <Chip key={t.id} papel="radio" ativo={tema.value === t.id} aoTocar={() => escolherTema(t.id)}>
+              {t.rotulo}
+            </Chip>
+          ))}
+        </div>
+        <p class="texto-secundario">No automático, o app acompanha o modo claro ou escuro do celular.</p>
+      </section>
+
+      <section class="secao" aria-labelledby="titulo-instalar">
+        <h2 id="titulo-instalar" class="micro">
+          Instalar no celular
+        </h2>
+        <Instalacao />
+      </section>
+
+      {demo && (
+        <section class="secao" aria-labelledby="titulo-demo">
+          <h2 id="titulo-demo" class="micro">
+            Demonstração
+          </h2>
+          <p class="texto-secundario">
+            Os alunos, as aulas e os pagamentos são fictícios e ficam guardados só neste aparelho.
+            {demo.persistente ? '' : ' Este navegador não deixa guardar: ao fechar, tudo volta ao começo.'}
+          </p>
+          <Botao variante="secundario" icone="recomecar" largo onClick={() => setConfirmando(true)}>
+            Recomeçar demonstração
+          </Botao>
+        </section>
+      )}
+
+      <Botao variante="terciario" icone="sair" largo onClick={sair}>
+        Trocar de perfil
+      </Botao>
+
+      <p class="rodape-versao">Pilates Central, versão {__VERSAO__}</p>
+
+      <FolhaInferior
+        aberta={confirmando}
+        aoFechar={() => setConfirmando(false)}
+        rotulo="Recomeçar demonstração"
+        titulo="Apagar o que você fez?"
+        rodape={
+          <div class="linha-acoes">
+            <Botao variante="secundario" onClick={() => setConfirmando(false)}>
+              Agora não
+            </Botao>
+            <Botao variante="primario" onClick={() => void recomecar()}>
+              Recomeçar
+            </Botao>
+          </div>
+        }
+      >
+        <p>As presenças, avisos e reposições que você marcou somem e os dados fictícios voltam ao começo.</p>
+      </FolhaInferior>
+    </section>
+  )
+}
+
+function Instalacao() {
+  if (estaInstalado()) return <p class="texto-secundario">O app já está instalado neste aparelho.</p>
+  if (podeInstalar.value) {
+    return (
+      <Botao
+        variante="primario"
+        icone="instalar"
+        largo
+        onClick={async () => {
+          if (await instalar()) avisar({ texto: 'Pronto! O app está na tela inicial.', icone: 'presente' })
+        }}
+      >
+        Instalar o app
+      </Botao>
+    )
+  }
+  if (ehIPhone()) {
+    return (
+      <ol class="passos">
+        <li class="passo">
+          <span class="passo-numero">1</span>
+          <span>
+            No Safari, toque em <strong>Compartilhar</strong>{' '}
+            <Icone nome="compartilhar" tamanho={20} class="icone-em-linha" rotulo="(ícone de compartilhar)" />
+          </span>
+        </li>
+        <li class="passo">
+          <span class="passo-numero">2</span>
+          <span>
+            Escolha <strong>Adicionar à Tela de Início</strong>
+          </span>
+        </li>
+        <li class="passo">
+          <span class="passo-numero">3</span>
+          <span>
+            Toque em <strong>Adicionar</strong>. O app abre como os outros, sem a barra do navegador.
+          </span>
+        </li>
+      </ol>
+    )
+  }
+  return (
+    <p class="texto-secundario">
+      No menu do navegador (os três pontinhos), escolha <strong>Instalar app</strong> ou{' '}
+      <strong>Adicionar à tela inicial</strong>.
+    </p>
+  )
+}

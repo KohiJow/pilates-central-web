@@ -1,0 +1,552 @@
+/* Telas de gestão: alunos, turmas, reposição, financeiro e ajustes do estúdio.
+   Mesmas regras de movimento (só transform e opacity) e de toque (48 px). */
+
+/* ---------- topo de subtela ---------- */
+
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: var(--toque);
+  margin-left: -10px;
+  padding: 0 12px 0 6px;
+  border-radius: var(--raio-pilula);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.botao-icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--toque);
+  height: var(--toque);
+  border-radius: 50%;
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px var(--brand-muted);
+}
+.botao-icone:disabled {
+  opacity: 0.4;
+}
+
+.mes-navegacao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mes-navegacao .titulo {
+  flex: 1;
+  text-align: center;
+}
+
+/* ---------- seções da aba (Alunos, Turmas, Reposições) ---------- */
+
+.secoes {
+  position: relative;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  margin-top: 8px;
+  padding: 4px;
+  border-radius: var(--raio-pilula);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--brand-ghost);
+}
+
+.secoes-marca {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: var(--raio-pilula);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1.5px var(--brand), var(--sombra-1);
+  transition: transform var(--dur-longa) var(--mola-viva);
+  pointer-events: none;
+}
+
+.secao-botao {
+  position: relative;
+  min-height: var(--toque);
+  padding: 0 8px;
+  border-radius: var(--raio-pilula);
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.secao-botao[aria-current='page'] {
+  color: var(--brand);
+}
+/* antes de medir, a seção atual pinta o próprio fundo */
+.secoes:not(.secoes--medida) .secao-botao[aria-current='page'] {
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+
+/* ---------- formulários ---------- */
+
+.formulario {
+  gap: 20px;
+}
+
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.grupo--cartao {
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--raio-card);
+  background: var(--surface-raised);
+  box-shadow: var(--sombra-1);
+}
+.grupo--cartao > legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.chips--dias .chip {
+  padding: 0 14px;
+}
+
+.campo-texto {
+  min-height: 96px;
+  padding: 14px 16px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.seletor::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--brand-muted);
+  border-bottom: 2px solid var(--brand-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.seletor .campo-entrada {
+  padding-right: 44px;
+}
+
+.campo-entrada[type='date'],
+.campo-entrada[type='time'] {
+  /* o Safari deixa estes campos sem altura mínima e alinhados no centro */
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.contador {
+  display: grid;
+  grid-template-columns: var(--toque) 1fr var(--toque);
+  align-items: center;
+  gap: 8px;
+  padding: 2px;
+  border-radius: var(--raio-campo);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--brand-muted);
+}
+
+.contador-botao {
+  display: grid;
+  place-items: center;
+  width: var(--toque);
+  height: var(--toque);
+  border-radius: 10px;
+  color: var(--brand);
+  background: var(--surface-raised);
+  box-shadow: var(--sombra-1);
+}
+.contador-botao:disabled {
+  opacity: 0.4;
+}
+
+.contador-valor {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- listas ---------- */
+
+.lista-item .linha-aula {
+  flex: 1;
+  min-width: 0;
+}
+
+/* pílula dentro de um bloco de texto em coluna não estica até a borda */
+.lista-item-texto > .pilula {
+  align-self: flex-start;
+}
+
+.mostrar-todos {
+  align-self: center;
+}
+
+.lista-item-pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.botao-texto {
+  align-self: stretch;
+  justify-content: center;
+  min-height: var(--toque);
+  text-align: left;
+  border-radius: 10px;
+}
+
+.item-icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+}
+
+.valor {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lista-item .botao {
+  flex: none;
+  min-height: var(--toque);
+  padding: 0 16px;
+}
+
+.nota-alerta,
+.nota-ok {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+.nota-alerta {
+  color: var(--warning);
+}
+.nota-ok {
+  color: var(--success);
+}
+.nota-alerta svg,
+.nota-ok svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* dados de cadastro em pares rótulo e valor */
+.dados {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-radius: var(--raio-card);
+  background: var(--surface-raised);
+  box-shadow: var(--sombra-1);
+}
+.dados > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+}
+.dados > div + div {
+  border-top: 1px solid var(--brand-ghost);
+}
+.dados dt {
+  color: var(--text-secondary);
+}
+.dados dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.numeros--quatro {
+  grid-template-columns: repeat(2, 1fr);
+}
+.numeros--quatro .numero-card {
+  min-height: 96px;
+}
+
+.marca-presenca {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+.marca-presenca--presente {
+  background: var(--success-surface);
+  color: var(--success);
+}
+.marca-presenca--faltou {
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+.marca-presenca--avisou {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+/* ---------- encaixe a partir do crédito ---------- */
+
+.encaixe-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opcao-aula {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 14px;
+  border-radius: var(--raio-card);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--brand-soft);
+  text-align: left;
+}
+.opcao-aula[aria-checked='true'] {
+  background: var(--surface-accent);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.opcao-aula-hora {
+  flex: none;
+  width: 60px;
+  font-family: var(--fonte-display);
+  font-size: 24px;
+  line-height: 1;
+  color: var(--brand-strong);
+}
+
+.opcao-aula-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.opcao-aula-marca {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text-on-brand);
+  background: var(--brand);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity var(--dur-curta) var(--curva-padrao),
+    transform var(--dur-media) var(--mola-viva);
+}
+.opcao-aula[aria-checked='true'] .opcao-aula-marca {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ---------- financeiro ---------- */
+
+.resumo-mes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.resumo-mes-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+.resumo-mes-linha > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.valor-medio {
+  font-family: var(--fonte-display);
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--brand-strong);
+  font-variant-numeric: lining-nums;
+}
+
+/* barra de proporção: o preenchimento cresce por transform (scaleX), nunca por largura */
+.barra {
+  position: relative;
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--raio-pilula);
+  background: var(--brand-ghost);
+}
+.barra--grande {
+  height: 12px;
+}
+.barra-cheia {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--grafico-destaque);
+  transform-origin: left center;
+  transition: transform var(--dur-longa) var(--mola-suave);
+}
+
+.forma-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.forma-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.forma-linha .barra {
+  flex: 1;
+}
+
+.aberto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+}
+.lista > li + li > .aberto {
+  border-top: 1px solid var(--brand-ghost);
+}
+.aberto-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.aberto .linha-acoes .botao {
+  min-height: var(--toque);
+  padding: 0 12px;
+}
+
+/* gráfico dos últimos meses: colunas finas, ponta arredondada só em cima */
+.grafico {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grafico-leitura {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grafico-valor {
+  font-family: var(--fonte-display);
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--brand-strong);
+  font-variant-numeric: lining-nums;
+}
+
+.grafico-colunas {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  border-top: 0;
+}
+
+.grafico-faixa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: var(--toque);
+  padding: 4px 0;
+  border-radius: 12px;
+}
+.grafico-faixa[aria-pressed='true'] {
+  background: var(--surface-sunken);
+}
+
+.grafico-trilho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  /* linha de base, a única linha do gráfico */
+  box-shadow: 0 1px 0 var(--brand-ghost);
+}
+
+.grafico-coluna {
+  display: block;
+  border-radius: 4px 4px 0 0;
+  background: var(--grafico-base);
+  transform-origin: bottom center;
+  animation: coluna-cresce var(--dur-longa) var(--mola-suave) both;
+}
+.grafico-faixa--destaque .grafico-coluna {
+  background: var(--grafico-destaque);
+}
+
+.grafico-mes {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+.grafico-faixa[aria-pressed='true'] .grafico-mes {
+  color: var(--text);
+  font-weight: 700;
+}
+
+@keyframes coluna-cresce {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grafico-coluna {
+    animation: none;
+  }
+}
+
+/* nome do aluno na chamada: abre a ficha */
+.chamada-nome-botao {
+  min-height: var(--toque);
+  padding: 0 4px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--brand-soft);
+  text-underline-offset: 4px;
+}

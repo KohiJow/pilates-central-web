@@ -176,6 +176,33 @@ export function filtrarAlunos(alunos: readonly Aluno[], filtro: FiltroDeAlunos):
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 }
 
+/**
+ * Mensalidade mais comum entre os alunos ativos com o mesmo plano (fora Gympass e TotalPass,
+ * que entram pelo repasse): o cadastro novo já vem com o valor que o estúdio costuma cobrar.
+ */
+export function mensalidadeSugerida(
+  vezesPorSemana: number,
+  alunos: readonly Aluno[],
+  financeiro: ReadonlyMap<Id, FinanceiroDoAluno>,
+): number | null {
+  const contagem = new Map<number, number>()
+  for (const a of alunos) {
+    if (a.situacao !== 'ativo' || a.vezesPorSemana !== vezesPorSemana) continue
+    const f = financeiro.get(a.id)
+    if (!f || f.formaPreferida === 'gympass' || f.formaPreferida === 'totalpass') continue
+    contagem.set(f.valorMensal, (contagem.get(f.valorMensal) ?? 0) + 1)
+  }
+  let melhor: number | null = null
+  let vezes = 0
+  for (const [valor, n] of contagem) {
+    if (n > vezes || (n === vezes && melhor !== null && valor < melhor)) {
+      melhor = valor
+      vezes = n
+    }
+  }
+  return melhor
+}
+
 export interface ConferenciaDoPlano {
   vezes: number
   turmas: number

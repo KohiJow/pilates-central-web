@@ -9,7 +9,9 @@ import { EstadoVazio } from '../componentes/EstadoVazio'
 import { Numero } from '../componentes/Numero'
 import { Icone } from '../componentes/Icone'
 import { Vagas } from '../componentes/Vagas'
-import { aulasNoDia, cargaRecente, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
+import { ausenciasPorAluno } from '../dados/consultas'
+import { alunosPorId, aulasNoDia, base, cargaRecente, creditos, nomeDaEquipe, nomeDaUnidade, nomeDoAluno, situacao } from '../dados/estado'
+import { resumoDeCreditos } from '../dominio/reposicao'
 import { faseDaAula } from '../dominio/agenda'
 import { ehAdministracao } from '../dominio/permissoes'
 import { dataPorExtenso, horaFalada, minutosEntre, momentoDaAula } from '../dominio/datas'
@@ -113,11 +115,74 @@ export function Hoje() {
             vazio="Ninguém avisou falta hoje."
           />
           <ListaDePessoas id="titulo-reposicoes" titulo="Reposições de hoje" pessoas={resumo.reposicoes} vazio="Nenhuma reposição hoje." />
+          <ParaOlhar />
           {resumo.canceladas > 0 && (
             <p class="texto-secundario">{plural(resumo.canceladas, 'aula cancelada', 'aulas canceladas')} hoje.</p>
           )}
         </>
       )}
+    </section>
+  )
+}
+
+/**
+ * O que pede atenção além do dia: créditos de reposição perto de vencer e alunos sumidos.
+ * Cada linha leva direto para onde se resolve.
+ */
+function ParaOlhar() {
+  const eu = membroAtual.value
+  const todas = ehAdministracao(papel.value)
+  const doMeu = (unidadeId: string) => todas || (eu?.unidades.includes(unidadeId) ?? false)
+  const alunos = alunosPorId.value
+  const aVencer = resumoDeCreditos(
+    [...creditos.value.values()].filter((c) => doMeu(c.unidadeId) && alunos.get(c.alunoId)?.situacao === 'ativo'),
+    hoje.value,
+  ).aVencer.length
+  const limite = base.value?.configuracao.alertaAusenciasSeguidas ?? 3
+  const sumidos = [...ausenciasPorAluno.value].filter(([id, n]) => {
+    const a = alunos.get(id)
+    return n >= limite && a?.situacao === 'ativo' && doMeu(a.unidadeId)
+  }).length
+  if (aVencer === 0 && sumidos === 0) return null
+  return (
+    <section class="secao" aria-labelledby="titulo-para-olhar">
+      <h2 id="titulo-para-olhar" class="micro">
+        Para olhar
+      </h2>
+      <ul class="lista">
+        {aVencer > 0 && (
+          <li>
+            <button type="button" class="lista-item tocavel" onClick={() => irPara('alunos', papel.peek(), ['reposicoes'])}>
+              <span class="item-icone" aria-hidden="true">
+                <Icone nome="reposicao" tamanho={22} />
+              </span>
+              <span class="lista-item-texto">
+                <span class="lista-item-titulo">
+                  {plural(aVencer, 'reposição vence', 'reposições vencem')} em 7 dias
+                </span>
+                <span class="lista-item-sub">Encaixar antes que o crédito acabe</span>
+              </span>
+              <Icone nome="avancar" tamanho={20} />
+            </button>
+          </li>
+        )}
+        {sumidos > 0 && (
+          <li>
+            <button type="button" class="lista-item tocavel" onClick={() => irPara('alunos', papel.peek())}>
+              <span class="item-icone" aria-hidden="true">
+                <Icone nome="alunos" tamanho={22} />
+              </span>
+              <span class="lista-item-texto">
+                <span class="lista-item-titulo">
+                  {plural(sumidos, 'aluno faltou', 'alunos faltaram')} {limite} vezes ou mais seguidas
+                </span>
+                <span class="lista-item-sub">Vale uma mensagem para saber como estão</span>
+              </span>
+              <Icone nome="avancar" tamanho={20} />
+            </button>
+          </li>
+        )}
+      </ul>
     </section>
   )
 }

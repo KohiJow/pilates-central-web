@@ -12,7 +12,7 @@ import { aulasNoDia, base, cargaRecente, garantirData, situacao, unidades } from
 import { agruparPorPeriodo, NOME_DO_PERIODO } from '../dominio/agenda'
 import { dataPorExtenso, diaDaSemana, diasDoIntervalo, nomeDoMes, somarDias } from '../dominio/datas'
 import { ehAdministracao } from '../dominio/permissoes'
-import { plural } from '../dominio/texto'
+import { maiuscula, plural } from '../dominio/texto'
 import type { DataISO } from '../dominio/tipos'
 import { animar, animarDepoisDePintar } from '../movimento/animar'
 import { direcaoDaTroca, eixoDoGesto, resistencia, Velocimetro } from '../movimento/arraste'
@@ -23,9 +23,6 @@ import { CartaoDeAula } from './CartaoDeAula'
 const DIAS_PARA_TRAS = 14
 const DIAS_PARA_FRENTE = 28
 
-function capitalizar(texto: string): string {
-  return texto.charAt(0).toUpperCase() + texto.slice(1)
-}
 
 export function Agenda() {
   const membro = membroAtual.value
@@ -60,7 +57,7 @@ export function Agenda() {
               Agenda, {nomeDoMes(dia)} de {dia.slice(0, 4)}
             </p>
             <h1 id="titulo-agenda" class="titulo">
-              {capitalizar(dataPorExtenso(dia))}
+              {maiuscula(dataPorExtenso(dia))}
             </h1>
           </div>
           {dia !== diaDeHoje && (

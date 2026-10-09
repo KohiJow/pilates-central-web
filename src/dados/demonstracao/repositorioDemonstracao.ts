@@ -1,4 +1,5 @@
-import type { Competencia, Id } from '../../dominio/tipos'
+import type { Competencia } from '../../dominio/tipos'
+import { mesclarBase } from '../mesclar'
 import type { Gravacao, Intervalo, RepositorioDeDemonstracao } from '../repositorio'
 import { gerarSemente, VERSAO_DO_BANCO } from './semente'
 import type { BancoDeDemonstracao } from './semente'
@@ -32,20 +33,6 @@ function ehBancoValido(dado: unknown): dado is BancoDeDemonstracao {
     typeof banco.financeiro === 'object' &&
     typeof banco.pagamentos === 'object'
   )
-}
-
-/** Troca na lista os itens com o mesmo id e acrescenta os novos, sem mudar a ordem dos outros. */
-function mesclar<T>(lista: readonly T[], novos: readonly T[] | undefined, id: (item: T) => Id): T[] {
-  if (!novos?.length) return [...lista]
-  const porId = new Map(novos.map((n) => [id(n), n]))
-  const saida = lista.map((item) => {
-    const novo = porId.get(id(item))
-    if (!novo) return item
-    porId.delete(id(item))
-    return copia(novo)
-  })
-  for (const novo of porId.values()) saida.push(copia(novo))
-  return saida
 }
 
 /**
@@ -130,13 +117,7 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
       // monta o próximo estado inteiro antes de trocar: ou tudo entra, ou nada
       const proximo: BancoDeDemonstracao = {
         ...atual,
-        base: {
-          configuracao: g.configuracao ? copia(g.configuracao) : atual.base.configuracao,
-          unidades: mesclar(atual.base.unidades, g.unidades, (u) => u.id),
-          equipe: mesclar(atual.base.equipe, g.equipe, (m) => m.id),
-          alunos: mesclar(atual.base.alunos, g.alunos, (a) => a.id),
-          turmas: mesclar(atual.base.turmas, g.turmas, (t) => t.id),
-        },
+        base: mesclarBase(atual.base, copia(g)),
         registros: { ...atual.registros },
         creditos: { ...atual.creditos },
         financeiro: { ...atual.financeiro },

@@ -54,6 +54,11 @@ export function linkDoWhatsApp(digitos: string, mensagem = ''): string {
   return `https://wa.me/${numero}${mensagem ? `?text=${encodeURIComponent(mensagem)}` : ''}`
 }
 
+/** "outubro de 2026" -> "Outubro de 2026" */
+export function maiuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
 /** plural(1, 'vaga') -> "1 vaga"; plural(2, 'vaga') -> "2 vagas" */
 export function plural(n: number, singular: string, pluralDaPalavra = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralDaPalavra}`

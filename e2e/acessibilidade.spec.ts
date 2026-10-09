@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { abrirApp, entrarComoAdministracao, esperarFolhaParada, irParaAba } from './apoio'
+import { abrirApp, entrarComoAdministracao, entrarComoProfessor, esperarFolhaParada, esperarParado, irPara, irParaAba } from './apoio'
 
 // Rótulos em caixa alta (micro-rótulos, pílulas, abas, dias da faixa) são etiquetas, não texto
 // corrido: podem ficar abaixo de 16px. Todo o resto tem que ter 16px ou mais.
@@ -49,6 +49,55 @@ test.describe('acessibilidade para uso com uma mão', () => {
     await page.keyboard.press('Escape')
     await irParaAba(page, 'Mais')
     await auditar(page, 'mais')
+  })
+
+  test('alvos e texto nas telas de gestão (administração)', async ({ page }) => {
+    test.setTimeout(90_000)
+    await entrarComoAdministracao(page)
+    const telas = [
+      '#/alunos',
+      '#/alunos/a-10',
+      '#/alunos/novo',
+      '#/alunos/turmas',
+      '#/alunos/turmas/t-centro-1-1800',
+      '#/alunos/turmas/nova',
+      '#/alunos/reposicoes',
+      '#/financeiro',
+      '#/mais',
+      '#/mais/regras',
+      '#/mais/estudio',
+      '#/mais/unidades',
+      '#/mais/equipe',
+      '#/mais/equipe/e-marcos',
+      '#/mais/equipe/convidar',
+    ]
+    for (const tela of telas) {
+      await irPara(page, tela)
+      await auditar(page, tela)
+    }
+    // folhas: encaixe a partir do crédito e lançamento de pagamento
+    await irPara(page, '#/alunos/reposicoes')
+    await page.locator('[data-credito]').first().getByRole('button', { name: 'Encaixar' }).click()
+    await esperarFolhaParada(page)
+    await page.getByRole('dialog').getByRole('radio').first().click()
+    await auditar(page, 'folha de encaixe')
+    await page.keyboard.press('Escape')
+    // a folha fechando volta uma entrada no histórico: espera ela sumir antes de trocar de tela
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await esperarParado(page, '.tela-quadro')
+    await irPara(page, '#/financeiro')
+    await page.getByRole('button', { name: 'Lançar pagamento', exact: true }).click()
+    await esperarFolhaParada(page)
+    await page.getByRole('dialog').getByRole('button').filter({ hasText: 'Ana Almeida' }).click()
+    await auditar(page, 'folha de pagamento')
+  })
+
+  test('alvos e texto nas telas do professor', async ({ page }) => {
+    await entrarComoProfessor(page, 'Camila Nunes')
+    for (const tela of ['#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/mais']) {
+      await irPara(page, tela)
+      await auditar(page, tela)
+    }
   })
 
   test('com a folha aberta, o resto do app fica inerte e o foco começa na folha', async ({ page }) => {

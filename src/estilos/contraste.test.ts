@@ -60,6 +60,8 @@ const GRAFICO: [string, string][] = [
   ['brand-muted', 'surface-raised'],
   ['brand-muted', 'surface-sunken'],
   ['brand-muted', 'surface-accent'],
+  ['grafico-destaque', 'surface-raised'],
+  ['grafico-base', 'surface-raised'],
 ]
 
 describe.each([

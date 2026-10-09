@@ -558,7 +558,10 @@ function gerarPagamentos(
       const probabilidade = ehAtual ? (diaDeHoje >= fin.diaVencimento ? 0.8 : 0.35) : competencia === anterior ? 0.93 : 0.97
       if (!aleatorio.chance(probabilidade)) continue
       const ultimoDia = ehAtual ? Math.min(diaDeHoje, fin.diaVencimento + 3) : fin.diaVencimento + 3
-      const dia = String(aleatorio.inteiro(1, Math.max(1, ultimoDia))).padStart(2, '0')
+      // quem entrou no meio do mês paga a partir do dia em que entrou
+      const primeiroDia = aluno.desde.startsWith(competencia) ? Number(aluno.desde.slice(8, 10)) : 1
+      const sorteado = aleatorio.inteiro(1, Math.max(1, ultimoDia))
+      const dia = String(Math.max(sorteado, primeiroDia)).padStart(2, '0')
       // de vez em quando paga de outro jeito ou só uma parte
       const forma = aleatorio.chance(0.1) ? (FORMAS[aleatorio.inteiro(0, 4)] ?? fin.formaPreferida) : fin.formaPreferida
       const parcial = ehAtual && aleatorio.chance(0.06)

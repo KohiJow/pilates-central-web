@@ -13,6 +13,7 @@
   line-height: 1.1;
   letter-spacing: 0.02em;
   text-align: center;
+  text-decoration: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -185,11 +186,13 @@
   font-weight: 600;
   white-space: nowrap;
 }
-/* escolha única (unidade, tema, motivo): terracota sólida */
+/* escolha única (unidade, tema, motivo): pêssego com contorno firme. A terracota sólida fica
+   para a ação principal da tela (uma por tela): com filtros e botão principal juntos, três
+   blocos terracota disputavam a atenção na lista de alunos */
 .chip[aria-checked='true'] {
-  background: var(--brand);
-  color: var(--text-on-brand);
-  box-shadow: none;
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+  box-shadow: inset 0 0 0 2px var(--brand);
 }
 
 /* liga e desliga: pêssego com contorno, para não competir com a ação principal da tela */

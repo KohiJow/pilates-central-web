@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { CDPSession, Page, TestInfo } from '@playwright/test'
-import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarTransicao, folha, irParaAba } from './apoio'
+import { arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, esperarTransicao, folha, irParaAba } from './apoio'
 
 // Fluidez como requisito: durante cada transição, mede os intervalos entre quadros
 // (requestAnimationFrame) e confere que só transform e opacity são animados.
@@ -219,5 +219,41 @@ test.describe('fluidez das transições', () => {
       await page.getByRole('radio', { name: 'Escuro' }).click()
     })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  })
+
+  test('telas de gestão: ficha, voltar, seção, folha de encaixe e troca de mês', async ({ page }, info) => {
+    test.setTimeout(90_000)
+    await entrarComoAdministracao(page)
+    await irParaAba(page, 'Alunos')
+    await page.waitForTimeout(500)
+    const referencia = await medirReferencia(page)
+    console.log(JSON.stringify({ regua: info.project.name, cpuLenta: LENTO, p95: referencia, teste: 'gestao' }))
+
+    await medir(page, info, referencia, 'abrir-ficha', async () => {
+      await page.locator('[data-aluno]').first().click()
+    })
+    await esperarParado(page, '.tela-quadro')
+    await medir(page, info, referencia, 'voltar-da-ficha', async () => {
+      await page.locator('.voltar').click()
+    })
+    await esperarParado(page, '.tela-quadro')
+    await medir(page, info, referencia, 'troca-de-secao', async () => {
+      await page.getByRole('navigation', { name: 'Seções' }).getByRole('button', { name: 'Reposições' }).click()
+    })
+    await esperarParado(page, '.tela-quadro')
+    await medir(page, info, referencia, 'abrir-folha-de-encaixe', async () => {
+      await page.locator('[data-credito]').first().getByRole('button', { name: 'Encaixar' }).click()
+    })
+    await esperarFolhaParada(page)
+    await medir(page, info, referencia, 'escolher-aula', async () => {
+      await folha(page).getByRole('radio').first().click()
+    })
+    await page.keyboard.press('Escape')
+    await expect(folha(page)).toHaveCount(0)
+    await irParaAba(page, 'Financeiro')
+    await expect(page.locator('.grafico')).toBeVisible()
+    await medir(page, info, referencia, 'troca-de-mes', async () => {
+      await page.getByRole('button', { name: 'Mês anterior' }).click()
+    })
   })
 })

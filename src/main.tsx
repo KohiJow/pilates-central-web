@@ -4,9 +4,11 @@ import './estilos/base.css'
 import './estilos/movimento.css'
 import './estilos/componentes.css'
 import './estilos/telas.css'
+import './estilos/gestao.css'
 import { render } from 'preact'
 import { App } from './app/App'
 import { acompanharInstalacao } from './app/instalacao'
+import { acompanharHistorico } from './app/navegacao'
 import { acompanharSessao } from './app/perfil'
 import { fixarAgora, hoje, iniciarRelogio, lerAgoraDaUrl } from './app/relogio'
 import { acompanharTemaDoSistema } from './app/tema'
@@ -23,6 +25,7 @@ acompanharTemaDoSistema()
 acompanharInstalacao()
 ativarRetornoDeToque()
 acompanharSessao()
+acompanharHistorico()
 transicaoDeVista.ligada = deveUsarTransicaoDeVista(location.search) && !movimentoReduzido.peek()
 
 const repositorio = criarRepositorio(location.search)

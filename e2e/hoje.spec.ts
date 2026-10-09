@@ -32,6 +32,16 @@ test.describe('hoje', () => {
     await expect.poll(() => numero(page, /alunos esperados/)).toBe(esperados - 1)
   })
 
+  test('para olhar: reposições perto de vencer e alunos sumidos levam para onde se resolve', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    const vencer = page.getByRole('button', { name: /5 reposições vencem em 7 dias/ })
+    await expect(vencer).toBeVisible()
+    await expect(page.getByRole('button', { name: /faltou 3 vezes ou mais seguidas|faltaram 3 vezes ou mais seguidas/ })).toBeVisible()
+    await vencer.click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reposições')
+    await expect(page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Alunos' })).toHaveAttribute('aria-current', 'page')
+  })
+
   test('domingo: estado vazio leva para a agenda', async ({ page }) => {
     await abrirApp(page, '2026-10-11T10:00')
     await page.getByRole('button', { name: 'Explorar como administração' }).click()

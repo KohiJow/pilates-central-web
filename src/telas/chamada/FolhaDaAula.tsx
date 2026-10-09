@@ -33,10 +33,12 @@ import { pode } from '../../dominio/permissoes'
 import { contarMarcacoes, idDoCredito } from '../../dominio/presenca'
 import { normalizar, plural, primeiroNome } from '../../dominio/texto'
 import type { Aula, Marcacao, MotivoCancelamento, Papel, Participante } from '../../dominio/tipos'
+import { abrirEm } from '../../app/navegacao'
+import { aulasDoCredito, confirmarEncaixe, ListaDeEncaixe, rotuloDoEncaixe } from '../reposicao/FolhaDeEncaixe'
 import { aulaAberta, fecharAula } from './aulaAberta'
 import { textoDaMarcacao, tituloDaAula } from './textos'
 
-type Etapa = 'chamada' | 'encaixe' | 'cancelar'
+type Etapa = 'chamada' | 'encaixe' | 'cancelar' | 'remarcar'
 
 const ICONE_DA_MARCACAO: Record<Marcacao, NomeDoIcone> = { presente: 'presente', faltou: 'faltou', avisou: 'avisou' }
 
@@ -46,6 +48,9 @@ export function FolhaDaAula() {
   // mantém o conteúdo enquanto a folha anima a saída
   const [ultimoId, setUltimoId] = useState(id)
   const [etapa, setEtapa] = useState<Etapa>('chamada')
+  // remarcar: o crédito de quem acabou de avisar e a aula escolhida para a reposição
+  const [creditoParaRemarcar, setCreditoParaRemarcar] = useState<string | null>(null)
+  const [aulaEscolhida, setAulaEscolhida] = useState<string | null>(null)
   useEffect(() => {
     if (id) {
       setUltimoId(id)
@@ -76,14 +81,47 @@ export function FolhaDaAula() {
 
   let conteudo: JSX.Element
   let rodape: JSX.Element | undefined
-  if (etapa === 'encaixe') {
+  const credito = creditoParaRemarcar ? creditos.value.get(creditoParaRemarcar) : undefined
+  if (etapa === 'remarcar' && credito) {
+    const aulas = aulasDoCredito(credito)
+    const destino = aulas.find((a) => a.id === aulaEscolhida)
+    conteudo = (
+      <div class="pilha">
+        <Botao variante="terciario" icone="voltar" onClick={() => setEtapa('chamada')} class="botao--alinhado">
+          Voltar para a chamada
+        </Botao>
+        <p class="subtitulo">Reposição de {primeiroNome(alunosPorId.value.get(credito.alunoId)?.nome ?? '')}</p>
+        <ListaDeEncaixe aulas={aulas} escolhida={aulaEscolhida} aoEscolher={setAulaEscolhida} />
+      </div>
+    )
+    rodape = destino ? (
+      <Botao
+        variante="primario"
+        largo
+        icone="reposicao"
+        onClick={async () => {
+          if (await confirmarEncaixe(destino, credito)) setEtapa('chamada')
+        }}
+      >
+        {rotuloDoEncaixe(destino)}
+      </Botao>
+    ) : undefined
+  } else if (etapa === 'encaixe') {
     conteudo = <Encaixe aula={aula} aoVoltar={() => setEtapa('chamada')} />
   } else if (etapa === 'cancelar') {
     conteudo = <Cancelamento aula={aula} aoVoltar={() => setEtapa('chamada')} />
   } else {
     conteudo = (
       <>
-        <Chamada aula={aula} papel={papel} />
+        <Chamada
+          aula={aula}
+          papel={papel}
+          aoRemarcar={(creditoId) => {
+            setCreditoParaRemarcar(creditoId)
+            setAulaEscolhida(null)
+            setEtapa('remarcar')
+          }}
+        />
         {podeCancelar && (
           <Botao variante="terciario" largo icone="folga" onClick={() => setEtapa('cancelar')} class="botao--fim">
             Cancelar esta aula
@@ -120,13 +158,16 @@ export function FolhaDaAula() {
     )
   }
 
-  const temRodape = rodape && (podeTodos || podeEncaixar || (aula.cancelamento && pode(papel, 'cancelar-aula')))
+  const temRodape =
+    rodape && (etapa === 'remarcar' || podeTodos || podeEncaixar || (aula.cancelamento && pode(papel, 'cancelar-aula')))
 
   return (
     <FolhaInferior
       aberta={id !== null}
       aoFechar={fecharAula}
-      rotulo={aula.cancelamento ? 'Aula cancelada' : etapa === 'encaixe' ? 'Encaixar reposição' : 'Chamada'}
+      rotulo={
+        aula.cancelamento ? 'Aula cancelada' : etapa === 'encaixe' ? 'Encaixar reposição' : etapa === 'remarcar' ? 'Remarcar' : 'Chamada'
+      }
       titulo={tituloDaAula(aula)}
       subtitulo={
         <span class="pilha" style={{ gap: '6px' }}>
@@ -143,7 +184,7 @@ export function FolhaDaAula() {
   )
 }
 
-function Chamada({ aula, papel }: { aula: Aula; papel: Papel }) {
+function Chamada({ aula, papel, aoRemarcar }: { aula: Aula; papel: Papel; aoRemarcar: (creditoId: string) => void }) {
   const fase = faseDaAula(aula, momento.value)
   const contagem = contarMarcacoes(aula)
   const antesDoDia = momento.value.data < aula.data
@@ -183,7 +224,7 @@ function Chamada({ aula, papel }: { aula: Aula; papel: Papel }) {
       </div>
       <ul class="chamada-lista">
         {aula.participantes.map((p, i) => (
-          <AlunoNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} />
+          <AlunoNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} aoRemarcar={aoRemarcar} />
         ))}
       </ul>
     </>
@@ -195,9 +236,10 @@ interface PropsAluno {
   participante: Participante
   indice: number
   papel: Papel
+  aoRemarcar: (creditoId: string) => void
 }
 
-function AlunoNaChamada({ aula, participante: p, indice, papel }: PropsAluno) {
+function AlunoNaChamada({ aula, participante: p, indice, papel, aoRemarcar }: PropsAluno) {
   const nome = alunosPorId.value.get(p.alunoId)?.nome ?? 'Aluno removido'
   const fase = faseDaAula(aula, momento.value)
   const antesDoDia = momento.value.data < aula.data
@@ -260,7 +302,17 @@ function AlunoNaChamada({ aula, participante: p, indice, papel }: PropsAluno) {
     <li class="chamada-aluno" style={{ '--i': indice } as JSX.CSSProperties} data-aluno={p.alunoId}>
       <div class="chamada-nome">
         <Avatar nome={nome} tamanho={36} />
-        <span>{nome}</span>
+        <button
+          type="button"
+          class="chamada-nome-botao tocavel"
+          onClick={() => {
+            abrirEm('alunos', [p.alunoId])
+            fecharAula()
+          }}
+          aria-label={`${nome}: abrir ficha`}
+        >
+          {nome}
+        </button>
         {p.origem === 'reposicao' && <Pilula tom="acento">reposição</Pilula>}
         {p.marcacao === 'avisou' && !creditoDoAviso && <Pilula tom="alerta">sem reposição</Pilula>}
       </div>
@@ -276,6 +328,14 @@ function AlunoNaChamada({ aula, participante: p, indice, papel }: PropsAluno) {
           </button>
         )}
       </div>
+      {p.marcacao === 'avisou' && creditoDoAviso && !creditoDoAviso.usadoEm && pode(papel, 'encaixar-reposicao') && (
+        <Botao variante="terciario" icone="reposicao" onClick={() => aoRemarcar(creditoDoAviso.id)}>
+          Encaixar em outro horário
+        </Botao>
+      )}
+      {p.marcacao === 'avisou' && creditoDoAviso?.usadoEm && (
+        <p class="texto-secundario">Reposição marcada para {dataCurta(creditoDoAviso.usadoEm.data)}.</p>
+      )}
       {pode(papel, 'dar-credito-fora-do-prazo') && p.marcacao === 'avisou' && !creditoDoAviso && (
         <Botao variante="terciario" icone="reposicao" onClick={() => void darCredito()}>
           Dar reposição mesmo assim

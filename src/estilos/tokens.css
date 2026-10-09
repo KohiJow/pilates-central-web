@@ -41,6 +41,10 @@
   --danger: #9a3412;
   --danger-surface: #f8ddd2;
 
+  /* gráfico: o mês em destaque na cor da marca, os outros no tom de apoio (3:1 sobre o card) */
+  --grafico-destaque: #6b250e;
+  --grafico-base: #a4715f;
+
   --backdrop: rgba(42, 23, 16, 0.4);
   /* sombra dos cards: tingida de terracota e sem desfoque. Medido no WebKit: a sombra com
      desfoque de 24px custava 10x mais para pintar a tela nova (quadros de 2,5 s contra 250 ms) */
@@ -100,6 +104,8 @@
     --warning-surface: #3a2615;
     --danger: #f19a7c;
     --danger-surface: #3d1d13;
+    --grafico-destaque: #e09a72;
+    --grafico-base: #9a6a55;
     --backdrop: rgba(0, 0, 0, 0.55);
     --sombra-1: 0 0 0 1px rgba(240, 196, 168, 0.07), 0 2px 0 rgba(0, 0, 0, 0.35);
     --sombra-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(12, 5, 2, 0.6);
@@ -132,6 +138,8 @@
   --warning-surface: #3a2615;
   --danger: #f19a7c;
   --danger-surface: #3d1d13;
+  --grafico-destaque: #e09a72;
+  --grafico-base: #9a6a55;
   --backdrop: rgba(0, 0, 0, 0.55);
   --sombra-1: 0 0 0 1px rgba(240, 196, 168, 0.07), 0 2px 0 rgba(0, 0, 0, 0.35);
   --sombra-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(12, 5, 2, 0.6);

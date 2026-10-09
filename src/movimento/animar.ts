@@ -14,7 +14,12 @@ export function animar(
   for (const anim of elemento.getAnimations()) anim.cancel()
   if (final.transform !== undefined) elemento.style.transform = String(final.transform)
   if (final.opacity !== undefined) elemento.style.opacity = String(final.opacity)
-  if (movimentoReduzido.peek() || typeof elemento.animate !== 'function') return Promise.resolve()
+  if (movimentoReduzido.peek() || typeof elemento.animate !== 'function') {
+    // sem animação, o estado final neutro também não precisa ficar no estilo em linha (aqui sem
+    // olhar animações rodando: com "reduzir movimento" o CSS dá 1 ms de transição a tudo)
+    limparSeNeutro(elemento, final, true)
+    return Promise.resolve()
+  }
   const animacao = elemento.animate(quadros, { fill: 'backwards', ...opcoes })
   // garante que quem espera o fim continua mesmo se a animação ficar parada
   // (aba em segundo plano, por exemplo): o estado final já está no estilo
@@ -34,8 +39,8 @@ const NEUTRO = /^translate[XY]?\(0(px)?\)$/
  * Terminou no lugar de origem (deslocamento zero, opacidade 1): tira o estilo em linha, para o
  * navegador não manter uma camada de composição à toa depois da animação.
  */
-function limparSeNeutro(elemento: HTMLElement, final: Keyframe): void {
-  if (elemento.getAnimations().some((a) => a.playState === 'running')) return
+function limparSeNeutro(elemento: HTMLElement, final: Keyframe, semEsperar = false): void {
+  if (!semEsperar && elemento.getAnimations().some((a) => a.playState === 'running')) return
   if (final.transform !== undefined && NEUTRO.test(String(final.transform)) && elemento.style.transform === String(final.transform)) {
     elemento.style.transform = ''
   }

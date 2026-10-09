@@ -22,11 +22,13 @@ export async function entrarComoProfessor(page: Page, nome = 'Camila Nunes', ago
   await expect(page.getByRole('heading', { name: new RegExp(nome.split(' ')[0] ?? nome) })).toBeVisible()
 }
 
-export function aba(page: Page, nome: 'Hoje' | 'Agenda' | 'Mais'): Locator {
+export type NomeDaAba = 'Hoje' | 'Agenda' | 'Alunos' | 'Financeiro' | 'Mais'
+
+export function aba(page: Page, nome: NomeDaAba): Locator {
   return page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: nome })
 }
 
-export async function irParaAba(page: Page, nome: 'Hoje' | 'Agenda' | 'Mais'): Promise<void> {
+export async function irParaAba(page: Page, nome: NomeDaAba): Promise<void> {
   await aba(page, nome).click()
   await expect(aba(page, nome)).toHaveAttribute('aria-current', 'page')
   await esperarTransicao(page)
@@ -36,6 +38,26 @@ export async function irParaAba(page: Page, nome: 'Hoje' | 'Agenda' | 'Mais'): P
 /** Durante uma View Transition o navegador não entrega toques à página: espera ela acabar. */
 export async function esperarTransicao(page: Page): Promise<void> {
   await expect(page.locator('html[data-transicao]')).toHaveCount(0)
+}
+
+/** Troca de seção dentro da aba Alunos (Alunos, Turmas, Reposições). */
+export async function irParaSecao(page: Page, nome: 'Alunos' | 'Turmas' | 'Reposições'): Promise<void> {
+  await page.getByRole('navigation', { name: 'Seções' }).getByRole('button', { name: nome }).click()
+  await expect(page.getByRole('navigation', { name: 'Seções' }).getByRole('button', { name: nome })).toHaveAttribute('aria-current', 'page')
+  await esperarParado(page, '.tela-quadro')
+}
+
+/** Abre uma tela pelo endereço (como um link salvo) e espera ela parar de entrar. */
+export async function irPara(page: Page, hash: string): Promise<void> {
+  await page.evaluate((h) => {
+    location.hash = h
+  }, hash)
+  await esperarParado(page, '.tela-quadro')
+}
+
+/** O aviso flutuante com o texto pedido. */
+export function aviso(page: Page, texto: string | RegExp): Locator {
+  return page.getByRole('status').filter({ hasText: texto })
 }
 
 export function folha(page: Page): Locator {

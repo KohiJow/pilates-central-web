@@ -73,6 +73,9 @@ export function desfazerEncaixe(
 ): Resultado<Alteracoes> {
   const creditoId = registro?.reposicoes[alunoId]
   if (!registro || !creditoId) return recusado('aluno-fora-da-aula', 'Este aluno não está repondo nesta aula.')
+  if (faseDaAula(aula, ctx.agora) === 'encerrada') {
+    return recusado('aula-encerrada', 'A aula já terminou: a reposição fica no histórico.')
+  }
   const novo = registroDe(aula, registro, ctx.instante)
   delete novo.reposicoes[alunoId]
   delete novo.marcacoes[alunoId]

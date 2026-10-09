@@ -9,9 +9,22 @@ import { cancelarAula, candidatosAReposicao, desfazerEncaixe, encaixar, reabrirA
 import type { OpcoesDeCancelamento } from '../dominio/reposicao'
 import { aceito, recusado } from '../dominio/resultado'
 import type { Resultado } from '../dominio/resultado'
-import type { Aluno, Aula, CreditoReposicao, DataISO, Id, Marcacao, MembroEquipe, RegistroAula } from '../dominio/tipos'
+import type {
+  Aluno,
+  Aula,
+  Competencia,
+  CreditoReposicao,
+  DataISO,
+  FinanceiroDoAluno,
+  Id,
+  Marcacao,
+  MembroEquipe,
+  Pagamento,
+  RegistroAula,
+} from '../dominio/tipos'
 import { inversoDe } from './desfazer'
-import type { DadosBase, Intervalo, Repositorio } from './repositorio'
+import { mesclarBase } from './mesclar'
+import type { DadosBase, Gravacao, Intervalo, Repositorio } from './repositorio'
 
 // Estado do app em sinais (@preact/signals): as telas leem e re-renderizam sozinhas.
 // As ações aplicam a mudança na tela na hora (otimista), gravam no repositório e devolvem
@@ -25,8 +38,15 @@ export const situacao = signal<'carregando' | 'pronto' | 'erro'>('carregando')
 /** true logo depois que os dados chegam: as listas entram em cascata só nessa hora */
 export const cargaRecente = signal(false)
 
+/** Financeiro (só a administração carrega): plano de cada aluno e pagamentos por competência. */
+export const financeiro = signal<ReadonlyMap<Id, FinanceiroDoAluno>>(new Map())
+export const pagamentos = signal<ReadonlyMap<Id, Pagamento>>(new Map())
+export const situacaoFinanceira = signal<'fora' | 'carregando' | 'pronto' | 'erro'>('fora')
+let competenciasCarregadas = new Set<Competencia>()
+
 const MARGEM_DA_JANELA = 42
-let janela: Intervalo | null = null
+/** Datas cujos registros de aula já estão na memória. */
+export const janela = signal<Intervalo | null>(null)
 
 export const alunosPorId = computed(() => new Map<Id, Aluno>((base.value?.alunos ?? []).map((a) => [a.id, a])))
 export const equipePorId = computed(() => new Map<Id, MembroEquipe>((base.value?.equipe ?? []).map((e) => [e.id, e])))
@@ -42,7 +62,7 @@ export function nomeDaEquipe(id: Id): string {
 }
 
 export function nomeDaUnidade(id: Id): string {
-  return unidades.value.find((u) => u.id === id)?.nome ?? ''
+  return (base.value?.unidades ?? []).find((u) => u.id === id)?.nome ?? ''
 }
 
 /** Aulas de um dia, já com as exceções gravadas. Lê sinais: chamar dentro de componente. */
@@ -81,12 +101,16 @@ export async function carregar(repo: Repositorio, hoje: DataISO): Promise<void> 
       repo.registros(intervalo),
       repo.creditos(),
     ])
-    janela = intervalo
+    competenciasCarregadas = new Set()
     batch(() => {
+      janela.value = intervalo
       repositorio.value = repo
       base.value = dadosBase
       registros.value = new Map(lista.map((r) => [r.id, r]))
       creditos.value = new Map(listaDeCreditos.map((c) => [c.id, c]))
+      financeiro.value = new Map()
+      pagamentos.value = new Map()
+      situacaoFinanceira.value = 'fora'
       situacao.value = 'pronto'
       cargaRecente.value = true
     })
@@ -97,18 +121,62 @@ export async function carregar(repo: Repositorio, hoje: DataISO): Promise<void> 
 }
 
 /** Garante que os registros de `data` estão carregados (a agenda pode ir longe no calendário). */
-export async function garantirData(data: DataISO): Promise<void> {
+export function garantirData(data: DataISO): Promise<void> {
+  return garantirIntervalo(data, data, 14)
+}
+
+/** Garante que os registros de `de` até `ate` estão carregados (frequência de um mês inteiro). */
+export async function garantirIntervalo(de: DataISO, ate: DataISO, folga = 0): Promise<void> {
   const repo = repositorio.peek()
-  if (!repo || !janela || (data >= janela.de && data <= janela.ate)) return
+  const atual = janela.peek()
+  if (!repo || !atual || (de >= atual.de && ate <= atual.ate)) return
   const novo = {
-    de: data < janela.de ? somarDias(data, -14) : janela.de,
-    ate: data > janela.ate ? somarDias(data, 14) : janela.ate,
+    de: de < atual.de ? somarDias(de, -folga) : atual.de,
+    ate: ate > atual.ate ? somarDias(ate, folga) : atual.ate,
   }
   const lista = await repo.registros(novo)
-  janela = novo
   const mapa = new Map(registros.peek())
   for (const r of lista) if (!mapa.has(r.id)) mapa.set(r.id, r)
-  registros.value = mapa
+  batch(() => {
+    registros.value = mapa
+    janela.value = novo
+  })
+}
+
+export function intervaloCarregado(de: DataISO, ate: DataISO): boolean {
+  const j = janela.value
+  return j !== null && de >= j.de && ate <= j.ate
+}
+
+/**
+ * Carrega o plano de cada aluno e os pagamentos das competências pedidas (as que ainda não
+ * vieram). Só a administração chama: o professor nunca pede dado financeiro.
+ */
+export async function carregarFinanceiro(competencias: readonly Competencia[]): Promise<void> {
+  const repo = repositorio.peek()
+  if (!repo) return
+  const faltam = competencias.filter((c) => !competenciasCarregadas.has(c))
+  const primeiraVez = situacaoFinanceira.peek() === 'fora' || situacaoFinanceira.peek() === 'erro'
+  if (!primeiraVez && faltam.length === 0) return
+  if (primeiraVez) situacaoFinanceira.value = 'carregando'
+  try {
+    const [planos, lista] = await Promise.all([
+      primeiraVez ? repo.financeiro() : Promise.resolve(null),
+      faltam.length ? repo.pagamentos(faltam) : Promise.resolve([]),
+    ])
+    for (const c of faltam) competenciasCarregadas.add(c)
+    batch(() => {
+      if (planos) financeiro.value = new Map(planos.map((f) => [f.alunoId, f]))
+      if (lista.length) {
+        const mapa = new Map(pagamentos.peek())
+        for (const p of lista) if (!mapa.has(p.id)) mapa.set(p.id, p)
+        pagamentos.value = mapa
+      }
+      situacaoFinanceira.value = 'pronto'
+    })
+  } catch {
+    situacaoFinanceira.value = 'erro'
+  }
 }
 
 // ---------- gravação com desfazer ----------
@@ -164,6 +232,73 @@ async function gravar(feito: Alteracoes): Promise<() => Promise<void>> {
     aplicarNaTela(inverso)
     await repo.salvar(inverso)
   }
+}
+
+/** Aplica na tela uma gravação qualquer (cadastros, financeiro, registros e créditos). */
+function aplicarGravacao(g: Gravacao): void {
+  batch(() => {
+    if (g.registros?.length || g.creditos?.length || g.creditosRemovidos?.length) {
+      aplicarNaTela({ registros: g.registros ?? [], creditos: g.creditos ?? [], creditosRemovidos: g.creditosRemovidos ?? [] })
+    }
+    const b = base.peek()
+    if (b) base.value = mesclarBase(b, g)
+    if (g.financeiro?.length) {
+      const mapa = new Map(financeiro.peek())
+      for (const f of g.financeiro) mapa.set(f.alunoId, f)
+      financeiro.value = mapa
+    }
+    if (g.pagamentos?.length || g.pagamentosRemovidos?.length) {
+      const mapa = new Map(pagamentos.peek())
+      for (const id of g.pagamentosRemovidos ?? []) mapa.delete(id)
+      for (const p of g.pagamentos ?? []) mapa.set(p.id, p)
+      pagamentos.value = mapa
+    }
+  })
+}
+
+/**
+ * Grava cadastros e lançamentos: aplica na tela, salva e, se o salvamento falhar, volta a tela
+ * como estava. `inverso`, quando existe, calcula na hora de desfazer (sobre o estado de então)
+ * só o contrário do que esta ação fez.
+ */
+export async function gravarComDesfazer(
+  g: Gravacao,
+  inverso?: () => Gravacao | null,
+): Promise<Resultado<{ desfazer?: () => Promise<void> }>> {
+  const repo = repositorio.peek()
+  if (!repo) return recusado('nada-a-fazer', 'Os dados ainda não carregaram.')
+  const antes = {
+    base: base.peek(),
+    registros: registros.peek(),
+    creditos: creditos.peek(),
+    financeiro: financeiro.peek(),
+    pagamentos: pagamentos.peek(),
+  }
+  aplicarGravacao(g)
+  try {
+    await repo.salvar(g)
+  } catch {
+    batch(() => {
+      base.value = antes.base
+      registros.value = antes.registros
+      creditos.value = antes.creditos
+      financeiro.value = antes.financeiro
+      pagamentos.value = antes.pagamentos
+    })
+    return recusado('nada-a-fazer', 'Não deu para salvar. Tente de novo.')
+  }
+  if (!inverso) return aceito({})
+  let desfeito = false
+  return aceito({
+    desfazer: async () => {
+      if (desfeito) return
+      desfeito = true
+      const volta = inverso()
+      if (!volta) return
+      aplicarGravacao(volta)
+      await repo.salvar(volta)
+    },
+  })
 }
 
 export type Feito<T = object> = Resultado<T & { alteracoes: Alteracoes; desfazer: () => Promise<void> }>

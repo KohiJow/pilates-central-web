@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   conferirPlano,
+  mensalidadeSugerida,
   filtrarAlunos,
   montarAluno,
   montarFinanceiro,
@@ -173,5 +174,24 @@ describe('plano e turmas', () => {
   it('turma encerrada não conta', () => {
     const turmas = [turma({ id: 't1', alunosFixos: ['a-1'], ativa: false })]
     expect(conferirPlano(aluno('a-1', { vezesPorSemana: 1 }), turmas).turmas).toBe(0)
+  })
+})
+
+describe('mensalidade sugerida', () => {
+  it('o valor mais comum do mesmo plano, sem contar quem paga por plataforma', () => {
+    const alunos = [aluno('a1'), aluno('a2'), aluno('a3'), aluno('a4', { vezesPorSemana: 3 }), aluno('a5'), aluno('a6', { situacao: 'pausado' })]
+    const fin = (alunoId: string, valorMensal: number, formaPreferida: 'pix' | 'gympass' = 'pix') =>
+      [alunoId, { alunoId, unidadeId: 'u-centro', valorMensal, formaPreferida, diaVencimento: 10 }] as const
+    const financeiro = new Map([
+      fin('a1', 28_000),
+      fin('a2', 28_000),
+      fin('a3', 25_000),
+      fin('a4', 36_000),
+      fin('a5', 15_000, 'gympass'),
+      fin('a6', 10_000),
+    ])
+    expect(mensalidadeSugerida(2, alunos, financeiro)).toBe(28_000)
+    expect(mensalidadeSugerida(3, alunos, financeiro)).toBe(36_000)
+    expect(mensalidadeSugerida(1, alunos, financeiro)).toBeNull()
   })
 })
