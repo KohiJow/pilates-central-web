@@ -32,6 +32,31 @@ export function precachear(nome: string): boolean {
   return true
 }
 
+/**
+ * Script embutido que pré-carrega as fontes. A pré-carga só é aproveitada se pedir a fonte do
+ * mesmo jeito que o CSS pede, e os motores pedem diferente: o Chrome busca a fonte do CSS com
+ * CORS (a pré-carga precisa de crossorigin); o WebKit (Safari e todo navegador do iPhone) busca
+ * sem CORS (com crossorigin, não casa). Medido nos dois: com o atributo errado, a fonte baixa
+ * duas vezes, 59 kB a mais na primeira visita. Por isso a pré-carga é montada aqui, conforme o
+ * motor, e não numa <link> fixa no HTML.
+ */
+export function preCargaDasFontes(fontes: string[]): string {
+  return [
+    '(function (fontes) {',
+    "  var semCors = navigator.vendor === 'Apple Computer, Inc.'",
+    '  for (var i = 0; i < fontes.length; i++) {',
+    "    var l = document.createElement('link')",
+    "    l.rel = 'preload'",
+    "    l.as = 'font'",
+    "    l.type = 'font/woff2'",
+    '    l.href = fontes[i]',
+    "    if (!semCors) l.crossOrigin = 'anonymous'",
+    '    document.head.appendChild(l)',
+    '  }',
+    `})(${JSON.stringify(fontes)})`,
+  ].join('\n')
+}
+
 export function servicoOffline(): Plugin {
   let pastaPublica = ''
   let raiz = ''
@@ -47,17 +72,17 @@ export function servicoOffline(): Plugin {
     },
     transformIndexHtml: {
       order: 'post',
-      handler(_html, ctx) {
-        if (!ctx.bundle) return []
+      handler(html, ctx) {
+        if (!ctx.bundle) return html
         // pré-carrega as duas fontes latinas para o texto não "pular" na primeira visita
-        return Object.keys(ctx.bundle)
+        // (endereço absoluto: as páginas em subpastas, como experimental/, também acham a fonte)
+        const fontes = Object.keys(ctx.bundle)
           .filter((nome) => /latin-wght-normal.*\.woff2$/.test(nome) && !FONTE_DE_OUTRO_ALFABETO.test(nome))
-          .map((nome) => ({
-            tag: 'link',
-            // endereço absoluto: as páginas em subpastas (experimental/) também acham a fonte
-            attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: `${base}${nome}`, crossorigin: '' },
-            injectTo: 'head' as const,
-          }))
+          .map((nome) => `${base}${nome}`)
+        if (fontes.length === 0) return html
+        // logo depois do título, antes das folhas de estilo: um script embutido depois delas só
+        // roda quando elas chegam, e a pré-carga atrasaria
+        return html.replace('</title>', `</title>\n    <script>${preCargaDasFontes(fontes)}</script>`)
       },
     },
     generateBundle(_opcoes, bundle) {
@@ -101,6 +126,9 @@ export function politicaDeSeguranca(): Plugin {
   return {
     name: 'politica-de-seguranca',
     apply: 'build',
+    // depois do servico-offline (que embute o script da pré-carga das fontes): o hash de todo
+    // script embutido precisa estar na política
+    enforce: 'post',
     configResolved(config) {
       comFirebase = Boolean(config.env.VITE_FIREBASE_PROJECT_ID)
     },
