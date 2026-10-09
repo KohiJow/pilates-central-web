@@ -175,8 +175,11 @@ service cloud.firestore {
 
     // Criada uma vez, no primeiro acesso, junto com o cadastro de quem reivindica e o acesso
     // dela. Depois só muda pela passagem da conta, feita por quem é titular agora.
+    // Quem lê: a equipe e, fora dela, só a conta do e-mail do primeiro acesso (para saber se o
+    // estúdio já tem responsável). Uma conta qualquer, criada por alguém de fora, não fica
+    // sabendo quem é o titular nem se o estúdio já foi reivindicado.
     match /estudio/posse {
-      allow get: if emailConfirmado();
+      allow get: if equipe(quemSou()) || (emailConfirmado() && meuEmail() == emailDoPrimeiroAcesso());
       allow create: if reivindicar();
       allow update: if passarAConta(quemSou());
       allow delete: if false;
@@ -657,7 +660,8 @@ service cloud.firestore {
         && ocupadasDepois(aulaId) == v.ocupadas - 1;
     }
 
-    // desfazer o aviso: no prazo, só se ainda houver lugar
+    // desfazer o aviso: no prazo, só se ainda houver lugar (o crédito do aviso sai junto: ver a
+    // regra da vaga)
     function desfazerAvisoValido(q, aulaId, v, s) {
       return q.ativo
         && v.cancelada == false
@@ -719,12 +723,13 @@ service cloud.firestore {
       return registroDoAluno(aulaId, v, r)
         && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data', 'cancelamento'])
         && (
-          // avisar ou desfazer o aviso: só a marcação dele muda
+          // avisar ou desfazer o aviso: só a marcação dele muda (quem já avisou só pode desfazer;
+          // escolher um caminho só, em vez de tentar os dois, poupa o teto de expressões)
           (reposicoesMudaram.size() == 0 && marcacoesMudaram.hasOnly([q.id])
-            && (avisoValido(q, aulaId, v, s) || desfazerAvisoValido(q, aulaId, v, s)))
+            && (s.avisouAntes ? desfazerAvisoValido(q, aulaId, v, s) : avisoValido(q, aulaId, v, s)))
           // encaixar ou desistir: só a reposição dele muda
           || (marcacoesMudaram.size() == 0 && reposicoesMudaram.hasOnly([q.id])
-            && (encaixeValido(q, aulaId, v, s) || desistirValido(q, aulaId, v, s)))
+            && (s.repondoAntes ? desistirValido(q, aulaId, v, s) : encaixeValido(q, aulaId, v, s)))
         );
     }
 
@@ -741,8 +746,27 @@ service cloud.firestore {
           // encaixou ou desfez o aviso: ocupa um lugar, sem passar da capacidade
           || (novo == antes + 1
             && novo <= resource.data.capacidade
-            && ((!s.repondoAntes && s.repondoDepois) || (s.avisouAntes && !s.avisouDepois)))
+            && ((!s.repondoAntes && s.repondoDepois && !fixoNaAula(q, resource.data))
+              || (s.avisouAntes && !s.avisouDepois && semCreditoDoAviso(q, resource.data))))
         );
+    }
+
+    // As duas conferências abaixo moram na regra da vaga, que vai em todo aviso e todo encaixe,
+    // porque as regras do registro do aluno já chegam perto do teto de 1000 expressões por
+    // pedido (medido no emulador: poucas comparações a mais e o encaixe legítimo é recusado).
+
+    // Desfazer o aviso devolve o crédito que ele gerou, no mesmo lote: sem isso o aluno voltava
+    // para a aula e ficava com a reposição. O crédito já usado não pode ser apagado, então o
+    // aviso de uma falta já reposta não se desfaz.
+    function semCreditoDoAviso(q, v) {
+      return getAfter(caminho('creditos', 'cr_' + q.id + '_' + v.turmaId + '_' + v.data)) == null;
+    }
+
+    // O aluno já tem lugar nesta aula (é fixo da turma desde antes dela): repor aqui ocuparia
+    // dois lugares.
+    function fixoNaAula(q, v) {
+      let t = turmaDaVaga(v);
+      return q.id in t.alunosFixos && t.get('fixosDesde', {}).get(q.id, '0000-00-00') <= v.data;
     }
 
     // ---------- créditos de reposição ----------

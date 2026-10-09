@@ -34,8 +34,15 @@ export async function resolverAcesso(sdk: Sdk, u: Usuario): Promise<Acesso> {
     await aceitarConvite(sdk, u, c)
     return c.papel === 'aluno' ? { tipo: 'aluno', alunoId: c.pessoaId } : { tipo: 'equipe', membroId: c.pessoaId }
   }
-  const posse = await getDoc(doc(sdk.db, 'estudio', 'posse'))
-  return posse.exists() ? { tipo: 'semConvite' } : { tipo: 'primeiroAcesso' }
+  // só a conta do e-mail combinado nas regras lê a posse antes de ter papel: para as outras,
+  // a leitura é negada e a resposta é a mesma de um estúdio que já tem responsável
+  try {
+    const posse = await getDoc(doc(sdk.db, 'estudio', 'posse'))
+    return posse.exists() ? { tipo: 'semConvite' } : { tipo: 'primeiroAcesso' }
+  } catch (erro) {
+    if (codigoDe(erro) === 'permission-denied') return { tipo: 'semConvite' }
+    throw erro
+  }
 }
 
 async function aceitarConvite(sdk: Sdk, u: Usuario, c: DocumentoDeConvite): Promise<void> {

@@ -271,7 +271,7 @@ test.describe('Firebase (emuladores)', () => {
     // O emulador de login guarda as contas num projeto só (o SDK não manda o projeto no login);
     // o Firestore separa os dados por projeto. Rodando os dois motores no mesmo emulador, a conta
     // já pode existir: aí entra em vez de criar.
-    async function criarEConfirmar(email: string) {
+    async function criarEConfirmar(email: string, destino = 'Vamos começar.') {
       await page.goto(`./?emulador=${projeto}`)
       await page.getByRole('button', { name: 'Entrar', exact: true }).click()
       await page.getByRole('button', { name: 'Primeiro acesso? Criar conta' }).click()
@@ -279,7 +279,7 @@ test.describe('Firebase (emuladores)', () => {
       await page.getByLabel('Senha', { exact: true }).fill(SENHA)
       await page.locator('form').getByRole('button', { name: 'Criar conta' }).click()
       const confirmar = page.getByRole('heading', { name: 'Falta só um passo.' })
-      const comecar = page.getByRole('heading', { name: 'Vamos começar.' })
+      const comecar = page.getByRole('heading', { name: destino })
       const erro = page.getByRole('alert')
       await expect(confirmar.or(erro)).toBeVisible({ timeout: 15_000 })
       if (await erro.isVisible()) {
@@ -296,13 +296,12 @@ test.describe('Firebase (emuladores)', () => {
       await expect(comecar).toBeVisible({ timeout: 15_000 })
     }
 
-    // outra conta chega primeiro: as regras não deixam reivindicar
-    await criarEConfirmar('apressada@example.com')
-    await page.getByLabel('Seu nome').fill('Pessoa Apressada')
-    await page.getByRole('button', { name: 'Começar' }).click()
-    await expect(page.getByRole('alert')).toContainText('Este e-mail não é o combinado para o primeiro acesso')
+    // outra conta chega primeiro: nem fica sabendo que o estúdio está sem dono (as regras não
+    // deixam ler a posse) e cai na mesma tela de quem não tem convite
+    await criarEConfirmar('apressada@example.com', 'Ainda não dá para entrar.')
+    await expect(page.getByText('Este e-mail ainda não tem convite.')).toBeVisible()
     expect(await lerDocumento('estudio/posse', projeto)).toBeNull()
-    await page.getByRole('button', { name: 'Sair' }).click()
+    await page.getByRole('button', { name: 'Sair e entrar com outro e-mail' }).click()
     await expect(page.getByRole('heading', { name: 'Que bom ver você.' })).toBeVisible()
 
     // a conta combinada vira a responsável

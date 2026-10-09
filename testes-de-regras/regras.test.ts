@@ -52,7 +52,7 @@ const instante = '2026-10-09T12:00:00.000Z'
 type Esperado = Partial<Record<Quem, boolean>>
 
 const LEITURAS: [string, Esperado][] = [
-  ['estudio/posse', { anonimo: false, semConfirmar: false, estranho: true, titular: true, adm: true, prof: true, aluno: true }],
+  ['estudio/posse', { anonimo: false, semConfirmar: false, estranho: false, titular: true, adm: true, prof: true, aluno: false }],
   ['configuracao/estudio', { anonimo: false, semConfirmar: false, estranho: false, titular: true, adm: true, prof: true, aluno: true }],
   ['unidades/u-centro', { anonimo: false, semConfirmar: false, estranho: false, titular: true, adm: true, prof: true, aluno: true }],
   ['equipe/e-prof', { anonimo: false, semConfirmar: false, estranho: false, titular: true, adm: true, prof: true, aluno: false }],
