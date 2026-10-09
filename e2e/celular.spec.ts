@@ -120,6 +120,14 @@ test.describe('celular', () => {
     expect(vistos).toBeGreaterThan(5)
   })
 
+  test('no modo escuro, a barra do sistema já vem escura antes de o app carregar', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
+    // sem o script do app: vale só o que a página faz antes da primeira pintura
+    await page.route(/\/assets\/principal-[^/]+\.js$/, (rota) => rota.abort())
+    await page.goto('./?demo')
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#1C120D')
+  })
+
   test('com o servidor fora do ar, o app instalado abre do service worker', async ({ page }) => {
     // um servidor só deste teste, para poder desligá-lo de verdade (o modo sem rede do
     // Playwright não passa pelo service worker no WebKit)

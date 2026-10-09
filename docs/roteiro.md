@@ -224,6 +224,7 @@ a posição da peça quadro a quadro contra a do dedo (com toque de verdade no C
 - [x] Nome do estúdio cortado ("Pilates ...") a 360 px e menos: o selo de demonstração ficou mais estreito; cabe inteiro a partir de 360 px (a 320 px segue com reticências, "Pilates Ce...")
 - [x] Contraste medido na tela: o "dom" e os outros dias sem aula da faixa ficavam em 4,2:1 no tema claro (cor secundária com opacidade em 13 px)
 - [x] Abrir sem internet nunca tinha sido testado no WebKit (o teste era pulado); agora é, com o servidor desligado de verdade
+- [x] No modo escuro automático, a barra do sistema (`theme-color`) ficava clara até o app carregar; o script do cabeçalho já a pinta escura antes da primeira pintura
 - [x] Teste do aluno no emulador falhava no horário da aula dele (relógio de verdade)
 
 ### Conferido e certo

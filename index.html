@@ -17,11 +17,16 @@
     <link rel="icon" href="%BASE_URL%icones/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="%BASE_URL%icones/apple-touch-icon.png" />
     <script>
-      // aplica o tema salvo antes da primeira pintura, para não piscar claro no modo escuro
+      // aplica o tema salvo e a cor da barra do sistema antes da primeira pintura, para não piscar
+      // claro no modo escuro (a barra seguia clara até o app carregar)
+      var t = null
       try {
-        var t = localStorage.getItem('pc-tema')
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+        t = localStorage.getItem('pc-tema')
       } catch (e) {}
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      if (t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#1C120D')
+      }
     </script>
   </head>
   <body>
