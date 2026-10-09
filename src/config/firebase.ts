@@ -34,13 +34,13 @@ export const CONFIGURACAO_DO_FIREBASE: ConfiguracaoDoFirebase | null = lerDoAmbi
 
 /**
  * Emuladores locais (testes e desenvolvimento): só valem em localhost e só com `?emulador=1`
- * no endereço. No site publicado isto nunca liga. As portas são as de firebase.json.
+ * no endereço (ver app/modo.ts). No site publicado isto nunca liga. As portas são as de
+ * firebase.json.
  */
 export const EMULADOR = {
   projectId: 'demo-pilates',
   // chave falsa: o emulador aceita qualquer uma
   apiKey: 'chave-do-emulador',
-  authDomain: 'demo-pilates.firebaseapp.com',
   auth: 'http://127.0.0.1:8844',
   firestore: { host: '127.0.0.1', porta: 8824 },
 } as const

@@ -5,7 +5,16 @@
 import type { Page, TestInfo } from '@playwright/test'
 import { aba, aviso, esperarFolhaParada, esperarParado, folha, irPara, irParaAba } from './apoio'
 import { expect, test } from './base'
-import { CONTAS, convidadoDoMotor, FIRESTORE, lerDocumento, linkDeConfirmacao, SENHA } from './firebase/contas'
+import { AUTH, CONTAS, convidadoDoMotor, FIRESTORE, lerDocumento, linkDeConfirmacao, projetoVazio, SENHA } from './firebase/contas'
+
+/** Espera um documento do emulador ficar como o teste quer (as gravações são assíncronas). */
+async function esperarNoBanco(caminho: string, condicao: (doc: Record<string, unknown> | null) => boolean) {
+  await expect.poll(async () => condicao(await lerDocumento(caminho)), { timeout: 15_000 }).toBe(true)
+}
+
+const campo = (doc: Record<string, unknown> | null, nome: string) =>
+  (doc?.fields as Record<string, { stringValue?: string; integerValue?: string }> | undefined)?.[nome]
+
 
 test.skip(!process.env.EMULADOR, 'precisa dos emuladores do Firebase (EMULADOR=1)')
 
@@ -161,5 +170,152 @@ test.describe('Firebase (emuladores)', () => {
     await expect(page.locator('.perfil')).toContainText('Professor')
     // o convite foi usado e sumiu
     expect(await lerDocumento(`convites/${convidado.email}`)).toBeNull()
+  })
+
+  test('a administração grava no banco: estúdio, app do aluno, convite, reposição, pagamento e exclusão', async ({ page }, info) => {
+    test.setTimeout(120_000)
+    const webkit = info.project.name === 'webkit'
+    const motor = info.project.name
+    await entrarComo(page, CONTAS.responsavel.email)
+    await expect(page.getByRole('heading', { level: 1, name: /Helena/ })).toBeVisible({ timeout: 15_000 })
+
+    // estúdio: o nome vai para a configuração e para a página pública
+    await irPara(page, '#/mais/estudio')
+    await page.getByRole('textbox', { name: 'Nome do estúdio' }).fill(`Estúdio ${motor}`)
+    await page.getByRole('button', { name: 'Salvar' }).click()
+    await expect(aviso(page, 'Dados do estúdio salvos.')).toBeVisible()
+    await esperarNoBanco('configuracao/estudio', (d) => campo(d, 'nomeEstudio')?.stringValue === `Estúdio ${motor}`)
+    await esperarNoBanco('publico/estudio', (d) => campo(d, 'nomeEstudio')?.stringValue === `Estúdio ${motor}`)
+
+    // app do aluno: o convite vai para o e-mail e o portal nasce sem os colegas
+    const aluno = webkit ? 'a-13' : 'a-12'
+    await irPara(page, `#/alunos/${aluno}`)
+    await page.getByRole('button', { name: /Liberar o app para/ }).click()
+    await expect(aviso(page, /Acesso de .* liberado/)).toBeVisible()
+    await esperarNoBanco(`convites/aluno${aluno.slice(2)}@example.com`, (d) => campo(d, 'papel')?.stringValue === 'aluno')
+    await esperarNoBanco(`portal/${aluno}`, (d) => d !== null && !JSON.stringify(d).includes('aluno1'))
+
+    // convite de professor
+    await irPara(page, '#/mais/equipe')
+    await page.getByRole('button', { name: 'Convidar pessoa' }).click()
+    await esperarParado(page, '.tela-quadro')
+    await page.getByRole('textbox', { name: 'Nome' }).fill(`Professor ${motor}`)
+    await page.getByRole('textbox', { name: 'E-mail' }).fill(`prof-${motor}@example.com`)
+    await page.getByRole('button', { name: 'Centro' }).click()
+    await page.getByRole('button', { name: 'Registrar convite' }).click()
+    await expect(aviso(page, /Convite registrado/)).toBeVisible()
+    await esperarNoBanco(`convites/prof-${motor}@example.com`, (d) => campo(d, 'papel')?.stringValue === 'professor')
+
+    // reposição encaixada pela equipe: registro, crédito e vaga numa transação
+    await irPara(page, '#/alunos/reposicoes')
+    const credito = page.locator('[data-credito]').first()
+    const creditoId = (await credito.getAttribute('data-credito')) ?? ''
+    await credito.getByRole('button', { name: 'Encaixar' }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('radio').first().click()
+    await folha(page).getByRole('button', { name: /^Encaixar/ }).click()
+    await expect(aviso(page, /^Reposição de .* marcada/)).toBeVisible()
+    await esperarNoBanco(`creditos/${creditoId}`, (d) => JSON.stringify(d).includes('usadoEm'))
+
+    // pagamento
+    await irParaAba(page, 'Financeiro')
+    await page.getByRole('button', { name: 'Lançar pagamento', exact: true }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('searchbox', { name: 'Buscar aluno' }).fill('eduardo')
+    await folha(page).getByRole('button', { name: /Eduardo Freitas/ }).click()
+    await folha(page).getByRole('textbox', { name: 'Valor (R$)' }).fill('10')
+    await folha(page).getByRole('button', { name: /^Lançar R\$\s10,00$/ }).click()
+    await expect(aviso(page, /R\$\s10,00 de Eduardo lançado/)).toBeVisible()
+
+    // exclusão a pedido do aluno (LGPD)
+    const excluido = webkit ? 'a-16' : 'a-15'
+    await irPara(page, `#/alunos/${excluido}`)
+    await page.getByRole('button', { name: 'Excluir o cadastro' }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('button', { name: 'Excluir de vez' }).click()
+    await expect(aviso(page, /Cadastro de .* excluído/)).toBeVisible()
+    await esperarNoBanco(`alunos/${excluido}`, (d) => d === null)
+    await esperarNoBanco(`financeiroDosAlunos/${excluido}`, (d) => d === null)
+  })
+
+  test('senha nova e login errado respondem igual, tenha ou não conta', async ({ page }) => {
+    await abrirLogin(page)
+    await page.getByLabel('E-mail').fill('ninguem@example.com')
+    await page.getByLabel('Senha', { exact: true }).fill('qualquer-senha')
+    await page.locator('form').getByRole('button', { name: 'Entrar', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('E-mail ou senha não conferem.')
+    await page.getByLabel('E-mail').fill(CONTAS.professor.email)
+    await page.locator('form').getByRole('button', { name: 'Entrar', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('E-mail ou senha não conferem.')
+
+    for (const email of ['ninguem@example.com', CONTAS.professor.email]) {
+      await page.getByRole('button', { name: 'Esqueci a senha' }).click()
+      await esperarFolhaParada(page)
+      await folha(page).getByLabel('E-mail').fill(email)
+      await folha(page).getByRole('button', { name: 'Enviar o link' }).click()
+      await expect(folha(page).getByRole('status')).toHaveText(/Se houver uma conta com este e-mail, enviamos um link/)
+      await page.keyboard.press('Escape')
+      await expect(folha(page)).toHaveCount(0)
+    }
+    // o emulador "mandou" o e-mail só para quem tem conta
+    const r = await fetch(`${AUTH}/emulator/v1/projects/demo-pilates/oobCodes`)
+    const { oobCodes } = (await r.json()) as { oobCodes: { email: string; requestType: string }[] }
+    expect(oobCodes.some((c) => c.email === CONTAS.professor.email && c.requestType === 'PASSWORD_RESET')).toBe(true)
+    expect(oobCodes.some((c) => c.email === 'ninguem@example.com')).toBe(false)
+  })
+
+  test('primeiro acesso: só o e-mail combinado nas regras reivindica, e o estúdio começa vazio', async ({ page }, info) => {
+    test.setTimeout(90_000)
+    const projeto = projetoVazio(info.project.name)
+
+    // O emulador de login guarda as contas num projeto só (o SDK não manda o projeto no login);
+    // o Firestore separa os dados por projeto. Rodando os dois motores no mesmo emulador, a conta
+    // já pode existir: aí entra em vez de criar.
+    async function criarEConfirmar(email: string) {
+      await page.goto(`./?emulador=${projeto}`)
+      await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+      await page.getByRole('button', { name: 'Primeiro acesso? Criar conta' }).click()
+      await page.getByLabel('E-mail').fill(email)
+      await page.getByLabel('Senha', { exact: true }).fill(SENHA)
+      await page.locator('form').getByRole('button', { name: 'Criar conta' }).click()
+      const confirmar = page.getByRole('heading', { name: 'Falta só um passo.' })
+      const comecar = page.getByRole('heading', { name: 'Vamos começar.' })
+      const erro = page.getByRole('alert')
+      await expect(confirmar.or(erro)).toBeVisible({ timeout: 15_000 })
+      if (await erro.isVisible()) {
+        await page.getByRole('button', { name: 'Já tenho conta' }).click()
+        await page.getByLabel('E-mail').fill(email)
+        await page.getByLabel('Senha', { exact: true }).fill(SENHA)
+        await page.locator('form').getByRole('button', { name: 'Entrar', exact: true }).click()
+        await expect(confirmar.or(comecar)).toBeVisible({ timeout: 15_000 })
+      }
+      if (await confirmar.isVisible()) {
+        expect((await page.request.get(await linkDeConfirmacao(email))).ok()).toBe(true)
+        await page.getByRole('button', { name: 'Já confirmei' }).click()
+      }
+      await expect(comecar).toBeVisible({ timeout: 15_000 })
+    }
+
+    // outra conta chega primeiro: as regras não deixam reivindicar
+    await criarEConfirmar('apressada@example.com')
+    await page.getByLabel('Seu nome').fill('Pessoa Apressada')
+    await page.getByRole('button', { name: 'Começar' }).click()
+    await expect(page.getByRole('alert')).toContainText('Este e-mail não é o combinado para o primeiro acesso')
+    expect(await lerDocumento('estudio/posse', projeto)).toBeNull()
+    await page.getByRole('button', { name: 'Sair' }).click()
+    await expect(page.getByRole('heading', { name: 'Que bom ver você.' })).toBeVisible()
+
+    // a conta combinada vira a responsável
+    await criarEConfirmar('responsavel@example.com')
+    await page.getByLabel('Seu nome').fill('Pessoa Responsável')
+    await page.getByLabel('Nome do estúdio').fill('Estúdio Novo')
+    await page.getByRole('button', { name: 'Começar' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: /Pessoa/ })).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('.topo-nome')).toHaveText('Estúdio Novo')
+    await expect(page.getByText('Não tem aula marcada para hoje.')).toBeVisible()
+    await irParaAba(page, 'Mais')
+    await expect(page.locator('.perfil')).toContainText('Responsável')
+    await expect(page.getByRole('button', { name: /Equipe/ })).toBeVisible()
+    expect(await lerDocumento('estudio/posse', projeto)).not.toBeNull()
   })
 })

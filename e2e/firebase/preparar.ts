@@ -10,7 +10,7 @@ import { documentoDoMembro } from '../../src/dados/firebase/conversao'
 import { momentoDe } from '../../src/dominio/datas'
 import { paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
-import { AUTH, CONTAS, convidadoDoMotor, FIRESTORE, MOTORES, PROJETO, SENHA } from './contas'
+import { AUTH, CONTAS, convidadoDoMotor, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
 
 async function pedir(url: string, corpo?: unknown, metodo = 'POST') {
   const r = await fetch(url, {
@@ -37,8 +37,11 @@ async function criarConta(email: string): Promise<string> {
 const limpo = (valor: object): Record<string, unknown> => JSON.parse(JSON.stringify(valor)) as Record<string, unknown>
 
 export default async function preparar(): Promise<void> {
+  // as contas ficam todas no projeto padrão do emulador de login; os dados, por projeto
   await pedir(`${AUTH}/emulator/v1/projects/${PROJETO}/accounts`, undefined, 'DELETE')
-  await pedir(`${FIRESTORE}/emulator/v1/projects/${PROJETO}/databases/(default)/documents`, undefined, 'DELETE')
+  for (const projeto of [PROJETO, ...MOTORES.map(projetoVazio)]) {
+    await pedir(`${FIRESTORE}/emulator/v1/projects/${projeto}/databases/(default)/documents`, undefined, 'DELETE')
+  }
 
   const uids = new Map<string, string>()
   for (const conta of [CONTAS.responsavel, CONTAS.professor]) uids.set(conta.membroId, await criarConta(conta.email))

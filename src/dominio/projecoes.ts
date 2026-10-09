@@ -27,6 +27,9 @@ import type {
 /** Quantos dias à frente o aluno e a página pública enxergam. */
 export const DIAS_DA_JANELA = 14
 
+/** Teto de horários no documento público (o mesmo das regras do Firestore). */
+export const MAXIMO_DE_HORARIOS = 120
+
 /** Quem quer conhecer o estúdio pede com pelo menos este tempo antes da aula. */
 export const ANTECEDENCIA_EXPERIMENTAL_HORAS = 2
 
@@ -118,7 +121,8 @@ export function paginaPublica(e: EstadoParaProjetar, agora: Momento, instante: I
     whatsapp: e.configuracao.whatsapp,
     unidades: e.unidades.filter((u) => u.ativa).map((u) => ({ id: u.id, nome: u.nome, endereco: u.endereco })),
     experimental: ligada,
-    horarios: ligada ? horariosParaExperimental(aulasDaJanela(e, agora.data), e.unidades, agora) : [],
+    // o documento público tem teto de horários nas regras; os mais próximos primeiro
+    horarios: ligada ? horariosParaExperimental(aulasDaJanela(e, agora.data), e.unidades, agora).slice(0, MAXIMO_DE_HORARIOS) : [],
     atualizadoEm: instante,
   }
 }

@@ -122,8 +122,12 @@ horas, e-mails em minúsculas, telefones só com dígitos) e tamanhos (nome até
 - `npm run regras`: regras do Firestore no emulador (174 testes).
 - `EMULADOR=1 npx playwright test`: ponta a ponta com o SDK de verdade contra os emuladores, nos
   motores do Chrome e do Safari: a responsável entra e vê o financeiro, o professor entra e não
-  vê, o aluno avisa a falta e remarca, a página pública lista as vagas sem gravar nada, e um
-  professor convidado cria a conta, confirma o e-mail e entra.
+  vê (nem pede os dados), o aluno avisa a falta e remarca, a página pública lista as vagas sem
+  gravar nada, um professor convidado cria a conta, confirma o e-mail e entra, a administração
+  grava estúdio, acesso de aluno, convite, reposição, pagamento e exclusão, o login errado e a
+  senha nova respondem igual com ou sem conta, e no primeiro acesso de um estúdio vazio só o
+  e-mail combinado nas regras vira responsável.
+- `src/app/modo.test.ts`: o emulador não liga fora de `localhost`, nem com `?emulador=1`, e só aceita projetos de teste (`demo-`).
 - Todo teste de ponta a ponta tem uma trava que corta e reprova qualquer pedido para domínios do
   Google: o projeto real nunca é lido nem gravado por teste.
 

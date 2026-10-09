@@ -124,5 +124,6 @@ firebase emulators:exec --only auth,firestore --project demo-pilates \
 ```
 
 O app só liga os emuladores em `localhost`/`127.0.0.1` e com `?emulador=1` no endereço (portas em
-[`firebase.json`](../firebase.json)). No site publicado esse caminho nunca liga. Os testes ainda
-têm uma trava: qualquer pedido para domínios do Google é cortado e reprova o teste.
+[`firebase.json`](../firebase.json)); `?emulador=demo-qualquer-coisa` usa outro projeto de teste,
+vazio, para ver o primeiro acesso do zero. No site publicado esse caminho nunca liga. Os testes
+ainda têm uma trava: qualquer pedido para domínios do Google é cortado e reprova o teste.

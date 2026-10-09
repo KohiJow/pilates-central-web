@@ -25,9 +25,14 @@ export function convidadoDoMotor(motor: string) {
 
 export const MOTORES = ['chromium', 'webkit'] as const
 
+/** Projeto vazio, um por motor, para o teste do primeiro acesso (começa sem dono). */
+export function projetoVazio(motor: string): string {
+  return `demo-pilates-vazio-${motor}`
+}
+
 /** Lê um documento direto do emulador, sem regras (cabeçalho "owner" do emulador). */
-export async function lerDocumento(caminho: string): Promise<Record<string, unknown> | null> {
-  const r = await fetch(`${FIRESTORE}/v1/projects/${PROJETO}/databases/(default)/documents/${caminho}`, {
+export async function lerDocumento(caminho: string, projeto = PROJETO): Promise<Record<string, unknown> | null> {
+  const r = await fetch(`${FIRESTORE}/v1/projects/${projeto}/databases/(default)/documents/${caminho}`, {
     headers: { Authorization: 'Bearer owner' },
   })
   if (r.status === 404) return null
@@ -36,8 +41,8 @@ export async function lerDocumento(caminho: string): Promise<Record<string, unkn
 }
 
 /** Link de confirmação de e-mail que o emulador "enviou" para este endereço. */
-export async function linkDeConfirmacao(email: string): Promise<string> {
-  const r = await fetch(`${AUTH}/emulator/v1/projects/${PROJETO}/oobCodes`)
+export async function linkDeConfirmacao(email: string, projeto = PROJETO): Promise<string> {
+  const r = await fetch(`${AUTH}/emulator/v1/projects/${projeto}/oobCodes`)
   const { oobCodes } = (await r.json()) as { oobCodes: { email: string; requestType: string; oobLink: string }[] }
   const codigo = [...oobCodes].reverse().find((c) => c.email === email && c.requestType === 'VERIFY_EMAIL')
   if (!codigo) throw new Error(`sem e-mail de confirmação para ${email}`)

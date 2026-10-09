@@ -284,7 +284,9 @@ podman run --rm --network host -v "$PWD":/w:Z -w /w --ipc=host \
 Com os emuladores do Firebase no ar (`firebase emulators:start --only auth,firestore --project
 demo-pilates`), `EMULADOR=1` liga também os testes com o SDK de verdade: a responsável entra e vê
 o financeiro, o professor entra e não vê, o aluno avisa e remarca, a página pública lista as vagas
-sem gravar nada e um professor convidado cria a conta e confirma o e-mail. Nenhum teste fala com o
+sem gravar nada, um professor convidado cria a conta e confirma o e-mail, a administração grava
+cadastros, convites, reposição, pagamento e exclusão, login errado e senha nova respondem igual
+com ou sem conta, e no primeiro acesso de um estúdio vazio só o e-mail combinado vira responsável. Nenhum teste fala com o
 projeto real: uma trava em todos eles corta e reprova qualquer pedido para domínios do Google.
 
 `PORTA=8853` troca a porta (prévia e testes), `LENTO=1` liga a CPU 4x mais lenta no Chromium e

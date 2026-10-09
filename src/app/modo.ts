@@ -11,29 +11,37 @@ export type Modo = 'demonstracao' | 'firebase'
 const CHAVE_MODO = 'pc-modo'
 const CHAVE_EMULADOR = 'pc-emulador'
 
-function ehLocal(): boolean {
-  return location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-}
+/** Projetos de teste do emulador começam com "demo-" (o Firebase não aceita outro sem login). */
+const PROJETO_DE_TESTE = /^demo-[a-z0-9-]{1,40}$/
 
 /**
- * Emuladores do Firebase: só em localhost e só depois de pedir com `?emulador=1` (fica guardado
- * para as navegações seguintes; `?emulador=0` desliga). No site publicado nunca liga.
+ * Emuladores do Firebase: só em localhost e só depois de pedir com `?emulador=1` (projeto
+ * demo-pilates) ou `?emulador=demo-outro` (outro projeto de teste, para começar do zero). Fica
+ * guardado para as navegações seguintes; `?emulador=0` desliga. Em qualquer outro endereço, nunca.
  */
-function lerEmulador(busca: string): boolean {
-  if (!ehLocal()) return false
-  const pedido = new URLSearchParams(busca).get('emulador')
-  if (pedido === '1') gravarLocal(CHAVE_EMULADOR, '1')
-  if (pedido === '0') gravarLocal(CHAVE_EMULADOR, null)
-  return lerLocal(CHAVE_EMULADOR) === '1'
+export function decidirEmulador(hostname: string, pedido: string | null, guardado: string | null): string | null {
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') return null
+  if (pedido === '0') return null
+  if (pedido === '1') return EMULADOR.projectId
+  if (pedido !== null) return PROJETO_DE_TESTE.test(pedido) ? pedido : null
+  return guardado !== null && PROJETO_DE_TESTE.test(guardado) ? guardado : null
 }
 
-export const usaEmulador = lerEmulador(location.search)
+function lerEmulador(busca: string): string | null {
+  const pedido = new URLSearchParams(busca).get('emulador')
+  const projeto = decidirEmulador(location.hostname, pedido, lerLocal(CHAVE_EMULADOR))
+  if (pedido !== null && projeto !== lerLocal(CHAVE_EMULADOR)) gravarLocal(CHAVE_EMULADOR, projeto)
+  return projeto
+}
 
-export const configuracaoAtiva: ConfiguracaoDoFirebase | null = usaEmulador
+const projetoDoEmulador = lerEmulador(location.search)
+export const usaEmulador = projetoDoEmulador !== null
+
+export const configuracaoAtiva: ConfiguracaoDoFirebase | null = projetoDoEmulador
   ? {
       apiKey: EMULADOR.apiKey,
-      authDomain: EMULADOR.authDomain,
-      projectId: EMULADOR.projectId,
+      authDomain: `${projetoDoEmulador}.firebaseapp.com`,
+      projectId: projetoDoEmulador,
       storageBucket: '',
       messagingSenderId: '',
       appId: 'emulador',
