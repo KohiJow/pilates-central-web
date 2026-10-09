@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { extname, join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { expect, test } from './base'
-import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irParaAba } from './apoio'
+import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irPara, irParaAba } from './apoio'
 
 // Coisas de celular que o resto da suíte não pega, cada uma achada na revisão no iPhone e no
 // Android (vídeo quadro a quadro, medição na tela) e conferida aqui nos dois motores.
@@ -217,6 +217,34 @@ test.describe('celular', () => {
       expect(t).not.toContain('Helena Prado')
     }
     expect(inerte.every(Boolean)).toBe(true)
+  })
+
+  test('confirmar o encaixe: a folha desce com a aula escolhida, sem virar "sem vaga" no caminho', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    await irPara(page, '#/alunos/reposicoes')
+    await page.locator('[data-credito]').first().getByRole('button', { name: 'Encaixar' }).click()
+    await esperarFolhaParada(page)
+    await folha(page).getByRole('radio').first().click()
+    const confirmar = folha(page).getByRole('button', { name: /^Encaixar / })
+    await expect(confirmar).toBeVisible()
+    // a ação muda os dados (o crédito foi usado) um instante antes de a folha fechar; o que
+    // importa é o que chega à tela, então a folha é lida a cada quadro até sumir
+    await page.evaluate(() => {
+      const w = window as unknown as { __textos: string[] }
+      w.__textos = []
+      const quadro = () => {
+        const f = document.querySelector('.folha')
+        if (!f) return
+        w.__textos.push(f.textContent ?? '')
+        requestAnimationFrame(quadro)
+      }
+      requestAnimationFrame(quadro)
+    })
+    await confirmar.click()
+    await expect(folha(page)).toHaveCount(0)
+    const textos = await page.evaluate(() => (window as unknown as { __textos: string[] }).__textos)
+    expect(textos.length).toBeGreaterThan(0)
+    for (const t of textos) expect(t).not.toMatch(/sem vaga/i)
   })
 
   test('o aviso que estava no alto com a folha aberta reaparece embaixo quando ela fecha', async ({ page }) => {

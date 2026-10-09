@@ -58,13 +58,26 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
   aoFecharAtual.current = aoFechar
   const idTitulo = `folha-${useId()}`
 
-  // Enquanto desce, a folha continua mostrando o que mostrava aberta. Quem abre costuma limpar o
-  // próprio estado ao fechar (a aula ou o crédito escolhido), e o conteúdo trocava no meio da
-  // saída: no vídeo, a lista da equipe inteira no lugar da dos professores e um "sem vaga" no
-  // lugar da aula que acabou de ser marcada.
-  const conteudo = useRef({ titulo, rotulo, subtitulo, rodape, children })
-  if (aberta) conteudo.current = { titulo, rotulo, subtitulo, rodape, children }
-  const mostrado = conteudo.current
+  // Enquanto desce, a folha continua mostrando o que estava na tela quando ela começou a fechar.
+  // Quem abre costuma limpar o próprio estado ao fechar (a aula ou o crédito escolhido), e uma
+  // ação que fecha a folha muda os dados um instante antes; o conteúdo trocava no meio da saída
+  // (no vídeo: a lista da equipe inteira no lugar da dos professores, e "sem vaga" no lugar da
+  // aula que acabou de ser marcada). Por isso vale o último conteúdo que chegou a ser pintado,
+  // e não o da última renderização com a folha aberta.
+  const atual = { titulo, rotulo, subtitulo, rodape, children }
+  const pintado = useRef<typeof atual | null>(null)
+  const congelado = useRef<typeof atual | null>(null)
+  if (aberta) congelado.current = null
+  else congelado.current ??= pintado.current ?? atual
+  const mostrado = congelado.current ?? atual
+
+  useLayoutEffect(() => {
+    if (!aberta) return
+    const quadro = requestAnimationFrame(() => {
+      pintado.current = atual
+    })
+    return () => cancelAnimationFrame(quadro)
+  })
 
   useEffect(() => {
     if (aberta) setMontada(true)
@@ -104,6 +117,8 @@ export function FolhaInferior({ aberta, aoFechar, titulo, rotulo, subtitulo, rod
       // solta pelo dedo: sai no embalo dele; pelo X, Esc ou fundo: acelera para fora
       easing: v > 0 ? curvaQueContinua(v, altura - atual, duracao) : CURVA.saida,
     }).then(() => {
+      // a próxima abertura começa do zero (o conteúdo desta não pode reaparecer numa saída rápida)
+      pintado.current = null
       setMontada(false)
       const anterior = focoAnterior.current
       if (anterior instanceof HTMLElement && anterior.isConnected) anterior.focus({ preventScroll: true })
