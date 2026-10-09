@@ -127,6 +127,50 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [ ] Cancelar o dia inteiro de uma vez (feriado móvel)
 - [ ] Medir a View Transition num iPhone de verdade
 - [ ] Deixar o caminho aberto para Gympass (Wellhub) e TotalPass, sem integrar agora (as formas de pagamento já existem)
+- [ ] Aula experimental na agenda: a equipe confirma pelo WhatsApp, mas não tem onde pôr a pessoa na aula. Caminho sugerido: `RegistroAula.experimentais` (mapa de id para nome e telefone, só a equipe lê), participante com origem `experimental` em `montarAula` (ocupa vaga, entra na chamada, não gera crédito), "Marcar aula experimental" na folha da aula, vagas e página pública recalculadas com ela, esquema novo em `firestore.rules` com teste no emulador (professor e aluno não leem nome nem telefone) e "Virar aluno" levando nome e telefone para o cadastro
+- [ ] Textos da página pública configuráveis em Mais, Estúdio (frase de apresentação e focos), em vez de fixos em `src/experimental/PaginaExperimental.tsx`; pede campos novos em `Configuracao` e em `publico/estudio`, com o esquema das regras
+
+## Revisão de produto: o pedido do estúdio x o app (feita)
+
+Comparação item por item com o que o estúdio pediu, usando o app como a administração e como um
+professor num iPhone SE (375 x 667, uma mão), e contando os toques (`e2e/toques.spec.ts`).
+
+### Atendido
+- [x] Alunos cadastrados por unidade, com busca, ficha, pausa e arquivo
+- [x] Agenda das aulas com os alunos dentro (turmas fixas de 2 ou 3 vezes por semana; a aula é derivada da turma)
+- [x] Controle de presença por aula, frequência por aluno e por turma, destaque de quem anda faltando
+- [x] Reposição: o aviso tira o aluno daquele dia e gera crédito; o encaixe é só em aula com vaga; central de reposição
+- [x] Financeiro preenchido à mão: alunos ativos por unidade, formas de pagamento (Gympass e TotalPass incluídos), recebido x previsto, em aberto, últimos meses, planilha
+- [x] Uso pelo celular, pela administração e pelos professores (PWA no iPhone e no Android)
+- [x] Desejável: o aluno avisa a falta e escolhe a reposição sozinho; com o app do aluno desligado, a equipe faz por ele
+- [x] Vários administradores, responsável pela conta e passagem da conta; textos sem pressupor uma pessoa só
+- [x] Nada de treino, vídeo de aula, cronômetro, evolução corporal, conquistas ou onboarding de marketing (conferido no código)
+
+### Parcial
+- [ ] Página de aula experimental: mostra a agenda com vagas e manda o pedido pelo WhatsApp, mas não há como **registrar a aula experimental na agenda** (ocupar a vaga e aparecer na chamada) sem cadastrar a pessoa como aluno. Ver "Ficou para depois".
+- [ ] Produto genérico de agendamento: a interface fala em estúdio, turma e aula, mas a página pública tem textos fixos deste estúdio (a frase "no centro de Campinas" e os três focos) e a marca d'água PILATES. Ver "Ficou para depois".
+- [ ] Duas portas no site publicado: o código está pronto; faltam as variáveis `FIREBASE_*` no GitHub (o commit da configuração foi negado como credencial). Ver etapa 3.
+
+### Corrigido nesta revisão
+- [x] "Ativos" na lista de alunos mostrava também os pausados (39), enquanto o Financeiro dizia 37 ativos; agora são o mesmo número, e a busca sem resultado diz em que lista achou a pessoa
+- [x] "Todos presentes" aparecia como ação principal às 10h na aula das 18h; a chamada agora abre meia hora antes (`ABERTURA_DA_CHAMADA_MIN` em `src/dominio/presenca.ts`); o aviso de falta continua livre, e o card do Hoje diz "Ver quem vem" até a chamada abrir
+- [x] "Lançar pagamento" listava em ordem alfabética (quem já pagou no topo); agora quem deve o mês vem primeiro, com o valor: 4 toques
+- [x] "Para olhar" levava para a lista inteira de alunos; agora cada aluno sumido aparece pelo nome e abre a ficha (até 3; mais que isso, uma linha só)
+- [x] "Trocar de perfil" deixava quem entrava depois na aba Mais; agora começa no Hoje (equipe) ou em Minhas aulas (aluno)
+- [x] A página pública só era achada em Mais, Estúdio; agora está na entrada da demonstração e em Mais, com compartilhar ou copiar o link
+- [x] Página pública: atalho para os horários na capa (no iPhone SE eles ficavam abaixo das fotos), fim de cada aula também com várias unidades, "Primeira vez?" para quem nunca fez aula
+- [x] Grade de turmas cortava "frequência 100%" em reticências no celular estreito
+- [x] Domingo sem aula: o Hoje diz quando é a próxima
+- [x] Aula que acabou com alguém sem marcação só aparecia na Agenda; agora o Hoje mostra "Chamada por fazer", a um toque
+- [x] Teste de telefone com um fixo de cara real trocado por um de zeros
+
+### Toques contados (iPhone SE, `e2e/toques.spec.ts`)
+- [x] Chamada da turma inteira: 2 toques (3 com uma falta); limite pedido: 3
+- [x] Achar um aluno: 3; limite 3
+- [x] Lançar pagamento: 3 pela lista de em aberto, 4 pelo botão geral; limite 4
+- [x] Encaixar reposição: 5 pela central ou pela chamada; limite 5
+- [x] O aluno remarca a própria aula: 5
+- [x] Visitante até o pedido no WhatsApp: 1 (sem escolher horário) a 3
 
 ## Notas para quem continuar
 

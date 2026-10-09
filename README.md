@@ -47,13 +47,19 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
 ### O que faz
 
 - **Hoje:** próxima aula (ou a que está acontecendo), quantos alunos são esperados, quem avisou
-  que não vem e as reposições do dia.
+  que não vem e as reposições do dia. Aula que já acabou com alguém sem marcação aparece em
+  "Chamada por fazer", a um toque. Em "Para olhar", as reposições perto de vencer e, pelo nome,
+  quem anda faltando (o toque abre a ficha, com o WhatsApp). No dia sem aula, diz quando é a próxima.
 - **Agenda e chamada:** faixa de dias, unidade, aulas por manhã, tarde e noite, vagas em pontos
   (com o número escrito). Tocar na aula abre a chamada numa folha: presente, faltou ou avisou,
-  com "Desfazer"; "Todos presentes" num toque. Quem avisou no prazo ganha crédito e, ali mesmo,
-  "Encaixar em outro horário" mostra as aulas com vaga.
+  com "Desfazer"; "Todos presentes" num toque. A chamada abre meia hora antes da aula (antes disso,
+  só o aviso de falta, e o card do Hoje diz "Ver quem vem"): ninguém marca de manhã, sem querer,
+  a presença da turma da noite. Quem
+  avisou no prazo ganha crédito e, ali mesmo, "Encaixar em outro horário" mostra as aulas com vaga.
 - **Alunos:** lista com busca (sem acento, ou pelo final do telefone), filtro por unidade e
-  situação, e um destaque discreto para quem faltou várias seguidas. A ficha mostra plano, turmas
+  situação ("Ativos" é só quem está vindo, o mesmo número do Financeiro; quem está pausado ou
+  arquivado tem a sua lista, e a busca sem resultado diz em qual lista achou a pessoa), e um
+  destaque discreto para quem faltou várias seguidas. A ficha mostra plano, turmas
   fixas (com aviso quando o plano 2x ou 3x não bate com as turmas), frequência do mês, créditos
   de reposição, mensalidade e pagamentos, e atalhos para WhatsApp e ligação. Cadastro e edição
   com validação em português; pausar (guarda o lugar nas turmas) e arquivar (libera o lugar).
@@ -66,22 +72,39 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
   reposição. Tudo com "Desfazer".
 - **Financeiro** (só a administração): mês por unidade com previsto, recebido, em aberto e alunos
   ativos; quem está em aberto (atrasados primeiro) com lembrete pronto pelo WhatsApp e lançamento
-  rápido (valor sugerido pelo plano, forma preferida já marcada); totais por forma de pagamento
+  rápido (valor sugerido pelo plano, forma preferida já marcada; no "Lançar pagamento" geral, a
+  escolha do aluno começa por quem ainda não pagou o mês, com o valor); totais por forma de pagamento
   (Pix, cartões, dinheiro, transferência, Gympass, TotalPass, outro); gráfico dos últimos seis
   meses; planilha do mês em CSV.
-- **Mais:** perfil, tema, instalar no celular e, para a administração, o estúdio (nome, WhatsApp,
-  app do aluno e página pública ligados ou não), regras de reposição (antecedência do aviso,
-  validade, limite por mês, a partir de quantas ausências seguidas destacar), unidades e equipe.
+- **Mais:** perfil, tema, instalar no celular, o link da página de aula experimental (ver,
+  compartilhar ou copiar, para pôr no Instagram) e, para a administração, o estúdio (nome,
+  WhatsApp, app do aluno e página pública ligados ou não), regras de reposição (antecedência do
+  aviso, validade, limite por mês, a partir de quantas ausências seguidas destacar), unidades e equipe.
 - **App do aluno** (quando a administração liga e libera o aluno na ficha): as próximas aulas, a
   próxima em destaque; "Não vou poder ir" no prazo gera a reposição e libera o lugar; "Desfazer"
   devolve; a aba Reposição mostra só aulas da unidade dele, com vaga, dentro da validade e do
   prazo; desistir da reposição devolve o crédito. Em cima da hora, o app manda para o WhatsApp.
 - **Página de aula experimental** (sem login): o espaço em fotos, os horários com vaga dos
-  próximos 14 dias por dia, o endereço com link para o mapa e o pedido pelo WhatsApp do estúdio
-  com a mensagem pronta ("quero marcar uma aula experimental: sexta, 16 de outubro, às 18h").
-  Nada é gravado.
+  próximos 14 dias por dia (com a hora em que cada aula termina), um atalho para eles logo na
+  capa, o endereço com link para o mapa, "Primeira vez?" (não precisa de experiência, roupa
+  confortável, quanto dura a aula) e o pedido pelo WhatsApp do estúdio, sempre à vista, com a
+  mensagem pronta ("quero marcar uma aula experimental: sexta, 16 de outubro, às 18h"). Nada é gravado.
 - **LGPD:** aviso de privacidade em português simples; na ficha do aluno, baixar os dados dele num
   arquivo e excluir o cadastro (com confirmação).
+
+### Toques por tarefa
+
+Contados num iPhone SE (375 x 667), com uma mão, pelo teste `e2e/toques.spec.ts` nos dois motores.
+Digitar na busca e rolar não contam.
+
+| Tarefa | Toques | Caminho |
+|---|:-:|---|
+| Chamada da turma inteira | 2 (3 com uma falta) | Hoje, **Abrir chamada**, **Todos presentes** (e **Faltou** em quem não veio) |
+| Achar um aluno | 3 | **Alunos**, busca, o aluno |
+| Lançar pagamento | 3 ou 4 | **Financeiro**, **Lançar** na linha em aberto, **Lançar R$**; ou **Lançar pagamento**, o aluno (quem deve vem primeiro), **Lançar R$** |
+| Encaixar reposição | 5 | **Alunos**, **Reposições**, **Encaixar**, a aula, confirmar; ou na chamada: **Avisou**, **Encaixar em outro horário**, a aula, confirmar |
+| O aluno remarca a própria aula | 5 | **Não vou poder ir**, **Avisar que não vou**, **reposições para marcar**, a aula, **Confirmar reposição** |
+| Visitante pede a aula experimental | 1 a 3 | **Falar no WhatsApp**; ou **Ver os horários com vaga**, o horário, **Pedir no WhatsApp** |
 
 ### Quem vê o quê
 
@@ -112,8 +135,8 @@ as regras do Firestore negam o que a tela não oferece (ver [docs/seguranca.md](
 4. Bons caminhos: **Alunos > Reposições > Encaixar**; **Financeiro > Lançar** num aluno em aberto;
    **Agenda > 18h > Avisou > Encaixar em outro horário**; **Mais > Equipe > Passar a conta**;
    como aluno, **Não vou poder ir** numa aula e depois **Reposição**; e a
-   [página de aula experimental](https://kohijow.github.io/pilates-central-web/experimental/), que
-   mostra a vaga que o aviso abriu.
+   [página de aula experimental](https://kohijow.github.io/pilates-central-web/experimental/)
+   (também pela entrada da demonstração e em **Mais**), que mostra a vaga que o aviso abriu.
 
 Com o projeto Firebase do estúdio configurado, a tela inicial vira duas portas: **Entrar** (o
 estúdio de verdade, com e-mail e senha) e **Ver demonstração**. O passo a passo para criar o
@@ -348,8 +371,10 @@ docs/            roteiro, modelo de dados, Firebase, segurança e capturas de te
 ## Roteiro
 
 Etapa 1: fundação, agenda e presença. Etapa 2: gestão do estúdio (alunos, turmas, reposição,
-presença, financeiro, unidades, equipe e configurações). Etapa 3 (esta): Firebase com papéis e
-convites, regras do Firestore testadas, app do aluno, página de aula experimental e LGPD. Detalhes
+presença, financeiro, unidades, equipe e configurações). Etapa 3: Firebase com papéis e
+convites, regras do Firestore testadas, app do aluno, página de aula experimental e LGPD. Depois,
+uma revisão de produto comparou o app, pedido por pedido, com o que o estúdio precisa, e contou
+os toques de cada tarefa (a tabela acima). Detalhes
 e o que falta (publicar as regras e fazer o primeiro acesso no projeto real) em
 [docs/roteiro.md](docs/roteiro.md).
 
