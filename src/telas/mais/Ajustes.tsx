@@ -147,6 +147,12 @@ export function Ajustes() {
         </Card>
       )}
 
+      <ul class="lista" aria-label="Ajuda">
+        <li>
+          <ItemDeMenu icone="ajuda" titulo="Ajuda" sub="Instalar, chamada, reposição, convites e o que cada um vê" aoTocar={() => abrir('ajuda')} />
+        </li>
+      </ul>
+
       {pode('editar-configuracao') && config ? (
         <section class="secao" aria-labelledby="titulo-estudio">
           <h2 id="titulo-estudio" class="micro">

@@ -1,4 +1,5 @@
 import { rota } from '../app/navegacao'
+import { Ajuda } from './mais/Ajuda'
 import { Ajustes } from './mais/Ajustes'
 import { DetalheDoMembro } from './mais/DetalheDoMembro'
 import { Equipe } from './mais/Equipe'
@@ -13,6 +14,7 @@ import { MontarEstudio } from './montar/MontarEstudio'
 export function Mais() {
   const [primeiro, segundo, terceiro] = rota.value.caminho
   if (primeiro === 'montar') return <MontarEstudio passo={segundo} />
+  if (primeiro === 'ajuda') return <Ajuda />
   if (primeiro === 'estudio') return <FormularioDoEstudio />
   if (primeiro === 'regras') return <RegrasDeReposicao />
   if (primeiro === 'unidades') return <Unidades />

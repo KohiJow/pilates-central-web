@@ -535,3 +535,16 @@
 .faixa-fila .botao {
   color: var(--warning);
 }
+
+/* ---------- ajuda ---------- */
+
+.ajuda-desenho {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  color: var(--brand);
+}
+.ajuda-desenho-marca {
+  fill: var(--surface-accent);
+  stroke: var(--brand);
+}

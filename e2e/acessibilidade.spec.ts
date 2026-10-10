@@ -114,6 +114,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
       '#/mais/equipe/e-marcos',
       '#/mais/equipe/convidar',
       '#/mais/alteracoes',
+      '#/mais/ajuda',
     ]
     for (const tela of telas) {
       await irPara(page, tela)
@@ -179,7 +180,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
 
   test('alvos e texto nas telas do professor', async ({ page }) => {
     await entrarComoProfessor(page, 'Camila Nunes')
-    for (const tela of ['#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/mais']) {
+    for (const tela of ['#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/mais', '#/mais/ajuda']) {
       await irPara(page, tela)
       await auditar(page, tela)
     }
@@ -230,7 +231,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
       await page.keyboard.press('Escape')
       await expect(page.getByRole('dialog')).toHaveCount(0)
       // agenda com domingo e feriado à vista (dias sem aula ficam com a cor secundária)
-      for (const tela of ['#/agenda', '#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/financeiro', '#/mais']) {
+      for (const tela of ['#/agenda', '#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/financeiro', '#/mais', '#/mais/ajuda']) {
         await irPara(page, tela)
         await medirContraste(page, tela)
       }
