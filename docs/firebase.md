@@ -21,20 +21,35 @@ verdade) e **Ver demonstração**.
 
 ## 2. Login por e-mail e senha
 
-1. Authentication, Método de login: ative **E-mail/senha** (o "link por e-mail" fica desligado).
-2. Authentication, Configurações:
-   - **Domínios autorizados:** acrescente `kohijow.github.io` (o site publicado).
-   - **Proteção contra enumeração de e-mail:** deixe ligada (é o padrão em projetos novos). O app já
-     mostra mensagens que não dizem se um e-mail tem conta.
-   - **Ações do usuário:** "Ativar a criação" fica ligada: quem é convidado cria a própria conta.
-     Quem não tem convite até cria uma conta, mas não vê nada (as regras do banco negam).
-   - **Política de senha:** comprimento mínimo **8** e "Exigir". O app já pede 8 ao criar a conta,
-     mas a tela de senha nova do Firebase aceita 6 sem essa política.
-   - **reCAPTCHA (proteção de e-mail e senha):** deixe desligado. Se for ligar, a política de
-     segurança do site (`scripts/plugin-offline.ts`) precisa liberar o script do reCAPTCHA, senão o
-     login para de funcionar.
-3. Authentication, Modelos: escolha o idioma **português** para os e-mails de confirmação e de
-   senha nova.
+1. **Authentication, Começar.** No menu do console, abra Authentication e toque em **Começar**
+   (ou "Vamos começar"). Esse toque cria a configuração de login do projeto. Sem ele, nada do
+   login existe ainda: **a criação de conta falha e nenhum e-mail chega**. O app, nesse caso,
+   mostra "O login por e-mail e senha ainda não foi ativado no Firebase deste projeto" (em
+   **Detalhes** aparece `auth/configuration-not-found`). Foi exatamente isso que aconteceu no
+   primeiro acesso: o projeto existia, mas o Authentication nunca tinha sido iniciado.
+2. Authentication, Método de login (Sign-in method): ative **E-mail/senha** (o "link por e-mail"
+   fica desligado). Com o Authentication iniciado mas este método desligado, o app mostra a mesma
+   frase, com `auth/operation-not-allowed` em Detalhes.
+3. Authentication, Configurações:
+   - **Domínios autorizados:** acrescente `kohijow.github.io` (onde o site está publicado hoje)
+     e `pilates-central.github.io` (o endereço definitivo, quando o repositório passar para a
+     organização do estúdio). O `localhost` já vem na lista. Domínio que falta aqui aparece no
+     app como "Este endereço do site não está autorizado no Firebase".
+   - **Ações do usuário:**
+     - "Ativar a criação (registro)" fica ligada: quem é convidado cria a própria conta. Quem não
+       tem convite até cria uma conta, mas não vê nada (as regras do banco negam).
+     - **Proteção contra enumeração de e-mail:** ligada (é o padrão em projetos novos). Com ela,
+       o Firebase responde igual exista ou não a conta, e o app já mostra frases que não dizem
+       se um e-mail tem conta ("E-mail ou senha não conferem"; "Se houver uma conta com este
+       e-mail, enviamos um link").
+   - **Política de senha:** comprimento mínimo **8** e "Exigir". O app pede 8 e mostra a força da
+     senha enquanto a pessoa digita, mas a tela de senha nova do Firebase aceita 6 sem essa
+     política. Não exija símbolo: uma frase comprida protege mais.
+   - **reCAPTCHA (proteção de e-mail e senha, "SMS/e-mail abuse"):** deixe desligado. O App Check
+     (seção 7) já protege o login contra uso automatizado; ligar os dois pede mais um script na
+     política de segurança do site.
+4. Authentication, Modelos (Templates): escolha o idioma **português** para os e-mails de
+   confirmação e de senha nova. Nos modelos, o "nome do remetente" pode ser o nome do estúdio.
 
 ## 3. O banco (Firestore)
 
@@ -55,7 +70,8 @@ O arquivo [`firestore.rules`](../firestore.rules) tem todas as regras. Antes de 
    sem login. Tem que dar **negado**.
 
 As mesmas regras rodam nos testes automáticos (`npm run regras`, no emulador); quem mexer nelas
-deve rodar os testes antes de publicar de novo.
+deve rodar os testes antes de publicar de novo. **Toda mudança no arquivo pede republicação**: o
+site não publica regras sozinho.
 
 ## 5. A configuração do app
 
@@ -71,9 +87,16 @@ deve rodar os testes antes de publicar de novo.
    portas. O arquivo que lê tudo isso é [`src/config/firebase.ts`](../src/config/firebase.ts).
 3. Para rodar no computador com o projeto de verdade, copie `.env.exemplo` para
    `.env.production.local` (não vai para o repositório) e preencha.
-4. Recomendado: no Google Cloud Console, APIs e serviços, Credenciais, abra a chave do navegador e
-   restrinja a **sites** `https://kohijow.github.io/*` e a **APIs** Identity Toolkit, Token Service
-   e Cloud Firestore.
+4. **Restrinja a chave do navegador.** No Google Cloud Console (o projeto Firebase aparece lá com
+   o mesmo nome), APIs e serviços, Credenciais, abra a chave "Browser key (auto created by
+   Firebase)":
+   - Restrições de aplicativo: **Sites** (referenciadores HTTP), com `https://kohijow.github.io/*`,
+     `https://pilates-central.github.io/*` e, se for testar no computador com o projeto real,
+     `http://localhost:*/*`.
+   - Restrições de API: **Identity Toolkit API**, **Token Service API** e **Cloud Firestore API**
+     (e, com o App Check ligado, **Firebase App Check API**). Nada mais.
+   O site manda o endereço de origem em cada pedido (política de referenciador
+   `strict-origin-when-cross-origin`), que é o que a restrição por site confere.
 
 ## 6. O primeiro acesso (define quem é a Responsável)
 
@@ -85,11 +108,51 @@ dono da conta Google, e ele convida a proprietária do estúdio para a administr
 conta para ela depois).
 
 1. Abra o site, toque em **Entrar** e depois em **Primeiro acesso? Criar conta**.
-2. Use o e-mail das regras e uma senha com pelo menos 8 caracteres.
-3. Abra o e-mail de confirmação (olhe o spam), toque no link e volte ao app: **Já confirmei**.
+2. Use o e-mail das regras e uma senha com pelo menos 8 caracteres (a barra abaixo do campo diz
+   se ela está boa). "Lembrar neste aparelho" fica ligado no seu celular; desligue num aparelho
+   emprestado.
+3. A tela seguinte diz para qual endereço o e-mail de confirmação foi. Abra o e-mail (olhe o spam
+   e a aba de promoções), toque no link e volte ao app: **Já confirmei**. Não chegou em um
+   minuto? **Reenviar o e-mail** (a espera de 60 segundos entre envios é de propósito).
 4. O app pergunta seu nome, WhatsApp e o nome do estúdio. Toque em **Começar**.
 
-## 7. Depois do primeiro acesso
+Se em vez disso aparecer "O login por e-mail e senha ainda não foi ativado" ou outra frase de
+erro, toque em **Detalhes**: o código que aparece ali (`auth/...`) diz o que falta na lista de
+verificação no fim deste documento.
+
+## 7. App Check (protege a cota e o login contra robôs)
+
+O documento público da aula experimental é lido sem login, e o plano gratuito tem uma cota
+diária de leituras. O App Check faz o Firebase só atender pedidos vindos do site de verdade,
+conferidos pelo reCAPTCHA v3 (invisível para quem usa). O app já tem o suporte pronto, desligado
+até existir a chave. Tudo abaixo é feito por quem cuida do projeto; nada disso roda nos testes.
+
+1. No console, **App Check**, aba Apps, toque no app Web e escolha **reCAPTCHA v3**. Registre o
+   site com os dois domínios, `kohijow.github.io` e `pilates-central.github.io` (o reCAPTCHA
+   aceita vários no mesmo registro). O console mostra a **chave do site** (site key); a chave
+   secreta fica com o Google.
+2. GitHub, Settings, Secrets and variables, Actions, aba Variables: crie
+   `FIREBASE_APPCHECK_SITE_KEY` com a chave do site. A próxima publicação sai com o App Check
+   ligado: a política de segurança do site passa a liberar só os endereços do reCAPTCHA e do App
+   Check, e o rodapé do login e da página pública ganham a frase de aviso que o Google exige.
+3. Abra o site publicado, entre e abra a página de aula experimental. No console, App Check, aba
+   **Métricas**, os pedidos devem aparecer como "verificados". Espere um ou dois dias de uso
+   normal assim.
+4. Só então **imponha** (Enforce): App Check, aba APIs, **Cloud Firestore**, Impor; e
+   **Authentication**, Impor. A partir daí, pedido sem token válido é recusado pelo Google, antes
+   de chegar às regras.
+5. Para usar o site no computador com o projeto real (`npm run build` com `.env.production.local`
+   preenchido, depois `npm run preview`), o app pede um **token de depuração**: em `localhost` ele
+   liga o modo de depuração do SDK, que escreve o token no console do navegador (F12) na primeira
+   abertura. Registre esse token em App Check, aba Apps, menu do app Web, **Gerenciar tokens de
+   depuração**. Sem isso, com o App Check imposto, o site local é recusado (o site publicado
+   continua funcionando). Com os emuladores (`?emulador=1`) o App Check fica desligado.
+
+Se algo der errado depois de impor (a página pública sem horários, o login recusando com
+`auth/firebase-app-check-token-is-invalid` em Detalhes), volte em App Check, APIs, e troque
+"Impor" por "Não impor": tudo volta a funcionar na hora, sem publicar nada.
+
+## 8. Depois do primeiro acesso
 
 Em **Mais**:
 
@@ -105,19 +168,53 @@ Em **Mais**:
    pronta, com o endereço e o e-mail).
 5. **Passar a conta:** Equipe, a pessoa, **Passar a conta**. Ela precisa ser da administração e já
    ter entrado com o e-mail confirmado.
-6. **Pedido de exclusão (LGPD):** na ficha do aluno, **Excluir o cadastro** apaga o cadastro e o
+6. **Senha:** cada pessoa troca a própria em Mais, Conta, **Trocar a senha** (pede a atual). Quem
+   esqueceu usa **Esqueci a senha** na tela de entrar: o link chega por e-mail.
+7. **Pedido de exclusão (LGPD):** na ficha do aluno, **Excluir o cadastro** apaga o cadastro e o
    que liga a conta dele ao estúdio. Se ele tinha conta no app, apague também a conta de login: no
-   console, Authentication, Usuários, procure o e-mail e exclua.
+   console, Authentication, Usuários, procure o e-mail e exclua. Em Mais, **Registro de
+   alterações**, fica anotado quem excluiu e quando (só com o código do aluno).
 
 A página pública fica em `https://kohijow.github.io/pilates-central-web/experimental/`. Ela só
 lê um documento com horários e vagas (sem nomes), que o app da equipe atualiza sozinho a cada
 abertura e a cada mudança na agenda.
 
-## 8. Limites do plano gratuito
+## 9. Limites do plano gratuito
 
 O Spark permite por dia 50 mil leituras e 20 mil gravações no Firestore. Abrir o app da equipe lê
 o cadastro (alunos, turmas, equipe), as aulas de seis semanas e os créditos: algumas centenas de
-leituras num estúdio pequeno. Marcar uma presença grava um ou dois documentos. Folga de sobra.
+leituras num estúdio pequeno. Marcar uma presença grava um ou dois documentos. A página pública
+lê um documento por visita, e guarda a leitura por dez minutos no navegador de quem visita. Folga
+de sobra; o App Check (seção 7) impede que alguém de fora gaste a cota de propósito.
+
+## Lista de verificação final (console)
+
+Para conferir quando o login não anda ou antes de avisar a equipe. Cada linha é um clique no
+console do Firebase, salvo onde diz Google Cloud ou GitHub.
+
+- [ ] **Authentication iniciado**: Authentication abre com as abas Usuários, Método de login,
+      Modelos, Configurações (e não com o botão "Começar"). Sintoma de quando falta: a criação de
+      conta falha e nenhum e-mail chega; o app diz que o login não foi ativado.
+- [ ] **E-mail/senha ligado**: Authentication, Método de login, E-mail/senha = Ativado.
+- [ ] **Domínios autorizados**: Authentication, Configurações, Domínios autorizados tem
+      `kohijow.github.io` e `pilates-central.github.io`.
+- [ ] **Modelos em português**: Authentication, Modelos, idioma = Português (Brasil).
+- [ ] **Proteção contra enumeração de e-mails ligada**: Authentication, Configurações, Ações do
+      usuário (ou "Proteção de e-mail"), "Proteção contra enumeração de e-mail" = ligada.
+- [ ] **Política de senha**: Authentication, Configurações, Política de senha, mínimo 8, Exigir.
+- [ ] **Regras publicadas** com o e-mail do primeiro acesso trocado: Firestore Database, Regras,
+      a primeira linha útil mostra `rules_version = '2'` e `emailDoPrimeiroAcesso()` devolve o
+      e-mail certo.
+- [ ] **Chave de API restrita** (Google Cloud, APIs e serviços, Credenciais): sites
+      `https://kohijow.github.io/*` e `https://pilates-central.github.io/*`; APIs Identity
+      Toolkit, Token Service, Cloud Firestore (e App Check, quando ligado).
+- [ ] **Variáveis no GitHub** (Settings, Secrets and variables, Actions, Variables): as seis
+      `FIREBASE_*` e, com o App Check, `FIREBASE_APPCHECK_SITE_KEY`; o último workflow da `main`
+      passou e publicou.
+- [ ] **App Check** (seção 7): app Web registrado com reCAPTCHA v3 nos dois domínios; depois de
+      um ou dois dias de métricas "verificadas", Firestore e Authentication com "Impor".
+- [ ] **Membros do projeto**: Configurações do projeto, Usuários e permissões, mais de uma pessoa
+      como Proprietário ou Editor.
 
 ## Testar sem o projeto de verdade (emuladores)
 
@@ -137,3 +234,13 @@ O app só liga os emuladores em `localhost`/`127.0.0.1` e com `?emulador=1` no e
 [`firebase.json`](../firebase.json)); `?emulador=demo-qualquer-coisa` usa outro projeto de teste,
 vazio, para ver o primeiro acesso do zero. No site publicado esse caminho nunca liga. Os testes
 ainda têm uma trava: qualquer pedido para domínios do Google é cortado e reprova o teste.
+
+O emulador de login "manda" os e-mails para `http://127.0.0.1:8844/emulator/v1/projects/demo-pilates/oobCodes`:
+os testes pegam ali o link de confirmação e o de senha nova, como se a pessoa tivesse aberto o
+e-mail. O caso "Authentication não iniciado" é testado sem emulador, com a resposta
+`CONFIGURATION_NOT_FOUND` simulada pelo Playwright (`e2e/login.spec.ts`).
+
+Para rodar dois conjuntos de emuladores na mesma máquina, copie `firebase.json` para
+`firebase.local.json` com outras portas e aponte `FIREBASE_JSON=firebase.local.json` no build,
+no `firebase emulators:exec --config firebase.local.json` e nos testes: o app, os testes de regras
+e os de ponta a ponta leem as portas desse arquivo.

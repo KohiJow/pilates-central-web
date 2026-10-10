@@ -79,7 +79,9 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
 - **Mais:** perfil, tema, instalar no celular, o link da página de aula experimental (ver,
   compartilhar ou copiar, para pôr no Instagram) e, para a administração, o estúdio (nome,
   WhatsApp, app do aluno e página pública ligados ou não), regras de reposição (antecedência do
-  aviso, validade, limite por mês, a partir de quantas ausências seguidas destacar), unidades e equipe.
+  aviso, validade, limite por mês, a partir de quantas ausências seguidas destacar), unidades,
+  equipe e o registro de alterações (quem lançou ou apagou pagamento, excluiu cadastro, mudou
+  acesso ou passou a conta, e quando). Com login de verdade, a conta: trocar a senha e sair.
 - **App do aluno** (quando a administração liga e libera o aluno na ficha): as próximas aulas, a
   próxima em destaque; "Não vou poder ir" no prazo gera a reposição e libera o lugar; "Desfazer"
   devolve; a aba Reposição mostra só aulas da unidade dele, com vaga, dentro da validade e do
@@ -90,7 +92,12 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
   confortável, quanto dura a aula) e o pedido pelo WhatsApp do estúdio, sempre à vista, com a
   mensagem pronta ("quero marcar uma aula experimental: sexta, 16 de outubro, às 18h"). Nada é gravado.
 - **LGPD:** aviso de privacidade em português simples; na ficha do aluno, baixar os dados dele num
-  arquivo e excluir o cadastro (com confirmação).
+  arquivo e excluir o cadastro (com confirmação): fica só o código nas presenças antigas e nos
+  pagamentos, sem observação, e a linha do registro de alterações que anota a exclusão.
+- **Login que explica o que aconteceu:** cada resposta do Firebase vira uma frase em português
+  (do "login por e-mail e senha ainda não foi ativado no Firebase deste projeto" ao "sem conexão"),
+  com o código bruto atrás de "Detalhes" para quem configura o projeto; confirmação do e-mail com
+  reenvio e espera de 60 s; força da senha enquanto digita; "Lembrar neste aparelho".
 
 ### Toques por tarefa
 
@@ -336,8 +343,12 @@ demo-pilates`), `EMULADOR=1` liga também os testes com o SDK de verdade: a resp
 o financeiro, o professor entra e não vê, o aluno avisa e remarca, a página pública lista as vagas
 sem gravar nada, um professor convidado cria a conta e confirma o e-mail, a administração grava
 cadastros, convites, reposição, pagamento e exclusão, login errado e senha nova respondem igual
-com ou sem conta, e no primeiro acesso de um estúdio vazio só o e-mail combinado vira responsável. Nenhum teste fala com o
-projeto real: uma trava em todos eles corta e reprova qualquer pedido para domínios do Google.
+com ou sem conta, no primeiro acesso de um estúdio vazio só o e-mail combinado vira responsável,
+a confirmação do e-mail reenvia com espera de 60 s, a senha nova pelo link e a troca de senha pelo
+app funcionam, e a sessão fica fora do aparelho quando a pessoa pede (`e2e/login.spec.ts`). O caso
+"Authentication não iniciado no console" (o que o estúdio viveu no primeiro acesso) é testado sem
+emulador, com a resposta do Firebase simulada. Nenhum teste fala com o projeto real: uma trava em
+todos eles corta e reprova qualquer pedido para domínios do Google.
 
 `e2e/celular.spec.ts` junta o que é de celular: teclado sobre a folha, fontes baixadas uma vez,
 JS inicial abaixo de 170 kB comprimido sem o Firebase, campos de 16 px, abrir com o servidor
@@ -352,18 +363,32 @@ no emulador; cada motor num job com os emuladores; e, na `main`, a publicação 
 Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 
 - Sem servidor próprio: o site é estático (GitHub Pages) e os dados do estúdio ficam no Firestore,
-  protegidos por [regras](firestore.rules) com menor privilégio, esquema e tamanho em tudo e o
-  resto negado. 203 testes no emulador cobrem cada papel em cada coleção e as tentativas de
-  escalada (professor lendo pagamentos, aluno lendo outro aluno, aluno em aula cheia, convite
-  forjado, e-mail não confirmado, mexer na posse do estúdio). Uma revisão de segurança tentou
-  quebrar as regras como cada papel e como anônimo; o que passou (desfazer o aviso ficando com a
-  reposição, repor na própria turma, ler a posse sem ser da equipe) virou teste e correção.
+  protegidos por [regras](firestore.rules) com menor privilégio, esquema e tamanho em tudo (as
+  listas conferidas item a item) e o resto negado. 225 testes no emulador cobrem cada papel em
+  cada coleção e as tentativas de escalada (professor lendo pagamentos, aluno lendo outro aluno,
+  aluno em aula cheia, crédito usado duas vezes, convite forjado, e-mail não confirmado, mexer na
+  posse do estúdio, mexer no registro de alterações), e um teste prova a folga do teto de
+  expressões em cada caminho do aluno. Uma revisão de segurança tentou quebrar as regras como cada
+  papel e como anônimo; o que passou (desfazer o aviso ficando com a reposição, repor na própria
+  turma, ler a posse sem ser da equipe) virou teste e correção.
 - O papel vem de convite para o e-mail confirmado; desativar alguém corta o acesso na hora.
-- Login com mensagens que não dizem se o e-mail tem conta; senha nova por e-mail.
+- Login com mensagens que não dizem se o e-mail tem conta; senha nova por e-mail; sessão só na aba
+  quando a pessoa pede. O que depende do console do Firebase (Authentication iniciado, e-mail e
+  senha ligado, domínio autorizado, proteção contra enumeração, política de senha, chave de API
+  restrita, App Check) está numa lista de verificação em [docs/firebase.md](docs/firebase.md).
 - Política de segurança de conteúdo em todas as páginas: scripts, estilos, fontes e imagens só do
-  próprio site, sem `unsafe-inline` em script; conexões só com o próprio site e, com projeto, com
-  o login e o Firestore. Sem Google Analytics, sem rastreamento. Nenhum texto do banco vira HTML, e
-  a página pública confere cada horário do documento público antes de mostrar.
+  próprio site, sem `unsafe-inline` em script, sem iframe; conexões só com o próprio site e, com
+  projeto, com o login e o Firestore; Trusted Types com uma política padrão que recusa HTML por
+  texto (conferido no Chromium e no WebKit dos testes; motor antigo ignora a diretiva); referrer
+  só com a origem. Sem Google Analytics, sem rastreamento. Nenhum
+  texto do banco vira HTML, e a página pública confere cada horário do documento público antes de
+  mostrar.
+- App Check (reCAPTCHA v3) pronto atrás de uma variável: liga só com a chave do site, protege a
+  cota do plano gratuito e o login contra uso automatizado; ligar e impor é passo do console.
+- Service worker só com arquivos do próprio site (nada do login nem do banco no cache); a versão
+  nova espera a pessoa tocar em "Atualizar".
+- Registro de alterações: quem lançou ou apagou pagamento, excluiu cadastro, mudou acesso ou
+  passou a conta, só com códigos; a administração lê, ninguém edita (as regras negam).
 - A configuração web do Firebase fica fora do repositório (variáveis do GitHub Actions); na
   demonstração nada sai do aparelho.
 - Os dados de exemplo são fictícios: nomes genéricos, endereços inventados, e-mails em
@@ -372,8 +397,9 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 - A planilha exportada não deixa nome de aluno virar fórmula no Excel (`=`, `+`, `-` e `@` no
   começo ganham um apóstrofo).
 - LGPD: [aviso de privacidade](https://kohijow.github.io/pilates-central-web/privacidade/),
-  exportação dos dados de um aluno e exclusão com confirmação (o cadastro, o acesso ao app e os
-  créditos saem; a conta de login é apagada no console).
+  exportação dos dados de um aluno e exclusão com confirmação (o cadastro, o acesso ao app, os
+  créditos e a observação dos pagamentos saem; fica só o código; a conta de login é apagada no
+  console).
 
 ## Estrutura
 
@@ -410,10 +436,13 @@ presença, financeiro, unidades, equipe e configurações). Etapa 3: Firebase co
 convites, regras do Firestore testadas, app do aluno, página de aula experimental e LGPD. Depois,
 uma revisão de produto comparou o app, pedido por pedido, com o que o estúdio precisa, e contou
 os toques de cada tarefa (a tabela acima), uma revisão de segurança e privacidade atacou as
-regras e o site, e uma revisão no celular olhou cada transição em vídeo no iPhone e no
-Android e corrigiu o que pulava, cortava ou ficava atrás do teclado. Detalhes
-e o que falta (publicar as regras e fazer o primeiro acesso no projeto real) em
-[docs/roteiro.md](docs/roteiro.md).
+regras e o site, uma revisão no celular olhou cada transição em vídeo no iPhone e no
+Android e corrigiu o que pulava, cortava ou ficava atrás do teclado, e uma revisão de login e
+segurança fez o login explicar o que aconteceu (o primeiro acesso real falhou com o
+Authentication ainda não iniciado no console) e fechou App Check, listas conferidas item a item,
+folga nas regras do aluno, Trusted Types, versão nova do service worker e o registro de
+alterações. Detalhes e o que falta (republicar as regras e fazer o primeiro acesso no projeto
+real) em [docs/roteiro.md](docs/roteiro.md).
 
 ## Créditos
 

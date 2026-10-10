@@ -16,7 +16,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [x] Manifesto com nome, cores do tema, `display: standalone`, ícones 192 e 512, ícone maskable e `apple-touch-icon`
 - [x] Ícones gerados do logo vetorizado (`npm run icones`); favicon com o monograma
 - [x] Service worker gerado no build (`scripts/plugin-offline.ts` + `src/pwa/sw.js`): guarda o app e as fontes latinas e abre sem internet no modo demonstração
-- [ ] Aviso de "versão nova disponível" (hoje o SW novo assume no próximo carregamento)
+- [x] Aviso de "versão nova disponível": a versão nova fica esperando e o app avisa "Tem uma versão nova do app", com "Atualizar" (feito na revisão de login e segurança)
 
 ### Identidade
 - [x] Logo vetorizado com potrace (`src/assets/marca/logo.svg`), anel refeito em geometria
@@ -77,7 +77,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [x] Mais: nome e WhatsApp do estúdio, regras de reposição com prévia do texto, unidades (criar, editar, fechar só sem turmas e alunos), equipe (convidar, editar, promover, tirar acesso, passar a conta) com o papel escrito
 - [x] Professor: agenda, alunos sem valores, chamada e reposição; sem financeiro nem ajustes do estúdio (só lê as regras de reposição)
 - [ ] Cancelar o dia inteiro de uma vez (feriado móvel): hoje cancela-se aula por aula
-- [ ] Aviso de "versão nova disponível" do service worker
+- [x] Aviso de "versão nova disponível" do service worker (revisão de login e segurança)
 
 ### Testes
 - [x] Vitest: regras novas (alunos, turmas, frequência, equipe com tentativas de escalada, unidades, financeiro do mês, planilha, lembrete, limite do mês, encaixe a partir do crédito) e dados da demonstração versão 2
@@ -123,7 +123,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [ ] Publicar as regras no projeto real e fazer o primeiro acesso (passo a passo em [firebase.md](firebase.md)); conferir no primeiro acesso real que o console do navegador não mostra erro de política de segurança
 - [ ] Preencher as variáveis `FIREBASE_*` do repositório no GitHub (sem elas, o site publicado fica só com a demonstração)
 - [ ] Limite de reposições por mês também nas regras (hoje só o app confere)
-- [ ] Aviso de "versão nova disponível" do service worker
+- [x] Aviso de "versão nova disponível" do service worker (revisão de login e segurança)
 - [ ] Cancelar o dia inteiro de uma vez (feriado móvel)
 - [ ] Medir a View Transition num iPhone de verdade
 - [ ] Deixar o caminho aberto para Gympass (Wellhub) e TotalPass, sem integrar agora (as formas de pagamento já existem)
@@ -198,10 +198,10 @@ imagem versionada foi aberta e olhada.
 - [x] Planilha CSV não deixa célula virar fórmula (`=`, `+`, `-`, `@`, tabulação)
 
 ### Ficou para depois
-- [ ] App Check do Firebase: hoje qualquer pessoa lê o documento público, e a cota diária do plano gratuito pode ser gasta de propósito. Pede o script do reCAPTCHA na página e na política de segurança
-- [ ] Margem do teto de 1000 expressões na regra do registro escrito pelo aluno (encaixe aguenta só mais 8 a 15 comparações). Dá para ganhar folga levando mais conferências para a regra da vaga ou simplificando `registroValido` para o caso do aluno
+- [x] App Check do Firebase (feito na revisão de login e segurança, abaixo; ligar e impor é ação do dono no console)
+- [x] Margem do teto de 1000 expressões na regra do registro escrito pelo aluno (idem: medido de 51 a 110 comparações a mais conforme o caminho, e o teste prova pelo menos 40 em todos)
 - [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console, passo em [firebase.md](firebase.md)); sem Cloud Functions não há como apagar pelo app
-- [ ] Itens de listas gravadas pela equipe (horários públicos, alunos fixos, unidades, reposições) só têm o tamanho da lista conferido nas regras
+- [x] Itens de listas gravadas pela equipe (horários públicos, alunos fixos, unidades, reposições) conferidos item a item (idem)
 
 ## Revisão no celular e de movimento (feita)
 
@@ -243,6 +243,40 @@ a posição da peça quadro a quadro contra a do dedo (com toque de verdade no C
 - [ ] Tarefas longas de 80 a 130 ms ao montar Alunos, Financeiro e a ficha com a CPU 4x: dá para montar a lista em partes se aparecer em aparelho fraco
 - [ ] A marca das seções (Alunos, Turmas, Reposições) não desliza de uma para outra: a tela inteira é trocada e entra deslizando, com a marca já no lugar
 
+## Revisão de login e segurança (feita)
+
+O primeiro acesso de verdade falhou sem explicação: o projeto existia, mas o Authentication nunca
+tinha sido iniciado no console, e o app só dizia que não deu para criar a conta (nenhum e-mail
+chegou). Esta revisão fez o login explicar o que aconteceu e fechou o que a revisão de segurança
+tinha deixado para depois. Tudo testado nos emuladores e com respostas simuladas; o projeto real
+não foi tocado.
+
+### Login e primeiro acesso
+- [x] Cada código do Firebase vira uma frase em português (`src/dados/firebase/erros.ts`): Authentication não iniciado ou e-mail/senha desligado ("O login por e-mail e senha ainda não foi ativado no Firebase deste projeto..."), sem rede, tentativas demais, domínio não autorizado, chave de API restrita, e-mail inválido, senha fraca, cota de e-mails do dia, App Check, sessão antiga. A frase nunca mostra o código; "Detalhes" mostra o código bruto para quem configura o projeto. "E-mail já usado" responde igual à recusa genérica, com ou sem a proteção contra enumeração ligada
+- [x] Confirmação do e-mail: o endereço na tela, aviso de spam e promoções, "Reenviar" com espera de 60 s e contagem, "Já confirmei" recarrega a conta e o token antes de dizer que não confirmou; se a conta sair mas o primeiro e-mail falhar, a tela diz o motivo mapeado e deixa reenviar
+- [x] "Esqueci a senha" diz para qual e-mail foi e o que fazer com o link; trocar a senha em Mais, Conta (pede a atual, "A senha atual não confere" quando erra); sair; força da senha enquanto digita (mínimo 8, sem exigir símbolo, `src/dominio/senha.ts`); "Lembrar neste aparelho" (desligado, a sessão fica só na aba)
+- [x] `docs/firebase.md`: "Authentication, Começar" em primeiro lugar, com o sintoma de quando falta; lista de verificação final do console; App Check passo a passo; chave de API restrita por site e por API
+- [x] Testes: `erros.test.ts` e `senha.test.ts` (Vitest); `e2e/login.spec.ts` nos dois motores: CONFIGURATION_NOT_FOUND, OPERATION_NOT_ALLOWED, tentativas demais, credencial inválida, e-mail inválido, rede cortada, senha fraca e e-mail já usado simulados com `route.fulfill` (sem emulador); com os emuladores, confirmação com envio falhando, reenvio, contagem (relógio controlado) e link do e-mail, senha nova pelo link e troca de senha pelo app, sessão fora do aparelho, cache do service worker sem nada do login nem do banco
+
+### Segurança
+- [x] App Check com reCAPTCHA v3 atrás de `VITE_FIREBASE_APPCHECK_SITE_KEY` (`src/dados/firebase/sdk.ts`, `src/experimental/firebaseAppCheck.ts`): sem chave, desligado; com os emuladores, desligado; em localhost com o projeto real, token de depuração. A política de segurança só libera o reCAPTCHA e a troca de token com a chave; a página pública manda o token no pedido REST. Ligar e impor é ação do dono (firebase.md, seção 7); nada foi ativado no projeto real
+- [x] Regras: listas gravadas pela equipe conferidas item a item até o teto (`ids`, `datas`, `horariosPublicos`, `unidadesPublicasValidas`: a lista vira um texto e uma expressão regular confere tudo de uma vez). O documento público mudou de forma para isso: horário em texto (`'2026-10-13 18:00-18:50 u-centro 2'`) e unidades num mapa `id -> 'nome|endereco'`; a página confere cada item de novo ao ler. A vaga leva `comecaEm` (início da aula em ms, conferido contra data e hora) e as regras do aluno deixam de recalcular o instante; o registro escrito pelo aluno tem a sua validação enxuta (`registroDoAluno`) em vez da da equipe; medido com `MEDIR_FOLGA`, cada caminho do aluno aguenta de 51 (encaixar numa aula com registro de outra pessoa) a 110 (a vaga no aviso) comparações a mais, contra 8 a 15 antes, e `folga.test.ts` prova pelo menos 40 em todos
+- [x] Furo aberto pela reestruturação e fechado: a regra do registro passou a ler o crédito só como fica depois do lote; um crédito que já apontasse para a aula serviria de novo sem ser tocado. A regra da vaga confere que o crédito estava livre antes (`creditoLivreAntes`), com teste em `ataques.test.ts`
+- [x] Documento público: só os campos que a página mostra, com teto de tamanho em cada um; a página lê uma vez por sessão do navegador e revalida depois de 10 minutos (sessionStorage, nunca o service worker)
+- [x] Cliente: `frame-src 'none'`; Trusted Types com política padrão (`src/app/confianca.ts`: HTML e script por texto recusados, script por endereço só o service worker e, com App Check, o reCAPTCHA; o endereço relativo do registro do service worker é resolvido contra a página antes de comparar, senão o registro era recusado no Chromium; conferido nos dois motores dos testes); `referrer` `strict-origin-when-cross-origin` nas três páginas; service worker com a versão nova esperando e o aviso "Tem uma versão nova do app" com "Atualizar" (`src/app/atualizacao.ts`); nada do Firestore nem do login no cache (testado)
+- [x] LGPD: a exclusão também apaga a observação dos pagamentos do aluno (fica só o código, nos dois adaptadores); o aviso de privacidade diz o que fica depois da exclusão, a sessão fora do aparelho, o cache da página pública e o App Check. Registro de alterações (coleção `auditoria`: só códigos, só a administração lê, ninguém edita nem apaga): pagamento lançado ou apagado, cadastro excluído, acesso do aluno liberado ou tirado, papel mudado, acesso da equipe desligado ou religado, conta passada; tela em Mais, Registro de alterações; na demonstração fica no aparelho. Testes de regras para cada tentativa (assinar pelo outro, professor gravando, editar, apagar, ação fora da lista, campo a mais)
+- [x] `npm audit --omit=dev`: 0 vulnerabilidades; nenhuma dependência nova (o App Check vem do pacote `firebase`)
+- [x] `docs/seguranca.md` refeito: o que protege o quê, o que depende do console, o que foi testado como ataque
+
+### Achado e corrigido no trabalho que veio pela metade
+- [x] `FIREBASE_CONFIG` como nome da variável que troca o `firebase.json`: o próprio `firebase emulators:exec` define `FIREBASE_CONFIG` com um JSON, e os três arquivos de testes de regras nem abriam. Virou `FIREBASE_JSON`
+- [x] O App Check era ligado também com os emuladores: no CI, assim que o dono criasse `FIREBASE_APPCHECK_SITE_KEY`, o reCAPTCHA pediria o Google e a trava dos testes reprovaria tudo
+
+### Ficou para depois
+- [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console); sem Cloud Functions não há como apagar pelo app
+- [ ] Trusted Types: o Chromium e o WebKit do Playwright 1.60 aplicam (testado nos dois); conferir num iPhone de verdade se o Safari instalado também aplica (um motor antigo ignora a diretiva e o teste pula lá). O resto da política vale igual
+- [ ] Depois de o dono ligar e impor o App Check: conferir no site publicado que o login e a página pública seguem funcionando e que o console do navegador não acusa a política de segurança
+
 ## Notas para quem continuar
 
 - **Coisas de celular em `e2e/celular.spec.ts`:** teclado (a `visualViewport` é trocada por uma falsa que encolhe como a do iPhone; espere `.folha[data-teclado]` antes de medir), fontes uma vez só, JS inicial e Firebase fora, campos de 16 px, servidor desligado (o teste sobe um servidor só dele em `dist/`, então rode depois do build), agenda no iPhone SE, folha descendo com o mesmo conteúdo, aviso trocando de lugar e a lista do dia saindo para a frente.
@@ -250,7 +284,7 @@ a posição da peça quadro a quadro contra a do dedo (com toque de verdade no C
 - **Soltar o dedo:** use `curvaQueContinua(velocidade, distancia, duracao)` em qualquer animação que começa no fim de um gesto; as curvas comuns começam paradas e dão tranco.
 - **Contraste:** além dos pares de tokens (`contraste.test.ts`), `e2e/acessibilidade.spec.ts` mede cada texto visível contra o fundo composto nos dois temas. Opacidade em texto pequeno quase sempre reprova.
 
-- **Rodar os testes de ponta a ponta no servidor ARM:** o WebKit não roda direto no Oracle Linux. Com o `npm run preview` no ar (porta 8887), rodar o contêiner do Playwright 1.60:
+- **Rodar os testes de ponta a ponta onde o WebKit do Playwright não instala:** com o `npm run preview` no ar (porta 8887), rodar o contêiner do Playwright 1.60:
   `podman run --rm --network host -v "$PWD":/w:Z -w /w --ipc=host mcr.microsoft.com/playwright:v1.60.0-noble npx playwright test`.
   `LENTO=1` liga a CPU 4x mais lenta no Chromium; `GRAVAR=1` grava vídeo da fluidez (quadros com `ffmpeg -i video.webm -vf fps=10 quadro-%03d.png`).
 - **WebKit do contêiner não tem GPU:** os tempos de quadro dele variam muito e servem de registro, não de régua (ver o comentário em `e2e/movimento.spec.ts`). Mesmo assim ele achou três problemas reais: sombra com desfoque cara demais, texto do dia sumindo no deslize e o aviso cobrindo a alça da folha.
@@ -260,8 +294,13 @@ a posição da peça quadro a quadro contra a do dedo (com toque de verdade no C
 - **Conteúdo do repositório:** sem travessão, sem ponto médio, sem nomes reais, sem trechos de conversa com a cliente, sem fotos com pessoas. E-mails só `@example.com`, telefones `55119000000xx` (exemplos na tela usam `(19) 90000-0000`).
 - **Papéis:** no código `titular`, `administrador` e `professor` (mais o aluno, fora da equipe); na tela "Responsável", "Administração" e "Professor". Toda regra de equipe recebe quem está agindo (`src/dominio/equipe.ts`); `firestore.rules` repete as mesmas recusas e `testes-de-regras/` testa cada uma no emulador.
 - **Financeiro separado:** `FinanceiroDoAluno` (coleção `financeiroDosAlunos`) só é pedido por quem pode ver financeiro (`carregarFinanceiro` em `src/dados/estado.ts`); o teste com o emulador confere que o app do professor nem pede.
-- **Teto de 1000 expressões nas regras do aluno:** a regra do registro que o aluno grava já anda perto do teto. Conferência nova do aluno vai na regra da vaga (`alunoMexeNaVaga`, folga larga), não em `encaixeValido`/`avisoValido`. Para medir, some `&& 1 == 1` repetido na função e rode o teste legítimo correspondente com o emulador no ar: o ponto em que ele passa a falhar é a folga (o motivo aparece em `firestore-debug.log` como "maximum of 1000 expressions"). Recusa por teto também aparece em casos negados de propósito; isso não muda o resultado, mas não prova a lógica.
-- **Regras do Firestore:** calcule quem pede uma vez (`quemSou`) e passe adiante; funções que relêem o papel estouram o teto de 1000 expressões por pedido. Leia documento com `dados(caminho, padrao)` (um `get` que trata o documento ausente), não `exists` mais `get`: há teto de 10 leituras por operação e 20 por lote. Rode `npm run regras` (sobe o emulador sozinho) ou, com o emulador já no ar, `FIRESTORE_EMULATOR_HOST=127.0.0.1:8824 npx vitest run --config vitest.regras.config.ts`.
+- **Teto de 1000 expressões nas regras do aluno:** `testes-de-regras/folga.test.ts` carrega as regras com comparações a mais enfiadas em cada função do caminho do aluno (aviso, desfazer, encaixe, desistência, vaga, crédito) e prova que o pedido legítimo ainda passa com 40 de sobra (medido: 51 a 110); `MEDIR_FOLGA=/tmp/folga.txt npx vitest run --config vitest.regras.config.ts testes-de-regras/folga.test.ts` (com o emulador no ar) escreve a folga exata de cada caminho. Conferência nova do aluno vai de preferência na regra da vaga (`alunoMexeNaVaga`, a mais folgada). Recusa por teto também aparece em casos negados de propósito; isso não muda o resultado, mas não prova a lógica.
+- **Regras do Firestore:** calcule quem pede uma vez (`quemSou`) e passe adiante; funções que relêem o papel estouram o teto de 1000 expressões por pedido. Leia documento com `dados(caminho, padrao)` (um `get` que trata o documento ausente), não `exists` mais `get`: há teto de 10 leituras por operação e 20 por lote. Lista gravada pela equipe é conferida item a item com `join` mais uma expressão regular (`ids`, `datas`, `horariosPublicos`): uma expressão para a lista inteira, em vez de dezenas por item. Rode `npm run regras` (sobe o emulador sozinho) ou, com o emulador já no ar, `FIRESTORE_EMULATOR_HOST=127.0.0.1:8824 npx vitest run --config vitest.regras.config.ts`. Mudou as regras? O dono republica no console (o site não publica regras).
+- **Dois conjuntos de emuladores na mesma máquina:** copie `firebase.json` com outras portas e aponte `FIREBASE_JSON=outro.json` no build, nos testes de regras e nos de ponta a ponta, mais `--config outro.json` no firebase-tools (o nome `FIREBASE_CONFIG` não serve: o próprio `emulators:exec` o define com um JSON).
+- **Erros do login:** toda falha do SDK passa por `erroDeConta(erro, operacao)` (`src/dados/firebase/erros.ts`); a frase nunca leva o código, que fica em `detalhe` e aparece atrás de "Detalhes" (`ErroDaConta`). Código novo do Firebase: acrescente em `fraseDoCodigo`, com teste em `erros.test.ts`. O caso "Authentication não iniciado" é testado sem emulador, com a resposta simulada em `e2e/login.spec.ts`.
+- **App Check:** liga só com `VITE_FIREBASE_APPCHECK_SITE_KEY` no build e nunca com os emuladores (`ligarSdk` e `experimental/dados.ts`). Com a chave, a política de segurança e a política de Trusted Types liberam os endereços do reCAPTCHA (`regrasDaPolitica` em `scripts/plugin-offline.ts`, `enderecosDeScriptPermitidos` em `src/app/confianca.ts`); qualquer outro script por endereço precisa entrar nos dois lugares.
+- **Versão nova do service worker:** a versão instalada fica esperando (`install` só chama `skipWaiting` quando não há outra ativa); `src/app/atualizacao.ts` avisa e, no "Atualizar", manda `{ tipo: 'ativar' }`; a página recarrega no `controllerchange`. Teste em `e2e/pwa.spec.ts`.
+- **Registro de alterações:** `anotar()` em `src/dados/gestao.ts` junta a linha à gravação (e ao desfazer). Ação nova: `AcaoAuditada` em `tipos.ts`, a frase em `descreverAuditoria`, a lista em `auditoriaValida` nas regras. Só códigos: nunca nome, telefone nem e-mail.
 - **Ponta a ponta com o Firebase:** com os emuladores no ar (`firebase emulators:start --only auth,firestore --project demo-pilates`) e a prévia rodando, `EMULADOR=1` faz o Playwright limpar os emuladores, criar as contas e gravar a demonstração de hoje (`e2e/firebase/preparar.ts`) e rodar `e2e/firebase.spec.ts`. Cada motor usa um aluno diferente (os dois podem rodar juntos no mesmo emulador) e um projeto vazio próprio para o primeiro acesso (`?emulador=demo-pilates-vazio-<motor>`). O emulador de login guarda todas as contas no projeto padrão (o SDK não manda o projeto no login); o Firestore separa os dados por projeto, por isso `singleProjectMode` fica desligado em `firebase.json`. No Chromium, `bypassCSP` deixa o app falar com o emulador; no WebKit a `<meta>` da política sai do HTML servido no teste (servir a página pelo teste no Chromium faz o navegador bloquear o endereço local).
 - **Trava do Firebase real:** importe `test` e `expect` de `e2e/base.ts`, nunca de `@playwright/test`: a trava corta e reprova qualquer pedido para domínios do Google.
 - **Projeto configurado no build:** com as variáveis `FIREBASE_*`, a tela inicial vira as duas portas. Os testes da demonstração abrem com `?demo` (ver `abrirApp`) para valer com ou sem projeto.

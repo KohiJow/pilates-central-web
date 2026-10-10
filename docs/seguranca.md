@@ -1,17 +1,35 @@
 # Segurança
 
-Como o app protege os dados do estúdio, o que foi testado e o que fica de fora. O banco é o
-Firestore no plano gratuito, sem Cloud Functions: toda regra de acesso mora em
-[`firestore.rules`](../firestore.rules) e é conferida pelo Google a cada leitura e gravação. A
-tela só esconde o que o banco já nega.
+Como o app protege os dados do estúdio, o que depende do console do Firebase, o que foi testado
+como ataque e o que fica de fora. O banco é o Firestore no plano gratuito, sem Cloud Functions:
+toda regra de acesso mora em [`firestore.rules`](../firestore.rules) e é conferida pelo Google a
+cada leitura e gravação. A tela só esconde o que o banco já nega.
+
+## O que protege o quê
+
+| Risco | O que segura | Onde |
+|---|---|---|
+| Alguém lê ou grava o que não é do papel dele | regras do Firestore com menor privilégio, esquema e tamanho em tudo, o resto negado | `firestore.rules`, `testes-de-regras/` |
+| Conta sem convite entra no estúdio | o papel vem de `acessos/{uid}` criado a partir de um convite para o e-mail confirmado | regras de `acessos` e `convites` |
+| Ninguém sabe o que aconteceu no login | cada resposta do Firebase vira uma frase em português; o código bruto fica atrás de "Detalhes" | `src/dados/firebase/erros.ts` |
+| Descobrir quem é aluno tentando e-mails | mensagens iguais com ou sem conta; proteção contra enumeração do Firebase (console) | `erros.ts`, `docs/firebase.md` |
+| Senha fraca | mínimo 8 no app e na política do projeto (console); força da senha enquanto digita | `src/dominio/senha.ts` |
+| Celular emprestado | "Lembrar neste aparelho" desligado deixa a sessão só na aba | `autenticacao.ts` (persistência) |
+| Script injetado, HTML por texto | política de segurança sem `unsafe-inline`, sem iframe; Trusted Types com política padrão que recusa HTML e script por texto | `scripts/plugin-offline.ts`, `src/app/confianca.ts` |
+| Dado pessoal vazando pela URL ou pelo referrer | nada pessoal na URL (só códigos nas rotas); `referrer` `strict-origin-when-cross-origin` | `index.html` e as outras duas páginas |
+| Dado do banco guardado no aparelho | o service worker só guarda arquivos do próprio site; a leitura da página pública fica na aba por dez minutos, nunca no cache do SW | `src/pwa/sw.js`, `src/experimental/dados.ts` |
+| Versão velha do app com regras novas | a versão nova fica esperando e o app avisa "Tem uma versão nova do app" com "Atualizar" | `src/app/atualizacao.ts` |
+| Alguém de fora gasta a cota do plano gratuito | App Check com reCAPTCHA v3 (quando o dono liga e impõe no console) | `src/dados/firebase/sdk.ts`, `src/experimental/firebaseAppCheck.ts` |
+| Chave de API usada em outro site | restrição da chave por site e por API (console do Google Cloud) | `docs/firebase.md` |
+| Quem mexeu no dinheiro ou excluiu alguém | registro de alterações só com códigos, que ninguém edita nem apaga | coleção `auditoria`, Mais, Registro de alterações |
 
 ## Quem é quem
 
 | Papel | Como ganha o papel | O que vê | O que grava |
 |---|---|---|---|
 | Responsável (titular) | primeiro acesso, com o e-mail travado nas regras; ou recebendo a conta do titular anterior | tudo | tudo; só ele convida, promove e tira administradores e passa a conta |
-| Administração | convite do titular | tudo, financeiro incluído | cadastros, agenda, financeiro, convites de professores e alunos |
-| Professor | convite da administração | agenda, turmas, alunos (sem valores), créditos, vagas | presença, aviso e reposição nas unidades em que dá aula |
+| Administração | convite do titular | tudo, financeiro e registro de alterações incluídos | cadastros, agenda, financeiro, convites de professores e alunos, linhas do registro de alterações |
+| Professor | convite da administração | agenda, turmas, alunos (sem valores), créditos, vagas | presença, aviso e reposição nas unidades em que dá aula; os horários da página pública |
 | Aluno | acesso liberado na ficha, com o app do aluno ligado | o próprio portal, os próprios créditos e as vagas (sem nomes) | o próprio aviso de falta e a própria reposição, no prazo e com vaga |
 | Qualquer pessoa | nada | o documento público (horários com vaga, unidades, WhatsApp) | nada |
 
@@ -38,39 +56,32 @@ ativo, que já entrou com o e-mail confirmado. Ninguém apaga a posse. Quem lê 
 fora dela, só a conta do e-mail do primeiro acesso (para saber se o estúdio já tem responsável);
 uma conta qualquer não fica sabendo quem é o titular nem se o estúdio já foi reivindicado.
 
-## Tentativas de escalada testadas
+## Login
 
-`npm run regras` roda 203 testes no emulador, cada papel contra cada coleção, permitindo e negando
-(`testes-de-regras/regras.test.ts`), mais as tentativas da revisão de segurança
-(`testes-de-regras/ataques.test.ts`). Entre eles:
-
-- professor lendo `pagamentos` ou `financeiroDosAlunos`; professor marcando presença em outra
-  unidade, cancelando aula ou dando crédito de cortesia;
-- aluno lendo o cadastro de outro aluno (ou o próprio, que tem a observação da equipe), o portal ou
-  os créditos de outro, turmas e registros (que têm nomes);
-- aluno avisando a falta de outro, fora do prazo, numa turma que não é dele, sem abrir a vaga,
-  com crédito de validade maior, ou criando crédito sem avisar;
-- aluno se colocando em aula cheia, usando crédito de outro, vencido ou já usado, ocupando dois
-  lugares (somando dois na vaga ou se encaixando na própria turma) ou entrando sem gastar o
-  crédito; aluno marcando presença em si mesmo;
-- aluno desfazendo o aviso e ficando com o crédito (voltava para a aula e ainda repunha outra), ou desfazendo
-  o aviso de uma falta já reposta; aluno apagando o aviso ou a reposição de outro, mexendo na
-  validade, na unidade ou na origem do próprio crédito, mudando a capacidade da vaga;
-- campo a mais, texto enorme e tipo errado no que o aluno e a administração gravam (registro,
-  crédito, vaga, cadastro, turma, página pública);
-- convite forjado: professor, aluno ou pessoa de fora criando convite ou cadastro; convite que não
-  bate com o cadastro (outro e-mail, outro papel); cadastro já nascendo com `uid`;
-- aceitar convite com e-mail não confirmado, com outro e-mail, ou mudando o próprio papel no aceite;
-  trocar o próprio acesso para apontar para o titular;
-- administrador convidando, promovendo ou desativando administrador; mexendo no cadastro do
-  titular; titular se desativando;
-- mudar o e-mail de quem já entrou (é ele que liga a conta ao papel);
-- administrador tentando tomar o convite de administração feito pelo titular (trocando o e-mail,
-  reescrevendo o convite ou criando um cadastro de aluno com o mesmo código);
-- mexer na posse: apagar, reescrever, passar para professor, para convite pendente ou com `uid`
-  trocado; reivindicar com outro e-mail ou sem e-mail confirmado; conta qualquer lendo a posse;
-- a conta com o e-mail da responsável, mas sem confirmar, não lê nem grava nada;
-- coleção fora das regras: negada até para a administração.
+- E-mail e senha, com confirmação do e-mail antes de qualquer acesso. A tela de confirmação diz
+  para qual endereço o e-mail foi, lembra do spam, reenvia com espera de 60 segundos (o Firebase
+  também limita) e "Já confirmei" recarrega a conta e o token antes de dizer que não confirmou.
+- Toda falha do SDK passa por `erroDeConta` (`src/dados/firebase/erros.ts`): o código do Firebase
+  vira uma frase em português para a pessoa, e o código bruto fica em "Detalhes", para quem está
+  configurando o projeto. Os códigos mapeados: Authentication nunca iniciado no console
+  (`auth/configuration-not-found`) e e-mail/senha desligado (`auth/operation-not-allowed`), os dois
+  com "O login por e-mail e senha ainda não foi ativado no Firebase deste projeto"; sem rede;
+  tentativas demais; domínio não autorizado; chave de API inválida ou restrita; App Check
+  recusado; e-mail inválido; senha fraca ou fora da política; cota de e-mails do dia; conta
+  desativada; sessão antiga demais para trocar a senha.
+- Mensagens que não dizem se o e-mail tem conta: "E-mail ou senha não conferem" para qualquer
+  credencial errada; "Se houver uma conta com este e-mail, enviamos um link" na senha nova; ao
+  criar a conta, "e-mail já usado" responde com a mesma frase da recusa genérica, então vale com a
+  proteção contra enumeração do Firebase ligada (padrão) ou não.
+- Senha: mínimo de 8 caracteres no app, com a força mostrada enquanto digita (sem exigir símbolo:
+  uma frase comprida vale mais). A política de senha do projeto também deve pedir 8 (console),
+  porque a tela de senha nova do Firebase aceita 6 sem ela. Trocar a senha pelo app pede a atual
+  (o Firebase exige login recente).
+- "Lembrar neste aparelho" ligado guarda a sessão no IndexedDB do SDK; desligado, só na aba
+  (`browserSessionPersistence`): fechou o navegador, a sessão sumiu.
+- O SDK do Firebase só é baixado quando a pessoa escolhe **Entrar**: fica num pedaço separado, fora
+  do pacote inicial e fora do cache do service worker. Sem o "resolvedor" de popup, o SDK não
+  carrega o iframe de login do Google (e a política de segurança nem deixa iframe).
 
 ## Dados separados por quem pode ler
 
@@ -80,12 +91,16 @@ documento:
 - `financeiroDosAlunos` e `pagamentos`: só a administração. O app do professor nem pede esses dados.
 - `alunos` (com a observação da equipe): só a equipe. O aluno lê `portal/{id}`, uma cópia com o
   primeiro nome, a unidade e as turmas fixas, sem colegas.
-- `vagas/{aula}`: a aula de uma data só com lugares (capacidade, ocupados, cancelada), sem nomes.
-- `publico/estudio`: o único documento sem login, com nome do estúdio, WhatsApp, unidades e os
-  horários com vaga. O professor grava os horários (a vaga muda com a chamada), e as regras não
-  conseguem conferir item por item de uma lista; por isso a página pública confere cada horário e
-  cada unidade antes de mostrar e deixa de fora o que não tem a forma esperada
-  (`paginaPublicaDe` em `src/experimental/rest.ts`).
+- `vagas/{aula}`: a aula de uma data só com lugares (capacidade, ocupados, cancelada) e o início
+  da aula em milissegundos (`comecaEm`, conferido pelas regras contra a data e a hora), sem nomes.
+- `publico/estudio`: o único documento sem login, só com o que a página mostra: nome do estúdio,
+  WhatsApp, unidades (mapa `id -> 'nome|endereco'`), se a aula experimental está aberta e os
+  horários com vaga (um texto por horário, `'2026-10-13 18:00-18:50 u-centro 2'`). As regras
+  conferem cada horário e cada unidade quando a equipe grava; a página confere tudo de novo ao
+  ler (`paginaPublicaDe` em `src/experimental/rest.ts`), para um documento de antes das regras não
+  derrubar a página de quem nunca viu o estúdio.
+- `auditoria`: o registro de alterações, só códigos (quem, o quê, com quem, quando). A
+  administração grava a própria linha junto com a mudança e lê; ninguém edita nem apaga.
 
 Essas cópias são gravadas pelo app da equipe na mesma transação de cada mudança e conferidas a
 cada abertura (a janela de 14 dias anda sozinha).
@@ -98,66 +113,146 @@ reposição dele no registro, o crédito marcado como usado e a vaga (um lugar a
 numa transação que lê a vaga e o crédito; se outro aluno pegar o último lugar no mesmo instante, a
 transação refaz a conta e recusa. As regras conferem tudo de novo, do lado do servidor:
 
-- só a chave do próprio aluno muda no registro;
-- o prazo é medido pelo relógio do servidor (`request.time`) contra o início da aula no fuso de
-  Campinas (UTC-3, sem horário de verão desde 2019);
+- só a chave do próprio aluno muda no registro, e o registro escrito por ele tem a sua própria
+  validação enxuta (`registroDoAluno`: mesma aula da vaga, sem cancelamento, só os campos de sempre);
+- o prazo é medido pelo relógio do servidor (`request.time`) contra `comecaEm` da vaga, o início
+  da aula no fuso de Campinas (UTC-3, sem horário de verão desde 2019), gravado pela equipe e
+  conferido pelas regras contra a data e a hora;
 - a vaga só sobe se não passar da capacidade, e só muda junto com o registro e o crédito
   (cada regra confere as outras pelo estado depois do lote, com `getAfter`);
+- o crédito gasto no encaixe estava livre antes do lote (`creditoLivreAntes`, na regra da vaga): a
+  regra do registro só lê o crédito como fica depois, e sem isso um crédito que já apontasse para
+  a aula serviria de novo sem ser tocado;
 - desfazer o aviso só passa se o crédito daquele aviso sair no mesmo lote (crédito já usado não
   sai, então o aviso de uma falta já reposta não se desfaz);
 - o aluno não se encaixa numa aula da própria turma, onde já tem lugar.
 
 ### Teto de expressões
 
-O Firestore avalia no máximo 1000 expressões por gravação. A regra do registro escrito pelo aluno
-chega perto disso: medido no emulador, somando comparações de propósito, o encaixe legítimo
-aguenta só mais 8 a 15, e o desfazer do aviso aguentava 4 a 7 até ele deixar de tentar o caminho do
-aviso antes (hoje aguenta mais de 32). Passando do teto, o pedido é recusado, então o erro é
-sempre para o lado seguro, mas o aluno ficaria sem conseguir remarcar. Por isso as conferências
-novas do aluno moram na regra da vaga, que vai em todo aviso e todo encaixe e tem folga larga
-(mais de 64). Quem mexer nas regras do registro do aluno deve medir de novo (ver
-[roteiro.md](roteiro.md)).
+O Firestore avalia no máximo 1000 expressões por pedido. As regras do registro escrito pelo aluno
+chegavam perto disso (o encaixe aguentava só mais 8 a 15 comparações). Elas foram enxugadas: o
+registro do aluno tem a própria validação, a situação na aula é lida do próprio pedido (sem
+reler o registro), o crédito é lido uma vez e o instante da aula vem pronto na vaga.
+`testes-de-regras/folga.test.ts` carrega as regras com comparações a mais enfiadas na função de
+cada caminho e prova que o pedido legítimo ainda passa com pelo menos 40 de sobra; com
+`MEDIR_FOLGA=arquivo` ele procura o ponto exato em que cada caminho estoura (medido: de 51, no
+encaixe numa aula que já tem registro de outra pessoa, a 110, na vaga do aviso). Passando do teto, o
+pedido é recusado (erro para o lado seguro), mas o aluno ficaria sem remarcar: quem mexer nas
+regras do aluno roda o teste e, se precisar, mede de novo (ver [roteiro.md](roteiro.md)).
 
 ## Esquema e tamanho
 
 Toda gravação passa por validação de campos (`hasAll` e `hasOnly`), tipos, formatos (datas,
 horas, e-mails em minúsculas, telefones só com dígitos) e tamanhos (nome até 80, observação até
-500, listas e mapas com teto). O que não está nas regras é negado.
-
-## Login
-
-- E-mail e senha (mínimo de 8 caracteres no app; a política de senha do projeto também deve pedir
-  8, ver [firebase.md](firebase.md)), com confirmação do e-mail antes de qualquer acesso.
-- Mensagens que não dizem se o e-mail tem conta ("E-mail ou senha não conferem", "Se houver uma
-  conta com este e-mail, enviamos um link"), junto com a proteção contra enumeração do Firebase.
-- O SDK do Firebase só é baixado quando a pessoa escolhe **Entrar**: fica num pedaço separado, fora
-  do pacote inicial e fora do cache do service worker. Sem o "resolvedor" de popup, o SDK não
-  carrega o iframe de login do Google.
+500, listas e mapas com teto). As listas que a equipe grava são conferidas item a item: as regras
+não têm laço, então a lista vira um texto (`join`) com um separador que o item não pode ter, e uma
+expressão regular confere todos os itens de uma vez (`ids`, `datas`, `horariosPublicos`,
+`unidadesPublicasValidas`). Alunos fixos, datas de entrada, unidades do professor, chaves e
+créditos das marcações e reposições, horários e unidades da página pública passam por isso. O que
+não está nas regras é negado.
 
 ## No navegador
 
 - Política de segurança de conteúdo (CSP) em `<meta>` em todas as páginas: scripts só do próprio
   site, sem `unsafe-inline` (os dois scripts embutidos, o do tema e o da pré-carga das fontes,
-  entram pelo hash), conexões só com o próprio site e, com projeto configurado, com os três
-  endereços do Firebase (login, token e Firestore). Sem Google Analytics, sem fontes ou scripts de
-  terceiros. O SDK de login traz os endereços do script do Google e do reCAPTCHA, mas só os carrega
-  no login por popup ou com a proteção reCAPTCHA ligada no projeto, que o app não usa (se um dia
-  ligar, a política precisa liberar esses endereços).
+  entram pelo hash), `frame-src 'none'`, conexões só com o próprio site e, com projeto configurado,
+  com os três endereços do Firebase (login, token e Firestore). Com o App Check ligado entram só
+  os endereços do reCAPTCHA v3 e da troca de token (`regrasDaPolitica` em
+  `scripts/plugin-offline.ts`, com teste). Sem Google Analytics, sem fontes ou scripts de terceiros.
+- Trusted Types (`require-trusted-types-for 'script'` e `trusted-types default`): o app instala
+  uma política padrão (`src/app/confianca.ts`) que recusa HTML e script por texto e só aceita
+  script por endereço para o service worker do próprio site (e o reCAPTCHA, com o App Check). O
+  endereço chega à política como foi escrito no código (o service worker é registrado por um
+  caminho relativo), então ela o resolve contra a página antes de comparar. Conferido nos dois
+  motores dos testes (Chromium e o WebKit do Playwright 1.60); um motor sem Trusted Types ignora a
+  diretiva e segue com o resto da política.
+- `<meta name="referrer" content="strict-origin-when-cross-origin">`: links para fora (WhatsApp,
+  mapa) recebem só a origem do site, nunca a rota.
 - Nenhum texto vindo do banco vira HTML: não há `innerHTML` nem `dangerouslySetInnerHTML`; links
-  para fora (WhatsApp, mapa) são montados pelo app, com `noopener`.
+  para fora são montados pelo app, com `noopener`. Nada pessoal na URL: as rotas levam só códigos.
 - Emuladores do Firebase só ligam em `localhost`/`127.0.0.1` e com `?emulador=1`; no site
   publicado o caminho nunca liga, e a política de segurança bloqueia endereço local de qualquer jeito.
 - O service worker guarda só os arquivos do próprio site (páginas, scripts, estilos, fontes,
-  ícones). Pedidos ao Firebase vão direto para a rede e não passam pelo cache. No aparelho fica a
-  sessão de login (do SDK, no IndexedDB) e as preferências; nada do banco.
-- O código do app não escreve nada no console.
+  ícones). Pedidos ao Firebase e aos emuladores vão direto para a rede e não passam pelo cache
+  (testado: depois de entrar e abrir o financeiro, o cache não tem nada de login nem de banco).
+  Uma versão nova fica esperando até a pessoa tocar em "Atualizar"; trocar o código com o app
+  aberto deixaria duas versões convivendo.
+- A página pública guarda a última leitura do documento público na aba (sessionStorage) por dez
+  minutos: abrir e fechar várias vezes não gasta a cota do estúdio de novo. Nada disso vai para o
+  service worker.
+- O código do app não escreve nada no console (com o App Check em `localhost` e projeto real, o
+  SDK do Google escreve o token de depuração, de propósito).
 - `?agora=` (relógio de mentira) e `?atraso=` só existem no modo demonstração.
 - A configuração do projeto não é segredo (vai para o navegador), mas fica fora do repositório,
   em variáveis do GitHub Actions.
 
-## Testes
+## App Check
 
-- `npm run regras`: regras do Firestore no emulador (203 testes).
+Qualquer pessoa pode ler o documento público sem login, e cada leitura conta na cota do dia do
+plano gratuito. O App Check faz o Firebase só atender pedidos vindos do site de verdade,
+conferidos pelo reCAPTCHA v3 (invisível). O app está pronto: com `VITE_FIREBASE_APPCHECK_SITE_KEY`
+no build, o SDK manda o token em cada pedido do login e do Firestore, a página pública manda o
+token no pedido REST (`X-Firebase-AppCheck`), a política de segurança libera o reCAPTCHA e a frase
+que o Google exige aparece no rodapé. Sem a chave, tudo isso fica desligado; com os emuladores,
+também. Ligar, observar as métricas e impor é passo do console, descrito em
+[firebase.md](firebase.md); impor cedo demais derruba o login e a página pública, e desimpor
+resolve na hora.
+
+## O que depende do console
+
+O app não consegue conferir nem mudar nada disto; a lista de verificação com os cliques está em
+[firebase.md](firebase.md):
+
+- Authentication iniciado ("Começar"): sem isso a criação de conta falha e nenhum e-mail chega.
+- E-mail/senha ligado; domínio `kohijow.github.io` autorizado; modelos de e-mail em português.
+- Proteção contra enumeração de e-mails ligada; política de senha com mínimo 8.
+- Regras publicadas com o e-mail do primeiro acesso trocado (e republicadas a cada mudança no
+  arquivo).
+- Chave de API restrita por site e por API no Google Cloud.
+- App Check registrado e, depois das métricas, imposto.
+- Mais de uma pessoa como membro do projeto.
+
+## Tentativas de escalada testadas
+
+`npm run regras` roda 225 testes no emulador, cada papel contra cada coleção, permitindo e negando
+(`testes-de-regras/regras.test.ts`), as tentativas das revisões de segurança
+(`testes-de-regras/ataques.test.ts`) e a folga do teto de expressões (`folga.test.ts`). Entre eles:
+
+- professor lendo `pagamentos`, `financeiroDosAlunos` ou `auditoria`; professor marcando presença
+  em outra unidade, cancelando aula ou dando crédito de cortesia;
+- aluno lendo o cadastro de outro aluno (ou o próprio, que tem a observação da equipe), o portal ou
+  os créditos de outro, turmas e registros (que têm nomes);
+- aluno avisando a falta de outro, fora do prazo, numa turma que não é dele, sem abrir a vaga,
+  com crédito de validade maior, ou criando crédito sem avisar;
+- aluno se colocando em aula cheia, usando crédito de outro, vencido, já usado ou já gasto nesta
+  mesma aula sem tocar nele, ocupando dois lugares (somando dois na vaga ou se encaixando na
+  própria turma) ou entrando sem gastar o crédito; aluno marcando presença em si mesmo; aluno
+  mexendo em `comecaEm`;
+- aluno desfazendo o aviso e ficando com o crédito (voltava para a aula e ainda repunha outra), ou
+  desfazendo o aviso de uma falta já reposta; aluno apagando o aviso ou a reposição de outro,
+  mexendo na validade, na unidade ou na origem do próprio crédito, mudando a capacidade da vaga;
+- campo a mais, texto enorme e tipo errado no que o aluno e a administração gravam (registro,
+  crédito, vaga, cadastro, turma, página pública); item torto no meio de uma lista (id com espaço,
+  data fora do formato, horário com texto a mais, unidade sem nome, nome de 61 letras), a lista
+  cheia passando e a primeira a mais sendo recusada; vaga com `comecaEm` que não bate com a hora;
+- convite forjado: professor, aluno ou pessoa de fora criando convite ou cadastro; convite que não
+  bate com o cadastro (outro e-mail, outro papel); cadastro já nascendo com `uid`;
+- aceitar convite com e-mail não confirmado, com outro e-mail, ou mudando o próprio papel no aceite;
+  trocar o próprio acesso para apontar para o titular;
+- administrador convidando, promovendo ou desativando administrador; mexendo no cadastro do
+  titular; titular se desativando;
+- mudar o e-mail de quem já entrou (é ele que liga a conta ao papel);
+- administrador tentando tomar o convite de administração feito pelo titular (trocando o e-mail,
+  reescrevendo o convite ou criando um cadastro de aluno com o mesmo código);
+- mexer na posse: apagar, reescrever, passar para professor, para convite pendente ou com `uid`
+  trocado; reivindicar com outro e-mail ou sem e-mail confirmado; conta qualquer lendo a posse;
+- registro de alterações: assinar pelo outro, professor ou aluno gravando, editar ou apagar uma
+  linha (nem a administração), ação fora da lista, campo a mais, detalhe comprido demais;
+- a conta com o e-mail da responsável, mas sem confirmar, não lê nem grava nada;
+- coleção fora das regras: negada até para a administração.
+
+## Testes no navegador
+
 - `EMULADOR=1 npx playwright test`: ponta a ponta com o SDK de verdade contra os emuladores, nos
   motores do Chrome e do Safari: a responsável entra e vê o financeiro, o professor entra e não
   vê (nem pede os dados), o aluno avisa a falta e remarca, a página pública lista as vagas sem
@@ -166,8 +261,21 @@ horas, e-mails em minúsculas, telefones só com dígitos) e tamanhos (nome até
   saindo junto), o login errado e a senha nova respondem igual com ou sem conta, e no primeiro
   acesso de um estúdio vazio só o e-mail combinado nas regras vira responsável; outra conta nem
   fica sabendo que o estúdio está sem dono.
+- `e2e/login.spec.ts`: sem emulador, as respostas do Firebase simuladas (`CONFIGURATION_NOT_FOUND`,
+  `OPERATION_NOT_ALLOWED`, tentativas demais, credencial inválida, e-mail inválido, rede cortada,
+  senha fraca, e-mail já usado), cada uma com a sua frase e nunca com o código na frase; com os
+  emuladores, a confirmação do e-mail com o primeiro envio falhando, reenvio, contagem de 60 s e o
+  link do e-mail, senha nova pelo link e troca de senha pelo app, "Lembrar neste aparelho"
+  desligado (outra aba sem sessão) e o cache do service worker sem nada do login nem do banco.
+- `e2e/pwa.spec.ts`: a política de segurança sem `unsafe-inline`, com Trusted Types; HTML por texto
+  e script de outro endereço recusados no Chrome; a versão nova do service worker esperando e
+  assumindo só no "Atualizar".
+- `e2e/alteracoes.spec.ts`: o registro de alterações com quem fez e quando, o aluno excluído só
+  pelo código, e o professor sem a tela (nem pelo endereço).
+- `scripts/plugin-offline.test.ts`: as diretivas da política com e sem projeto e com App Check;
+  o service worker nunca guarda o Firebase.
 - `src/experimental/rest.test.ts`: horário torto no documento público fica de fora em vez de
-  derrubar a página.
+  derrubar a página; a leitura guardada na aba vale dez minutos e só para o mesmo projeto.
 - `src/app/modo.test.ts`: o emulador não liga fora de `localhost`, nem com `?emulador=1`, e só aceita projetos de teste (`demo-`).
 - Todo teste de ponta a ponta tem uma trava que corta e reprova qualquer pedido para domínios do
   Google: o projeto real nunca é lido nem gravado por teste.
@@ -183,16 +291,18 @@ horas, e-mails em minúsculas, telefones só com dígitos) e tamanhos (nome até
 - **Aviso fora do prazo marcado pela equipe** (sem crédito) não aparece para o aluno como "você
   avisou": o aluno só vê os próprios créditos, não o registro da aula.
 - **Convites não mandam e-mail:** sem Cloud Functions, a pessoa é avisada pelo WhatsApp e cria a
-  conta com o e-mail do convite.
+  conta com o e-mail do convite. O link do WhatsApp leva o e-mail da pessoa no texto da mensagem,
+  de propósito (é o convite).
 - **Exclusão de aluno:** apaga cadastro, mensalidade, portal, convite, créditos, as marcações
-  futuras e o documento que liga a conta de login ao cadastro (`acessos/{uid}`, com o e-mail);
-  presenças antigas e pagamentos ficam só com o código do aluno (o caixa precisa fechar). A conta
-  de login do aluno, se existir, continua no Firebase Authentication sem papel nenhum; apagar a
-  conta é pelo console (ver [firebase.md](firebase.md)).
-- **Itens de listas gravadas pela equipe:** as regras conferem o tamanho das listas, mas não cada
-  item (horários da página pública, alunos fixos, unidades do professor, reposições do registro).
-  Quem pode gravar ali é da equipe; a página pública confere cada horário antes de mostrar.
-- **Cota do plano gratuito:** qualquer pessoa pode ler o documento público sem login, e cada
-  leitura conta na cota do dia. Alguém insistente pode gastar as 50 mil leituras e deixar o app
-  fora do ar até o dia seguinte. O caminho para fechar isso é o App Check do Firebase (pede o
-  script do reCAPTCHA na página e na política de segurança).
+  futuras, a observação dos pagamentos e o documento que liga a conta de login ao cadastro
+  (`acessos/{uid}`, com o e-mail); presenças antigas, pagamentos e a linha do registro de
+  alterações ficam só com o código do aluno (o caixa precisa fechar). A conta de login do aluno,
+  se existir, continua no Firebase Authentication sem papel nenhum; apagar a conta é pelo console
+  (ver [firebase.md](firebase.md)).
+- **Turmas do portal do aluno:** cada turma é um mapa (dia, horário, desde); as regras conferem só
+  o tamanho da lista, porque conferir mapa a mapa custa mais do que o teto de expressões deixa.
+  Quem grava é só a administração, e o app do aluno confere cada turma ao ler.
+- **Trusted Types em motor antigo:** a diretiva é ignorada (o WebKit dos testes aplica; um
+  Safari antigo não); o resto da política vale igual.
+- **App Check:** o código está pronto, mas só protege depois que o dono registra o site e impõe no
+  console; até lá a cota do plano gratuito segue exposta.
