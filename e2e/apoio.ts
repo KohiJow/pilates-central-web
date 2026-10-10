@@ -113,6 +113,10 @@ export async function irParaSecao(page: Page, nome: 'Alunos' | 'Turmas' | 'Repos
 
 /** Abre uma tela pelo endereço (como um link salvo) e espera ela parar de entrar. */
 export async function irPara(page: Page, hash: string): Promise<void> {
+  // uma folha que acabou de fechar ainda está tirando a entrada dela do histórico (history.back
+  // é assíncrono): mudar o endereço antes disso perde a navegação, porque o back desfaz a entrada
+  // nova. Aconteceu no WebKit do CI logo depois de lançar um pagamento.
+  await page.waitForFunction(() => (history.state as { folha?: number } | null)?.folha === undefined)
   await page.evaluate((h) => {
     location.hash = h
   }, hash)
