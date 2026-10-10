@@ -10,7 +10,7 @@ import { documentoDoMembro, documentoDoRegistro } from '../../src/dados/firebase
 import { momentoDe } from '../../src/dominio/datas'
 import { documentoDaPaginaPublica, paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
-import { AUTH, CHAVE_DO_EMULADOR, CONTAS, contaDeSenhaDoMotor, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
+import { AUTH, CHAVE_DO_EMULADOR, CONTAS, contaDeSenhaDoMotor, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoDoComeco, projetoVazio, SENHA } from './contas'
 
 async function pedir(url: string, corpo?: unknown, metodo = 'POST') {
   const r = await fetch(url, {
@@ -39,7 +39,7 @@ const limpo = (valor: object): Record<string, unknown> => JSON.parse(JSON.string
 export default async function preparar(): Promise<void> {
   // as contas ficam todas no projeto padrão do emulador de login; os dados, por projeto
   await pedir(`${AUTH}/emulator/v1/projects/${PROJETO}/accounts`, undefined, 'DELETE')
-  for (const projeto of [PROJETO, ...MOTORES.map(projetoVazio)]) {
+  for (const projeto of [PROJETO, ...MOTORES.map(projetoVazio), ...MOTORES.map(projetoDoComeco)]) {
     await pedir(`${FIRESTORE}/emulator/v1/projects/${projeto}/databases/(default)/documents`, undefined, 'DELETE')
   }
 

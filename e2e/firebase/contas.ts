@@ -42,6 +42,30 @@ export function projetoVazio(motor: string): string {
   return `demo-pilates-vazio-${motor}`
 }
 
+/** Projeto vazio, um por motor, para o teste de começar a usar (primeiro uso, importação, chamada, convite). */
+export function projetoDoComeco(motor: string): string {
+  return `demo-pilates-comeco-${motor}`
+}
+
+/** Os documentos de uma coleção, direto do emulador, sem regras. */
+export async function listarDocumentos(colecao: string, projeto = PROJETO): Promise<Record<string, unknown>[]> {
+  const r = await fetch(`${FIRESTORE}/v1/projects/${projeto}/databases/(default)/documents/${colecao}?pageSize=300`, {
+    headers: { Authorization: 'Bearer owner' },
+  })
+  if (!r.ok) throw new Error(`lista de ${colecao}: ${r.status}`)
+  return ((await r.json()) as { documents?: Record<string, unknown>[] }).documents ?? []
+}
+
+/** Troca as regras de um projeto no emulador (as regras valem por projeto; os outros ficam com as do arquivo). */
+export async function trocarRegras(projeto: string, regras: string): Promise<void> {
+  const r = await fetch(`${FIRESTORE}/emulator/v1/projects/${projeto}:securityRules`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+    body: JSON.stringify({ rules: { files: [{ name: 'firestore.rules', content: regras }] } }),
+  })
+  if (!r.ok) throw new Error(`regras de ${projeto}: ${r.status} ${await r.text()}`)
+}
+
 /** Lê um documento direto do emulador, sem regras (cabeçalho "owner" do emulador). */
 export async function lerDocumento(caminho: string, projeto = PROJETO): Promise<Record<string, unknown> | null> {
   const r = await fetch(`${FIRESTORE}/v1/projects/${projeto}/databases/(default)/documents/${caminho}`, {
