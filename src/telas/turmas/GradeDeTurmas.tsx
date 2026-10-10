@@ -48,16 +48,36 @@ export function GradeDeTurmas() {
         </div>
       )}
 
-      {pode('editar-turmas') && (
-        <Botao variante="primario" icone="adicionar" largo onClick={() => abrir('turmas', 'nova')}>
-          Nova turma
-        </Botao>
+      {pode('editar-turmas') && grade.length > 0 && (
+        <div class="linha-acoes">
+          <Botao variante="primario" icone="adicionar" onClick={() => abrir('turmas', 'nova')}>
+            Nova turma
+          </Botao>
+          <Botao variante="secundario" icone="planilha" onClick={() => abrir('turmas', 'importar')}>
+            Importar
+          </Botao>
+        </div>
       )}
 
       {situacao.value !== 'pronto' ? (
         <EsqueletoDeLista itens={5} altura={80} />
       ) : grade.length === 0 ? (
-        <EstadoVazio icone="grade" rotulo="Sem turmas" texto="Esta unidade ainda não tem turma." />
+        <EstadoVazio
+          icone="grade"
+          rotulo="Sem turmas"
+          texto={pode('editar-turmas') ? 'Esta unidade ainda não tem turma. Crie uma a uma, ou traga a grade de uma planilha.' : 'Esta unidade ainda não tem turma.'}
+        >
+          {pode('editar-turmas') && (
+            <>
+              <Botao variante="primario" icone="adicionar" onClick={() => abrir('turmas', 'nova')}>
+                Nova turma
+              </Botao>
+              <Botao variante="secundario" icone="planilha" onClick={() => abrir('turmas', 'importar')}>
+                Importar de uma planilha
+              </Botao>
+            </>
+          )}
+        </EstadoVazio>
       ) : (
         grade.map((dia) => (
           <section key={dia.dia} class="secao" aria-labelledby={`dia-${dia.dia}`}>

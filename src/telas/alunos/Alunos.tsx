@@ -9,6 +9,7 @@ import { CabecaDeAlunos } from './CabecaDeAlunos'
 import type { SecaoDeAlunos } from './CabecaDeAlunos'
 import { FichaDoAluno } from './FichaDoAluno'
 import { FormularioDoAluno } from './FormularioDoAluno'
+import { ImportarAlunos, ImportarTurmas } from './Importacao'
 import { ListaDeAlunos } from './ListaDeAlunos'
 
 const SECAO: Record<string, SecaoDeAlunos> = { '': 'lista', turmas: 'turmas', reposicoes: 'reposicoes' }
@@ -39,10 +40,12 @@ export function Alunos() {
   const [primeiro, segundo, terceiro] = r.caminho
   if (primeiro === 'turmas') {
     if (segundo === 'nova') return <FormularioDaTurma />
+    if (segundo === 'importar') return <ImportarTurmas />
     if (terceiro === 'editar') return <FormularioDaTurma turmaId={segundo ?? ''} />
     return <DetalheDaTurma turmaId={segundo ?? ''} />
   }
   if (primeiro === 'novo') return <FormularioDoAluno />
+  if (primeiro === 'importar') return <ImportarAlunos />
   if (segundo === 'editar') return <FormularioDoAluno alunoId={primeiro} />
   return <FichaDoAluno alunoId={primeiro ?? ''} />
 }

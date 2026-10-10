@@ -83,14 +83,37 @@ export function ListaDeAlunos() {
         </div>
       </div>
 
-      {pode('editar-alunos') && (
-        <Botao variante="primario" icone="adicionar" largo onClick={() => abrir('novo')}>
-          Novo aluno
-        </Botao>
+      {pode('editar-alunos') && todos.length > 0 && (
+        <div class="linha-acoes">
+          <Botao variante="primario" icone="adicionar" onClick={() => abrir('novo')}>
+            Novo aluno
+          </Botao>
+          <Botao variante="secundario" icone="planilha" onClick={() => abrir('importar')}>
+            Importar
+          </Botao>
+        </div>
       )}
 
       {carregando ? (
         <EsqueletoDeLista itens={6} altura={64} />
+      ) : todos.length === 0 && !buscaDeAlunos.value ? (
+        // estúdio sem nenhum aluno: o caminho mais curto é a planilha
+        <EstadoVazio
+          icone="alunos"
+          rotulo="Nenhum aluno ainda"
+          texto={pode('editar-alunos') ? 'Cole a lista da planilha de uma vez, ou cadastre um a um.' : 'A administração ainda não cadastrou os alunos.'}
+        >
+          {pode('editar-alunos') && (
+            <>
+              <Botao variante="primario" icone="planilha" onClick={() => abrir('importar')}>
+                Importar de uma planilha
+              </Botao>
+              <Botao variante="secundario" icone="adicionar" onClick={() => abrir('novo')}>
+                Cadastrar um aluno
+              </Botao>
+            </>
+          )}
+        </EstadoVazio>
       ) : lista.length === 0 ? (
         <EstadoVazio
           icone="alunos"

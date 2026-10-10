@@ -573,3 +573,23 @@
   color: var(--text);
   overflow-wrap: anywhere;
 }
+
+/* ---------- importar de uma planilha ---------- */
+
+/* o campo de arquivo, transparente, cobre o botão: o toque (e o leitor de tela) caem nele */
+.botao-arquivo {
+  position: relative;
+}
+.botao-arquivo input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+.botao-arquivo:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

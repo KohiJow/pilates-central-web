@@ -136,6 +136,30 @@ test.describe('acessibilidade para uso com uma mão', () => {
     await auditar(page, 'folha de pagamento')
   })
 
+  test('alvos, texto e contraste na importação de planilha (prévia com erros e correção)', async ({ page }) => {
+    test.setTimeout(90_000)
+    await entrarComoAdministracao(page)
+    await irPara(page, '#/alunos/importar')
+    await page.getByRole('button', { name: 'Como escrever cada coluna' }).click()
+    await auditar(page, 'importar alunos')
+    await page.getByLabel('Cole aqui as linhas da planilha').fill('Nome;WhatsApp;Turmas\nAna Lima;119;dom 10h\nBia Rosa;(11) 90000-0061;sáb 9h')
+    await page.getByRole('button', { name: 'Conferir' }).click()
+    await expect(page.locator('[data-linha]')).toHaveCount(2)
+    await auditar(page, 'prévia da importação')
+    for (const esquema of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: esquema })
+      await medirContraste(page, `prévia da importação, ${esquema}`)
+    }
+    await page.locator('[data-linha="1"]').click()
+    await esperarFolhaParada(page)
+    await auditar(page, 'folha de correção')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await esperarParado(page, '.tela-quadro')
+    await irPara(page, '#/alunos/turmas/importar')
+    await auditar(page, 'importar turmas')
+  })
+
   test('alvos e texto nas telas do professor', async ({ page }) => {
     await entrarComoProfessor(page, 'Camila Nunes')
     for (const tela of ['#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/mais']) {

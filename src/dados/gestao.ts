@@ -21,8 +21,8 @@ import { novoPagamento, validarPagamento } from '../dominio/pagamentos'
 import type { RascunhoPagamento } from '../dominio/pagamentos'
 import { aceito, recusado, semErros } from '../dominio/resultado'
 import type { ErrosDeCampo, Resultado } from '../dominio/resultado'
-import { normalizarTelefone } from '../dominio/texto'
-import type { AcaoAuditada, Aluno, Configuracao, Id, MembroEquipe, Pagamento, Papel, RegistroDeAuditoria, SituacaoAluno, Turma, Unidade } from '../dominio/tipos'
+import { normalizarTelefone, plural } from '../dominio/texto'
+import type { AcaoAuditada, Aluno, Configuracao, FinanceiroDoAluno, Id, MembroEquipe, Pagamento, Papel, RegistroDeAuditoria, SituacaoAluno, Turma, Unidade } from '../dominio/tipos'
 import { colocarNaTurma, editarTurma, encerrarTurma, lugaresReservados, novaTurma, tirarDaTurma, validarTurma } from '../dominio/turmas'
 import type { RascunhoTurma } from '../dominio/turmas'
 import { desativarUnidade, montarUnidade, validarUnidade } from '../dominio/unidades'
@@ -196,6 +196,86 @@ export async function salvarTurma(r: RascunhoTurma, turmaId?: Id): Promise<Resul
   const turma = atual ? editarTurma(atual, r) : novaTurma(r, idNovo('t'), hoje.peek())
   const g = await gravarComDesfazer({ turmas: [turma] })
   return g.ok ? aceito({ turma }) : g
+}
+
+/**
+ * Cria várias turmas de uma vez (a grade do primeiro uso, copiar um dia para outro, a planilha
+ * de turmas): cada uma é conferida contra as que já existem e as que vêm antes na lista, e o que
+ * passa vai numa gravação só. Devolve as criadas e o motivo de cada recusa.
+ */
+export async function criarTurmasEmLote(rascunhos: readonly RascunhoTurma[]): Promise<Resultado<{ criadas: Turma[]; recusadas: { rascunho: RascunhoTurma; motivo: string }[] }>> {
+  const b = base.peek()
+  if (!b) return recusado('nada-a-fazer', 'Os dados ainda não carregaram.')
+  const todas = [...b.turmas]
+  const criadas: Turma[] = []
+  const recusadas: { rascunho: RascunhoTurma; motivo: string }[] = []
+  for (const r of rascunhos) {
+    const erros = validarTurma(r, { turmas: todas, equipe: b.equipe, unidades: b.unidades })
+    if (!semErros(erros)) {
+      recusadas.push({ rascunho: r, motivo: primeiroErro(erros) })
+      continue
+    }
+    const t = novaTurma(r, idNovo('t'), hoje.peek())
+    criadas.push(t)
+    todas.push(t)
+  }
+  if (criadas.length === 0) return aceito({ criadas, recusadas })
+  const g = await gravarComDesfazer({ turmas: criadas })
+  return g.ok ? aceito({ criadas, recusadas }) : g
+}
+
+/** Grava as turmas que a planilha trouxe (já conferidas em conferirTurmas). */
+export async function importarTurmas(turmas: readonly Turma[]): Promise<Resultado<{ quantas: number }>> {
+  if (turmas.length === 0) return aceito({ quantas: 0 })
+  const g = await gravarComDesfazer({ turmas: [...turmas] })
+  return g.ok ? aceito({ quantas: turmas.length }) : g
+}
+
+/**
+ * Grava os alunos da planilha (já conferidos em conferirImportacao) em lotes: cadastros, o
+ * financeiro de quem tem mensalidade e as turmas com os fixos novos. Para no primeiro lote que
+ * falhar e diz quantos entraram.
+ */
+export async function importarAlunos(lotes: readonly { alunos: Aluno[]; financeiro: FinanceiroDoAluno[]; turmas: Turma[] }[]): Promise<Resultado<{ importados: Id[] }>> {
+  const importados: Id[] = []
+  for (const lote of lotes) {
+    const g = await gravarComDesfazer({ alunos: lote.alunos, financeiro: lote.financeiro, turmas: lote.turmas })
+    if (!g.ok) {
+      if (importados.length === 0) return g
+      return recusado(g.codigo, `${plural(importados.length, 'aluno entrou', 'alunos entraram')} antes de a gravação falhar: ${g.mensagem}`)
+    }
+    importados.push(...lote.alunos.map((a) => a.id))
+  }
+  return aceito({ importados })
+}
+
+/**
+ * Desfaz uma importação logo depois dela (coluna trocada, planilha errada): os cadastros que
+ * entraram saem, com a mensalidade, e as turmas ficam sem eles. Só quem ainda não tem presença,
+ * reposição nem pagamento: quem já tem história fica, e a resposta diz quantos.
+ */
+export async function desfazerImportacao(ids: readonly Id[]): Promise<Resultado<{ tirados: number; ficaram: number }>> {
+  const b = base.peek()
+  if (!b) return recusado('nada-a-fazer', 'Os dados ainda não carregaram.')
+  const comHistoria = new Set<Id>()
+  for (const r of registros.peek().values()) {
+    for (const id of [...Object.keys(r.marcacoes), ...Object.keys(r.reposicoes)]) comHistoria.add(id)
+  }
+  for (const c of creditos.peek().values()) comHistoria.add(c.alunoId)
+  for (const p of pagamentos.peek().values()) comHistoria.add(p.alunoId)
+  const existentes = new Set(b.alunos.map((a) => a.id))
+  const tirar = ids.filter((id) => existentes.has(id) && !comHistoria.has(id))
+  if (tirar.length === 0) return aceito({ tirados: 0, ficaram: ids.length })
+  const saem = new Set(tirar)
+  const turmasMudadas = b.turmas
+    .filter((t) => t.alunosFixos.some((id) => saem.has(id)))
+    .map((t) => {
+      const fixosDesde = { ...t.fixosDesde }
+      for (const id of tirar) delete fixosDesde[id]
+      return { ...t, alunosFixos: t.alunosFixos.filter((id) => !saem.has(id)), fixosDesde }
+    })
+  const g = await gravarComDesfazer({ alunosRemovidos: tirar, financeiroRemovido: tirar, turmas: turmasMudadas })
+  return g.ok ? aceito({ tirados: tirar.length, ficaram: ids.length - tirar.length }) : g
 }
 
 export async function encerrarTurmaAcao(turmaId: Id): Promise<Resultado<ComDesfazer>> {
