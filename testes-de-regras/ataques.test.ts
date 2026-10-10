@@ -522,6 +522,50 @@ describe('o que o aluno faz de verdade continua passando', () => {
   })
 })
 
+describe('registro de alterações: a administração anota, ninguém muda', () => {
+  const linha = (porId: string, extra: Record<string, unknown> = {}) => ({
+    id: 'au-1',
+    acao: 'pagamento-lancado',
+    porId,
+    alvoId: 'a-1',
+    detalhe: 'R$ 280,00, outubro de 2026',
+    em: instante,
+    ...extra,
+  })
+
+  it('a administração grava a própria linha e lê; o professor e o aluno nem leem', async () => {
+    await assertSucceeds(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm')))
+    await assertSucceeds(setDoc(doc(como('titular'), 'auditoria/au-2'), { ...linha('e-titular'), id: 'au-2', acao: 'aluno-excluido', detalhe: '' }))
+    await assertSucceeds(getDoc(doc(como('adm'), 'auditoria/au-1')))
+    await assertSucceeds(getDocs(collection(como('titular'), 'auditoria')))
+    await assertFails(getDoc(doc(como('prof'), 'auditoria/au-1')))
+    await assertFails(getDocs(collection(como('prof'), 'auditoria')))
+    await assertFails(getDoc(doc(como('aluno'), 'auditoria/au-1')))
+    await assertFails(getDoc(doc(como('anonimo'), 'auditoria/au-1')))
+  })
+
+  it('ninguém assina pelo outro, e o professor não grava', async () => {
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-titular')))
+    await assertFails(setDoc(doc(como('prof'), 'auditoria/au-1'), linha('e-prof')))
+    await assertFails(setDoc(doc(como('aluno'), 'auditoria/au-1'), linha('e-adm')))
+  })
+
+  it('a linha gravada não muda nem some, nem pela administração', async () => {
+    await assertSucceeds(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm')))
+    await assertFails(updateDoc(doc(como('adm'), 'auditoria/au-1'), { detalhe: 'outro' }))
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm', { em: '2026-10-10T12:00:00.000Z' })))
+    await assertFails(deleteDoc(doc(como('adm'), 'auditoria/au-1')))
+    await assertFails(deleteDoc(doc(como('titular'), 'auditoria/au-1')))
+  })
+
+  it('ação fora da lista, campo a mais, nome no detalhe comprido demais: recusados', async () => {
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm', { acao: 'olhou' })))
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm', { nome: 'Ana' })))
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm', { detalhe: 'x'.repeat(121) })))
+    await assertFails(setDoc(doc(como('adm'), 'auditoria/au-1'), linha('e-adm', { id: 'outro' })))
+  })
+})
+
 describe('listas gravadas pela equipe: cada item conferido', () => {
   const horario = (dia: string, n = 1) => `${dia} ${DEPOIS.inicio}-${DEPOIS.fim} u-centro ${n}`
 

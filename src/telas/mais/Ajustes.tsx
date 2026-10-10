@@ -159,6 +159,7 @@ export function Ajustes() {
                 ['regras', 'Regras de reposição', textoDasRegras(config), 'regras'],
                 ['grade', 'Unidades', plural(unidades.value.length, 'unidade aberta', 'unidades abertas'), 'unidades'],
                 ['alunos', 'Equipe', resumoDaEquipe(), 'equipe'],
+                ['info', 'Registro de alterações', 'Quem lançou, apagou, excluiu ou mudou acesso, e quando', 'alteracoes'],
               ] as [NomeDoIcone, string, string, string][]
             ).map(([icone, titulo, sub, caminho], i) => (
               <li key={caminho} style={{ '--i': i } as JSX.CSSProperties}>

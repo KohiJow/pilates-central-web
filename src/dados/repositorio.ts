@@ -10,6 +10,7 @@ import type {
   MembroEquipe,
   Pagamento,
   RegistroAula,
+  RegistroDeAuditoria,
   Turma,
   Unidade,
 } from '../dominio/tipos'
@@ -45,6 +46,8 @@ export interface Gravacao extends Partial<Alteracoes> {
   unidades?: Unidade[]
   equipe?: MembroEquipe[]
   configuracao?: Configuracao
+  /** o que fica anotado no registro de alterações (quem fez o quê), junto com a mudança */
+  auditoria?: RegistroDeAuditoria[]
 }
 
 /**
@@ -61,6 +64,8 @@ export interface Repositorio {
   financeiro(): Promise<FinanceiroDoAluno[]>
   pagamentos(competencias: Competencia[]): Promise<Pagamento[]>
   salvar(gravacao: Gravacao): Promise<void>
+  /** as últimas linhas do registro de alterações (só a administração pede) */
+  auditoria(limite: number): Promise<RegistroDeAuditoria[]>
   /** depois de abrir: no Firebase, confere as cópias do aluno e da página pública */
   depoisDeCarregar?(): Promise<void>
 }

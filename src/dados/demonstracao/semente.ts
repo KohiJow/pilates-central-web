@@ -34,6 +34,7 @@ import type {
   MembroEquipe,
   Pagamento,
   RegistroAula,
+  RegistroDeAuditoria,
   Turma,
   Unidade,
 } from '../../dominio/tipos'
@@ -54,6 +55,8 @@ export interface BancoDeDemonstracao {
   creditos: Record<Id, CreditoReposicao>
   financeiro: Record<Id, FinanceiroDoAluno>
   pagamentos: Record<Id, Pagamento>
+  /** registro de alterações (pode faltar num banco guardado antes dele existir) */
+  auditoria?: Record<Id, RegistroDeAuditoria>
 }
 
 const CONFIGURACAO: Configuracao = {
@@ -519,6 +522,7 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
     creditos: Object.fromEntries(m.creditos),
     financeiro: criarFinanceiro(alunos, formas),
     pagamentos: gerarPagamentos(alunos, criarFinanceiro(alunos, formas), hoje, aleatorio),
+    auditoria: {},
   }
 }
 

@@ -1,7 +1,9 @@
 // Ações de cadastro e lançamento da administração. Cada uma confere a regra do domínio, grava
 // tudo de uma vez e, quando faz sentido, devolve como desfazer (calculado na hora de desfazer).
+import { membro as quemEstaAgindo } from '../app/perfil'
 import { agoraDoApp, hoje } from '../app/relogio'
 import { montarAluno, montarFinanceiro, mudarSituacao, validarAluno, validarPlano } from '../dominio/alunos'
+import { detalheDoPagamento, detalheDoPapel, registroDeAuditoria } from '../dominio/auditoria'
 import type { RascunhoAluno, RascunhoPlano } from '../dominio/alunos'
 import { validarConfiguracao } from '../dominio/configuracao'
 import {
@@ -18,7 +20,7 @@ import type { RascunhoPagamento } from '../dominio/pagamentos'
 import { aceito, recusado, semErros } from '../dominio/resultado'
 import type { ErrosDeCampo, Resultado } from '../dominio/resultado'
 import { normalizarTelefone } from '../dominio/texto'
-import type { Aluno, Configuracao, Id, MembroEquipe, Pagamento, Papel, SituacaoAluno, Turma, Unidade } from '../dominio/tipos'
+import type { AcaoAuditada, Aluno, Configuracao, Id, MembroEquipe, Pagamento, Papel, RegistroDeAuditoria, SituacaoAluno, Turma, Unidade } from '../dominio/tipos'
 import { colocarNaTurma, editarTurma, encerrarTurma, lugaresReservados, novaTurma, tirarDaTurma, validarTurma } from '../dominio/turmas'
 import type { RascunhoTurma } from '../dominio/turmas'
 import { desativarUnidade, montarUnidade, validarUnidade } from '../dominio/unidades'
@@ -40,6 +42,11 @@ export function idNovo(prefixo: string): string {
 
 function primeiroErro(erros: ErrosDeCampo): string {
   return Object.values(erros)[0] ?? 'Confira os dados.'
+}
+
+/** Uma linha do registro de alterações, feita por quem está agindo agora. */
+function anotar(acao: AcaoAuditada, alvoId: Id, detalhe = '', porId = quemEstaAgindo.peek()?.id ?? ''): RegistroDeAuditoria {
+  return registroDeAuditoria(idNovo('au'), acao, porId, alvoId, agoraDoApp().toISOString(), detalhe)
 }
 
 const turmas = () => base.peek()?.turmas ?? []
@@ -108,13 +115,19 @@ export async function liberarAcessoDoAluno(alunoId: Id, ator: MembroEquipe): Pro
   if (!ehEmailValido(aluno.email)) return recusado('dados-invalidos', 'Cadastre o e-mail do aluno antes: é por ele que o aluno entra.')
   if (aluno.situacao === 'inativo') return recusado('nada-a-fazer', 'Aluno arquivado não tem acesso ao app.')
   if (aluno.acesso) return recusado('nada-a-fazer', 'O acesso já está liberado.')
-  return gravarComDesfazer({ alunos: [{ ...aluno, acesso: { convidadoEm: agoraDoApp().toISOString(), porId: ator.id } }] }, () => {
-    const agora = alunosPorId.peek().get(alunoId)
-    if (!agora) return null
-    const semAcesso = { ...agora }
-    delete semAcesso.acesso
-    return { alunos: [semAcesso] }
-  })
+  return gravarComDesfazer(
+    {
+      alunos: [{ ...aluno, acesso: { convidadoEm: agoraDoApp().toISOString(), porId: ator.id } }],
+      auditoria: [anotar('acesso-do-aluno-liberado', alunoId, '', ator.id)],
+    },
+    () => {
+      const agora = alunosPorId.peek().get(alunoId)
+      if (!agora) return null
+      const semAcesso = { ...agora }
+      delete semAcesso.acesso
+      return { alunos: [semAcesso], auditoria: [anotar('acesso-do-aluno-tirado', alunoId, '', ator.id)] }
+    },
+  )
 }
 
 export async function tirarAcessoDoAluno(alunoId: Id): Promise<Resultado<ComDesfazer>> {
@@ -122,7 +135,7 @@ export async function tirarAcessoDoAluno(alunoId: Id): Promise<Resultado<ComDesf
   if (!aluno?.acesso) return recusado('nada-a-fazer', 'O acesso já está desligado.')
   const semAcesso = { ...aluno }
   delete semAcesso.acesso
-  return gravarComDesfazer({ alunos: [semAcesso] })
+  return gravarComDesfazer({ alunos: [semAcesso], auditoria: [anotar('acesso-do-aluno-tirado', alunoId)] })
 }
 
 /**
@@ -146,6 +159,7 @@ export async function excluirAluno(alunoId: Id): Promise<Resultado<ComDesfazer>>
     turmas: e.turmas,
     registros: e.registros,
     creditosRemovidos: e.creditosRemovidos,
+    auditoria: [anotar('aluno-excluido', alunoId)],
   })
 }
 
@@ -227,14 +241,22 @@ export async function lancarPagamento(
   if (!semErros(erros)) return recusado('dados-invalidos', primeiroErro(erros))
   const pagamento = novoPagamento(r, aluno, idNovo('pg'), autorId)
   if (!pagamento) return recusado('dados-invalidos', 'Confira o valor e a forma.')
-  const g = await gravarComDesfazer({ pagamentos: [pagamento] }, () => ({ pagamentosRemovidos: [pagamento.id] }))
+  const detalhe = detalheDoPagamento(pagamento.valor, pagamento.competencia)
+  const g = await gravarComDesfazer({ pagamentos: [pagamento], auditoria: [anotar('pagamento-lancado', alunoId, detalhe, autorId)] }, () => ({
+    pagamentosRemovidos: [pagamento.id],
+    auditoria: [anotar('pagamento-apagado', alunoId, detalhe, autorId)],
+  }))
   return g.ok ? aceito({ ...g.valor, pagamento }) : g
 }
 
 export async function apagarPagamento(id: Id): Promise<Resultado<ComDesfazer>> {
   const p = pagamentos.peek().get(id)
   if (!p) return recusado('nada-a-fazer', 'Lançamento não encontrado.')
-  return gravarComDesfazer({ pagamentosRemovidos: [id] }, () => ({ pagamentos: [p] }))
+  const detalhe = detalheDoPagamento(p.valor, p.competencia)
+  return gravarComDesfazer({ pagamentosRemovidos: [id], auditoria: [anotar('pagamento-apagado', p.alunoId, detalhe)] }, () => ({
+    pagamentos: [p],
+    auditoria: [anotar('pagamento-lancado', p.alunoId, detalhe)],
+  }))
 }
 
 // ---------- configuração e unidades ----------
@@ -297,9 +319,9 @@ export async function mudarPapelDoMembro(ator: MembroEquipe, alvoId: Id, novo: E
   const r = mudarPapel(ator, alvo, novo)
   if (!r.ok) return r
   const anterior = alvo.papel
-  return gravarComDesfazer({ equipe: [r.valor] }, () => {
+  return gravarComDesfazer({ equipe: [r.valor], auditoria: [anotar('papel-mudado', alvoId, detalheDoPapel(novo), ator.id)] }, () => {
     const agora = membro(alvoId)
-    return agora ? { equipe: [{ ...agora, papel: anterior }] } : null
+    return agora ? { equipe: [{ ...agora, papel: anterior }], auditoria: [anotar('papel-mudado', alvoId, detalheDoPapel(anterior), ator.id)] } : null
   })
 }
 
@@ -308,9 +330,10 @@ export async function mudarAcessoDoMembro(ator: MembroEquipe, alvoId: Id, ativo:
   if (!alvo) return recusado('nada-a-fazer', 'Pessoa não encontrada.')
   const r = ativo ? reativarMembro(ator, alvo) : desativarMembro(ator, alvo, turmas())
   if (!r.ok) return r
-  return gravarComDesfazer({ equipe: [r.valor] }, () => {
+  const acao = (ligado: boolean): AcaoAuditada => (ligado ? 'acesso-da-equipe-religado' : 'acesso-da-equipe-desligado')
+  return gravarComDesfazer({ equipe: [r.valor], auditoria: [anotar(acao(ativo), alvoId, '', ator.id)] }, () => {
     const agora = membro(alvoId)
-    return agora ? { equipe: [{ ...agora, ativo: !ativo }] } : null
+    return agora ? { equipe: [{ ...agora, ativo: !ativo }], auditoria: [anotar(acao(!ativo), alvoId, '', ator.id)] } : null
   })
 }
 
@@ -320,5 +343,5 @@ export async function passarAConta(ator: MembroEquipe, alvoId: Id): Promise<Resu
   const r = transferirTitularidade(ator, alvo)
   if (!r.ok) return r
   // sem desfazer: depois da troca, quem fez já não é titular para destrocar
-  return gravarComDesfazer({ equipe: r.valor })
+  return gravarComDesfazer({ equipe: r.valor, auditoria: [anotar('conta-passada', alvoId, '', ator.id)] })
 }

@@ -14,6 +14,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   runTransaction,
   setDoc,
@@ -44,6 +46,7 @@ import type {
   Pagamento,
   PortalDoAluno,
   RegistroAula,
+  RegistroDeAuditoria,
   Turma,
   Unidade,
   VagaDaAula,
@@ -162,6 +165,11 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
     return r.docs.map((d) => d.data() as FinanceiroDoAluno)
   }
 
+  async function lerAuditoria(maximo: number): Promise<RegistroDeAuditoria[]> {
+    const r = await getDocs(query(collection(db, 'auditoria'), orderBy('em', 'desc'), limit(maximo)))
+    return r.docs.map((d) => d.data() as RegistroDeAuditoria)
+  }
+
   async function lerPagamentos(competencias: Competencia[]): Promise<Pagamento[]> {
     const partes = await Promise.all(
       // o "in" do Firestore aceita até 30 valores
@@ -263,6 +271,8 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
     for (const id of g.creditosRemovidos ?? []) tx.delete(doc(db, 'creditos', id))
     for (const p of g.pagamentos ?? []) tx.set(doc(db, 'pagamentos', p.id), semIndefinidos(p))
     for (const id of g.pagamentosRemovidos ?? []) tx.delete(doc(db, 'pagamentos', id))
+    // o registro de alterações nunca muda: só entra
+    for (const r of g.auditoria ?? []) tx.set(doc(db, 'auditoria', r.id), semIndefinidos(r))
   }
 
   /**
@@ -291,14 +301,15 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
     const portaisDepois = souAdministracao() ? portaisDosAlunos(estadoDe(depois, regDepois), instante) : new Map<Id, PortalDoAluno>()
 
     // quem pediu a exclusão (LGPD) perde também o documento que liga a conta dele ao cadastro (tem
-    // o e-mail); a consulta fica fora da transação, que só lê documentos pelo endereço
+    // o e-mail), e os pagamentos dele ficam só com o código, sem a observação; as consultas ficam
+    // fora da transação, que só lê documentos pelo endereço
+    const excluidos = g.alunosRemovidos ?? []
     const acessosDosExcluidos = (
-      await Promise.all(
-        (g.alunosRemovidos ?? []).map((id) =>
-          getDocs(query(collection(db, 'acessos'), where('tipo', '==', 'aluno'), where('pessoaId', '==', id))),
-        ),
-      )
+      await Promise.all(excluidos.map((id) => getDocs(query(collection(db, 'acessos'), where('tipo', '==', 'aluno'), where('pessoaId', '==', id)))))
     ).flatMap((r) => r.docs.map((d) => d.ref))
+    const pagamentosDosExcluidos = (
+      await Promise.all(excluidos.map((id) => getDocs(query(collection(db, 'pagamentos'), where('alunoId', '==', id)))))
+    ).flatMap((r) => r.docs.filter((d) => (d.data() as Pagamento).observacao).map((d) => d.ref))
 
     const gravados = await runTransaction(db, async (tx) => {
       // leituras primeiro (regra das transações): registros tocados e vagas a recalcular
@@ -325,6 +336,7 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
 
       gravarCadastros(tx, antes, g, instante)
       for (const ref of acessosDosExcluidos) tx.delete(ref)
+      for (const ref of pagamentosDosExcluidos) tx.update(ref, { observacao: '' })
       for (const m of mesclados) tx.set(doc(db, 'registros', m.id), semIndefinidos(m))
       for (const id of afetadas) {
         const noBanco = vagasNoBanco.get(id)
@@ -415,6 +427,7 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
     creditos: lerCreditos,
     financeiro: lerFinanceiro,
     pagamentos: lerPagamentos,
+    auditoria: lerAuditoria,
     salvar: (g) => gravar(g),
     depoisDeCarregar,
   }

@@ -165,6 +165,34 @@ export interface Pagamento {
   registradoPorId?: Id
 }
 
+/** O que fica anotado no registro de alterações (quem fez o quê, e quando). */
+export type AcaoAuditada =
+  | 'pagamento-lancado'
+  | 'pagamento-apagado'
+  | 'aluno-excluido'
+  | 'acesso-do-aluno-liberado'
+  | 'acesso-do-aluno-tirado'
+  | 'papel-mudado'
+  | 'acesso-da-equipe-desligado'
+  | 'acesso-da-equipe-religado'
+  | 'conta-passada'
+
+/**
+ * Uma linha do registro de alterações, só com códigos (nenhum nome, telefone ou e-mail): quem
+ * fez, o quê, com quem e quando. Nunca é editada nem apagada; só a administração lê.
+ */
+export interface RegistroDeAuditoria {
+  id: Id
+  acao: AcaoAuditada
+  /** quem fez (id na equipe) */
+  porId: Id
+  /** o cadastro tocado (aluno, membro ou lançamento), só o código */
+  alvoId: Id
+  /** complemento curto sem dado pessoal: valor e mês de um pagamento, o papel novo */
+  detalhe: string
+  em: Instante
+}
+
 export interface Configuracao {
   nomeEstudio: string
   /** só dígitos, com DDI: 55 + DDD + número */

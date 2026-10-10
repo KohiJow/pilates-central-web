@@ -1,5 +1,6 @@
+import { ordenarAuditoria } from '../../dominio/auditoria'
 import { completarConfiguracao } from '../../dominio/configuracao'
-import type { Competencia } from '../../dominio/tipos'
+import type { Competencia, RegistroDeAuditoria } from '../../dominio/tipos'
 import { mesclarBase } from '../mesclar'
 import type { Gravacao, Intervalo, RepositorioDeDemonstracao } from '../repositorio'
 import { gerarSemente, VERSAO_DO_BANCO } from './semente'
@@ -117,6 +118,7 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
     async salvar(g: Gravacao) {
       const atual = obter()
       // monta o próximo estado inteiro antes de trocar: ou tudo entra, ou nada
+      const auditoria = { ...atual.auditoria }
       const proximo: BancoDeDemonstracao = {
         ...atual,
         base: mesclarBase(atual.base, copia(g)),
@@ -124,6 +126,7 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
         creditos: { ...atual.creditos },
         financeiro: { ...atual.financeiro },
         pagamentos: { ...atual.pagamentos },
+        auditoria,
       }
       for (const f of g.financeiro ?? []) proximo.financeiro[f.alunoId] = copia(f)
       for (const id of g.financeiroRemovido ?? []) delete proximo.financeiro[id]
@@ -132,8 +135,18 @@ export function criarRepositorioDeDemonstracao(opcoes: OpcoesDaDemonstracao): Re
       for (const c of g.creditos ?? []) proximo.creditos[c.id] = copia(c)
       for (const id of g.pagamentosRemovidos ?? []) delete proximo.pagamentos[id]
       for (const p of g.pagamentos ?? []) proximo.pagamentos[p.id] = copia(p)
+      // aluno excluído (LGPD): os pagamentos ficam só com o código, sem a observação
+      for (const id of g.alunosRemovidos ?? []) {
+        for (const p of Object.values(proximo.pagamentos)) if (p.alunoId === id && p.observacao) proximo.pagamentos[p.id] = { ...p, observacao: '' }
+      }
+      for (const r of g.auditoria ?? []) auditoria[r.id] = copia(r)
       banco = proximo
       gravar(proximo)
+    },
+
+    async auditoria(limite: number): Promise<RegistroDeAuditoria[]> {
+      await esperar()
+      return copia(ordenarAuditoria(Object.values(obter().auditoria ?? {})).slice(0, limite))
     },
 
     async recomecar() {

@@ -113,6 +113,7 @@ test.describe('acessibilidade para uso com uma mão', () => {
       '#/mais/equipe',
       '#/mais/equipe/e-marcos',
       '#/mais/equipe/convidar',
+      '#/mais/alteracoes',
     ]
     for (const tela of telas) {
       await irPara(page, tela)

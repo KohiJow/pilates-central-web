@@ -44,6 +44,11 @@ export function AvisoDePrivacidade() {
               <strong>A conta de acesso:</strong> e-mail e senha ficam com o serviço de login do Firebase (Google). O estúdio não vê a sua
               senha.
             </li>
+            <li>
+              <strong>Registro de alterações:</strong> quando alguém da administração lança ou apaga um pagamento, exclui um cadastro,
+              muda um acesso ou passa a conta, fica anotado quem fez e quando, só com códigos (sem nome, telefone ou e-mail). Só a
+              administração vê, e ninguém edita.
+            </li>
           </ul>
         </section>
 
@@ -83,7 +88,13 @@ export function AvisoDePrivacidade() {
           </p>
           <p>
             No seu celular, o app guarda só preferências (como o tema claro ou escuro), a sessão de login, para não pedir a senha toda
-            vez (sai quando você toca em Sair), e, no modo demonstração, dados fictícios que nunca saem do aparelho.
+            vez (sai quando você toca em Sair; com "Lembrar neste aparelho" desligado, some ao fechar o navegador), e, no modo
+            demonstração, dados fictícios que nunca saem do aparelho. A página de aula experimental guarda na aba, por dez minutos, os
+            horários que leu, para não pedir de novo a cada abertura.
+          </p>
+          <p>
+            Para o site só atender pedidos vindos dele mesmo, o estúdio pode ligar o App Check do Firebase, que usa o reCAPTCHA do Google
+            de forma invisível; quando ligado, a frase do reCAPTCHA aparece no rodapé do login e da página de aula experimental.
           </p>
         </section>
 
@@ -99,6 +110,11 @@ export function AvisoDePrivacidade() {
           <p>
             Basta pedir ao estúdio. A administração exporta os seus dados ou exclui o cadastro direto pelo app, na sua ficha. Se você
             tem conta no app, o estúdio apaga também a conta de login.
+          </p>
+          <p>
+            O que fica depois da exclusão: as presenças antigas e os pagamentos, só com um código no lugar do seu nome (sem telefone,
+            e-mail nem observações), porque o caixa do estúdio precisa fechar; e a linha do registro de alterações que anota a própria
+            exclusão, também só com o código.
           </p>
         </section>
 

@@ -119,3 +119,31 @@ describe('repositório de demonstração', () => {
     expect(arm.dados.get(CHAVE_DO_BANCO)).toBe(antes)
   })
 })
+
+describe('registro de alterações na demonstração', () => {
+  it('guarda as linhas junto com a gravação e devolve as mais recentes primeiro', async () => {
+    const arm = memoria()
+    const repo = criarRepositorioDeDemonstracao({ armazenamento: arm, agora })
+    await repo.carregarBase()
+    expect(await repo.auditoria(10)).toEqual([])
+    const linha = (id: string, em: string) => ({ id, acao: 'pagamento-lancado' as const, porId: 'e-helena', alvoId: 'a-10', detalhe: 'R$ 1,00', em })
+    await repo.salvar({ auditoria: [linha('au-1', '2026-10-08T10:00:00.000Z')] })
+    await repo.salvar({ auditoria: [linha('au-2', '2026-10-09T10:00:00.000Z')] })
+    const outro = criarRepositorioDeDemonstracao({ armazenamento: arm, agora })
+    expect((await outro.auditoria(10)).map((r) => r.id)).toEqual(['au-2', 'au-1'])
+    expect((await outro.auditoria(1)).map((r) => r.id)).toEqual(['au-2'])
+  })
+
+  it('excluir o aluno apaga a observação dos pagamentos dele; o código fica', async () => {
+    const repo = criarRepositorioDeDemonstracao({ armazenamento: memoria(), agora })
+    await repo.carregarBase()
+    const [p] = await repo.pagamentos(['2026-10'])
+    if (!p) throw new Error('esperava pagamento')
+    await repo.salvar({ pagamentos: [{ ...p, observacao: 'pagou com o cartão da mãe' }] })
+    await repo.salvar({ alunosRemovidos: [p.alunoId] })
+    const depois = (await repo.pagamentos(['2026-10'])).find((x) => x.id === p.id)
+    expect(depois?.alunoId).toBe(p.alunoId)
+    expect(depois?.observacao).toBe('')
+    expect((await repo.carregarBase()).alunos.some((a) => a.id === p.alunoId)).toBe(false)
+  })
+})

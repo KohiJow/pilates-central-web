@@ -936,8 +936,37 @@ service cloud.firestore {
         && !s.avisouDepois;
     }
 
+    // ---------- registro de alterações ----------
+
+    // Quem fez o quê, só com códigos (nenhum nome, telefone ou e-mail). A administração grava
+    // junto com a mudança e lê; ninguém edita nem apaga, nem a própria administração.
+    function auditoriaValida(q, id, r) {
+      return r.keys().hasAll(['id', 'acao', 'porId', 'alvoId', 'detalhe', 'em'])
+        && r.keys().hasOnly(['id', 'acao', 'porId', 'alvoId', 'detalhe', 'em'])
+        && r.id == id
+        && r.acao in ['pagamento-lancado', 'pagamento-apagado', 'aluno-excluido', 'acesso-do-aluno-liberado',
+          'acesso-do-aluno-tirado', 'papel-mudado', 'acesso-da-equipe-desligado', 'acesso-da-equipe-religado', 'conta-passada']
+        && r.porId == q.id
+        && ehId(r.alvoId)
+        && texto(r.detalhe, 0, 120)
+        && ehInstante(r.em);
+    }
+
+    match /auditoria/{registroId} {
+      allow read: if adm(quemSou());
+      allow create: if criarAuditoria(quemSou(), registroId);
+      allow update, delete: if false;
+    }
+
+    function criarAuditoria(q, registroId) {
+      return adm(q) && ehId(registroId) && auditoriaValida(q, registroId, request.resource.data);
+    }
+
     // ---------- portal do aluno ----------
 
+    // as turmas do portal são mapas (dia, horário, desde): só o tamanho da lista é conferido,
+    // porque conferir mapa a mapa custa mais do que o teto de expressões permite; quem grava é
+    // só a administração e o app do aluno confere cada turma ao ler
     function portalValido(id, p) {
       return p.keys().hasAll(['alunoId', 'nome', 'unidadeId', 'turmas', 'atualizadoEm'])
         && p.keys().hasOnly(['alunoId', 'nome', 'unidadeId', 'turmas', 'atualizadoEm'])
