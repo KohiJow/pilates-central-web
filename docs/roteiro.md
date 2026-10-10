@@ -276,6 +276,7 @@ não foi tocado.
 - [x] O teste da versão nova trocava o `sw.js` por rota do Playwright, que não alcança a busca do script do service worker (nenhum dos dois motores): o teste sobe um servidor próprio de `dist/` que passa a entregar outra versão (`servidorDoDist` em `e2e/apoio.ts`, o mesmo do teste sem servidor)
 - [x] No WebKit, pedido que passa pelo service worker também não é alcançado pela rota: os testes que simulam a resposta do Firebase rodam com o service worker bloqueado (`serviceWorkers: 'block'`), e só o teste do cache o liga
 - [x] `trustedTypes.getPolicyNames()` não existe nos motores; o teste confere `defaultPolicy.name`. O teste de senha procurava "Professor Senha" no título do Hoje, que cumprimenta pelo primeiro nome
+- [x] `irPara` (ir pelo endereço nos testes) logo depois de uma folha fechar perdia a navegação: a folha tira a própria entrada do histórico com `history.back()`, que é assíncrono, e o back desfazia a entrada nova. Só apareceu no WebKit do CI (mais lento), no teste da administração com os emuladores; o ajudante agora espera o histórico ficar sem a folha
 
 ### Ficou para depois
 - [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console); sem Cloud Functions não há como apagar pelo app
