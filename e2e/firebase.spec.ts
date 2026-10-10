@@ -2,10 +2,11 @@
 // projeto demo-pilates), nos dois motores. Roda com EMULADOR=1 (ver docs/firebase.md); sem isso
 // os testes ficam de fora. As regras publicadas valem aqui também: o emulador carrega
 // firestore.rules.
-import type { Page, TestInfo } from '@playwright/test'
+import type { TestInfo } from '@playwright/test'
 import { aba, aviso, esperarFolhaParada, esperarParado, folha, irPara, irParaAba } from './apoio'
 import { expect, test } from './base'
 import { AUTH, CONTAS, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, lerDocumento, linkDeConfirmacao, projetoVazio, SENHA } from './firebase/contas'
+import { abrirLogin, entrarComo, liberarEnderecoLocal } from './firebase/navegar'
 
 /** Espera um documento do emulador ficar como o teste quer (as gravações são assíncronas). */
 async function esperarNoBanco(caminho: string, condicao: (doc: Record<string, unknown> | null) => boolean) {
@@ -18,35 +19,11 @@ const campo = (doc: Record<string, unknown> | null, nome: string) =>
 
 test.skip(!process.env.EMULADOR, 'precisa dos emuladores do Firebase (EMULADOR=1)')
 
-// A política de segurança do site publicado só libera o Firebase de verdade, e o emulador é
-// http://127.0.0.1. No Chromium, bypassCSP resolve. No WebKit ele não vale para a <meta> da
-// política em todas as páginas, então ali a <meta> sai do HTML servido (no Chromium isso não
-// serve: a página entregue pelo teste perde o endereço local e o navegador bloqueia o emulador).
+// No Chromium, bypassCSP deixa o app falar com o emulador; no WebKit a <meta> da política sai
+// do HTML servido (ver liberarEnderecoLocal)
 test.use({ bypassCSP: true })
 
-const ehPaginaDoSite = (url: URL) => url.pathname.startsWith('/pilates-central-web/') && url.pathname.endsWith('/')
-
-test.beforeEach(async ({ context, browserName }) => {
-  if (browserName !== 'webkit') return
-  await context.route(ehPaginaDoSite, async (rota) => {
-    const resposta = await rota.fetch()
-    const html = (await resposta.text()).replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '')
-    await rota.fulfill({ response: resposta, body: html })
-  })
-})
-
-async function abrirLogin(page: Page) {
-  await page.goto('./?emulador=1')
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Que bom ver você.' })).toBeVisible()
-}
-
-async function entrarComo(page: Page, email: string) {
-  await abrirLogin(page)
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha', { exact: true }).fill(SENHA)
-  await page.locator('form').getByRole('button', { name: 'Entrar', exact: true }).click()
-}
+test.beforeEach(({ context, browserName }) => liberarEnderecoLocal(context, browserName))
 
 function alunoDoMotor(info: TestInfo) {
   return info.project.name === 'webkit' ? CONTAS.alunoWebkit : CONTAS.alunoChromium

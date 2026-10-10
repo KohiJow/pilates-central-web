@@ -11,6 +11,7 @@ export {
   recuperarSenha,
   reenviarConfirmacao,
   sairDaConta,
+  trocarSenha,
 } from './autenticacao'
 export type { Usuario } from './autenticacao'
 export { reivindicarEstudio, resolverAcesso } from './acesso'

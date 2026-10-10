@@ -7,7 +7,7 @@ import { Icone } from '../../componentes/Icone'
 import { Chip } from '../../componentes/Pilula'
 import { dadosDoAluno, repositorioDoAluno } from '../../dados/aluno'
 import { textoDasRegras } from '../../dominio/configuracao'
-import { Instalacao, TEMAS } from '../mais/Ajustes'
+import { Instalacao, SecaoDaConta, TEMAS } from '../mais/Ajustes'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -78,9 +78,13 @@ export function MaisDoAluno() {
         </a>
       </section>
 
-      <Botao variante="terciario" icone="sair" largo onClick={sair}>
-        {demo ? 'Trocar de perfil' : 'Sair da conta'}
-      </Botao>
+      {demo ? (
+        <Botao variante="terciario" icone="sair" largo onClick={sair}>
+          Trocar de perfil
+        </Botao>
+      ) : (
+        <SecaoDaConta />
+      )}
       <p class="rodape-versao">Pilates Central, versão {__VERSAO__}</p>
     </section>
   )

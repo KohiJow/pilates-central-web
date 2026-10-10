@@ -1,36 +1,70 @@
 // As telas entre o login e o app: confirmar o e-mail, o primeiro acesso do estúdio, conta sem
 // convite, carregando e falha ao abrir.
-import { useState } from 'preact/hooks'
-import { jaConfirmei, mensagemDoErro, reenviarEmailDeConfirmacao, reivindicar, sairDaConta, tentarDeNovo } from '../../app/conta'
+import { useEffect, useState } from 'preact/hooks'
+import { descreverErro, jaConfirmei, reenviarEmailDeConfirmacao, reivindicar, sairDaConta, tentarDeNovo } from '../../app/conta'
+import type { ErroNaTela } from '../../app/conta'
 import { voltarAsPortas } from '../../app/modo'
 import { Botao } from '../../componentes/Botao'
 import { Campo } from '../../componentes/Campo'
 import { EsqueletoDeLista } from '../../componentes/Esqueleto'
 import { normalizarTelefone } from '../../dominio/texto'
+import { ErroDaConta } from './ErroDaConta'
 import { TelaDeEntrada } from './TelaDeEntrada'
 
-export function ConfirmarEmail({ email }: { email: string }) {
+/** Quanto esperar entre um reenvio e outro (o Firebase também limita por conta). */
+export const ESPERA_PARA_REENVIAR_S = 60
+
+function segundosRestantes(enviadoEm: number | undefined, agora: number): number {
+  if (!enviadoEm) return 0
+  return Math.max(0, ESPERA_PARA_REENVIAR_S - Math.floor((agora - enviadoEm) / 1000))
+}
+
+export function ConfirmarEmail({ email, enviadoEm, falhaNoEnvio }: { email: string; enviadoEm?: number; falhaNoEnvio?: ErroNaTela }) {
   const [mensagem, setMensagem] = useState('')
-  const [ocupado, setOcupado] = useState(false)
+  const [erro, setErro] = useState<ErroNaTela | null>(falhaNoEnvio ?? null)
+  const [ocupado, setOcupado] = useState<'conferindo' | 'reenviando' | null>(null)
+  const [restante, setRestante] = useState(() => segundosRestantes(enviadoEm, Date.now()))
+
+  // a contagem para reenviar: um tique por segundo até zerar
+  useEffect(() => {
+    setRestante(segundosRestantes(enviadoEm, Date.now()))
+    if (!enviadoEm) return
+    const relogio = setInterval(() => {
+      const r = segundosRestantes(enviadoEm, Date.now())
+      setRestante(r)
+      if (r === 0) clearInterval(relogio)
+    }, 1000)
+    return () => clearInterval(relogio)
+  }, [enviadoEm])
+
+  useEffect(() => {
+    if (falhaNoEnvio) setErro(falhaNoEnvio)
+  }, [falhaNoEnvio])
 
   const conferir = async () => {
-    setOcupado(true)
+    setOcupado('conferindo')
     setMensagem('')
+    setErro(null)
     try {
-      if (!(await jaConfirmei())) setMensagem('Ainda não aparece como confirmado. Toque no link do e-mail e tente de novo.')
-    } catch (erro) {
-      setMensagem(mensagemDoErro(erro))
+      if (!(await jaConfirmei())) setMensagem('Ainda não aparece como confirmado. Abra o e-mail, toque no link e depois volte aqui.')
+    } catch (falha) {
+      setErro(descreverErro(falha))
     } finally {
-      setOcupado(false)
+      setOcupado(null)
     }
   }
 
   const reenviar = async () => {
+    setOcupado('reenviando')
+    setMensagem('')
+    setErro(null)
     try {
       await reenviarEmailDeConfirmacao()
-      setMensagem('Enviamos de novo. Olhe também o spam.')
-    } catch (erro) {
-      setMensagem(mensagemDoErro(erro))
+      setMensagem(`Enviamos de novo para ${email}. Olhe também a caixa de spam.`)
+    } catch (falha) {
+      setErro(descreverErro(falha))
+    } finally {
+      setOcupado(null)
     }
   }
 
@@ -40,7 +74,8 @@ export function ConfirmarEmail({ email }: { email: string }) {
       titulo="Falta só um passo."
       texto={
         <>
-          Enviamos um link para <strong class="quebra-livre">{email}</strong>. Abra o e-mail, toque no link e volte aqui.
+          Enviamos um link para <strong class="quebra-livre">{email}</strong>. Abra o e-mail, toque no link e volte aqui. Não chegou? Olhe
+          a caixa de spam ou de promoções; pode levar alguns minutos.
         </>
       }
     >
@@ -49,14 +84,15 @@ export function ConfirmarEmail({ email }: { email: string }) {
           {mensagem}
         </p>
       )}
-      <Botao variante="primario" largo onClick={() => void conferir()} disabled={ocupado}>
-        {ocupado ? 'Conferindo...' : 'Já confirmei'}
+      <ErroDaConta erro={erro} />
+      <Botao variante="primario" largo onClick={() => void conferir()} disabled={ocupado !== null}>
+        {ocupado === 'conferindo' ? 'Conferindo...' : 'Já confirmei'}
       </Botao>
-      <Botao variante="secundario" largo onClick={() => void reenviar()}>
-        Reenviar o e-mail
+      <Botao variante="secundario" largo onClick={() => void reenviar()} disabled={ocupado !== null || restante > 0}>
+        {ocupado === 'reenviando' ? 'Enviando...' : restante > 0 ? `Reenviar em ${restante} s` : 'Reenviar o e-mail'}
       </Botao>
       <Botao variante="terciario" icone="sair" largo onClick={() => void sairDaConta()}>
-        Sair
+        Sair e usar outro e-mail
       </Botao>
     </TelaDeEntrada>
   )
@@ -66,7 +102,8 @@ export function PrimeiroAcesso({ email }: { email: string }) {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [nomeEstudio, setNomeEstudio] = useState('Pilates Central')
-  const [erros, setErros] = useState<{ nome?: string; telefone?: string; geral?: string }>({})
+  const [erros, setErros] = useState<{ nome?: string; telefone?: string }>({})
+  const [geral, setGeral] = useState<ErroNaTela | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
   const enviar = async (e: Event) => {
@@ -76,12 +113,13 @@ export function PrimeiroAcesso({ email }: { email: string }) {
     const tel = telefone.trim() ? normalizarTelefone(telefone) : ''
     if (tel === null) novos.telefone = 'Use DDD e número, por exemplo (19) 90000-0000.'
     setErros(novos)
+    setGeral(null)
     if (Object.keys(novos).length) return
     setOcupado(true)
     try {
       await reivindicar({ nome, telefone: tel ?? '', nomeEstudio })
     } catch (erro) {
-      setErros({ geral: mensagemDoErro(erro) })
+      setGeral(descreverErro(erro))
       setOcupado(false)
     }
   }
@@ -110,11 +148,7 @@ export function PrimeiroAcesso({ email }: { email: string }) {
           erro={erros.telefone}
         />
         <Campo rotulo="Nome do estúdio" valor={nomeEstudio} aoMudar={setNomeEstudio} />
-        {erros.geral && (
-          <p class="campo-erro" role="alert">
-            {erros.geral}
-          </p>
-        )}
+        <ErroDaConta erro={geral} />
         <Botao variante="primario" type="submit" largo disabled={ocupado}>
           {ocupado ? 'Preparando...' : 'Começar'}
         </Botao>

@@ -17,11 +17,18 @@ import { configurarSessao, entrar, entrarComoAluno, sessaoDoAluno } from './sess
 
 type Nuvem = typeof ModuloDoFirebase
 
+/** Uma falha pronta para a tela: a frase para a pessoa e, para quem configura, o detalhe bruto. */
+export interface ErroNaTela {
+  mensagem: string
+  detalhe?: string
+}
+
 export type EstadoDaConta =
   | { etapa: 'carregando' }
   | { etapa: 'falhou'; mensagem: string }
   | { etapa: 'fora' }
-  | { etapa: 'confirmar'; email: string }
+  /** enviadoEm: quando o último e-mail de confirmação saiu (a espera para reenviar conta daí) */
+  | { etapa: 'confirmar'; email: string; enviadoEm?: number; falhaNoEnvio?: ErroNaTela }
   | { etapa: 'verificando' }
   | { etapa: 'primeiroAcesso'; email: string }
   | { etapa: 'semAcesso'; email: string; mensagem: string }
@@ -96,7 +103,9 @@ async function aoMudarUsuario(u: Usuario | null): Promise<void> {
     return
   }
   if (!u.emailConfirmado) {
-    conta.value = { etapa: 'confirmar', email: u.email }
+    // a criação da conta já pode ter posto a tela de confirmar, com a hora do envio
+    const atual = conta.peek()
+    if (atual.etapa !== 'confirmar' || atual.email !== u.email) conta.value = { etapa: 'confirmar', email: u.email }
     return
   }
   await abrirConta(u)
@@ -135,11 +144,11 @@ async function abrirConta(u: Usuario): Promise<void> {
       mensagem: 'Este e-mail ainda não tem convite. Peça à administração do estúdio para convidar você com este e-mail.',
     }
   } catch (erro) {
-    const mensagem =
-      nuvem && erro instanceof nuvem.ErroDeConta
-        ? erro.message
-        : 'Não deu para conferir o seu acesso agora. Confira a internet e tente de novo.'
-    conta.value = { etapa: 'semAcesso', email: u.email, mensagem }
+    conta.value = {
+      etapa: 'semAcesso',
+      email: u.email,
+      mensagem: descreverErro(erro, 'Não deu para conferir o seu acesso agora. Confira a internet e tente de novo.').mensagem,
+    }
   }
 }
 
@@ -148,20 +157,32 @@ function precisaDaNuvem(): { nuvem: Nuvem; sdk: Sdk } {
   return { nuvem, sdk }
 }
 
-/** Mensagem pronta para a tela, venha o erro de onde vier. */
-export function mensagemDoErro(erro: unknown, padrao = 'Algo deu errado. Tente de novo.'): string {
-  return nuvem && erro instanceof nuvem.ErroDeConta ? erro.message : padrao
+/** Frase pronta para a tela, venha o erro de onde vier, com o detalhe bruto para quem configura. */
+export function descreverErro(erro: unknown, padrao = 'Algo deu errado. Tente de novo.'): ErroNaTela {
+  if (nuvem && erro instanceof nuvem.ErroDeConta) return erro.detalhe ? { mensagem: erro.message, detalhe: erro.detalhe } : { mensagem: erro.message }
+  const detalhe = erro instanceof Error ? erro.message : ''
+  return detalhe ? { mensagem: padrao, detalhe } : { mensagem: padrao }
 }
 
-export async function entrarNaConta(email: string, senha: string): Promise<void> {
+export async function entrarNaConta(email: string, senha: string, lembrar = true): Promise<void> {
   const n = precisaDaNuvem()
-  await n.nuvem.entrarComEmail(n.sdk, email, senha)
+  await n.nuvem.entrarComEmail(n.sdk, email, senha, lembrar)
 }
 
-export async function criarContaNova(email: string, senha: string): Promise<void> {
+export async function criarContaNova(email: string, senha: string, lembrar = true): Promise<void> {
   const n = precisaDaNuvem()
-  const u = await n.nuvem.criarConta(n.sdk, email, senha)
-  conta.value = { etapa: 'confirmar', email: u.email }
+  try {
+    const u = await n.nuvem.criarConta(n.sdk, email, senha, lembrar)
+    conta.value = { etapa: 'confirmar', email: u.email, enviadoEm: Date.now() }
+  } catch (erro) {
+    // a conta já existe e só o e-mail de confirmação falhou: a tela de confirmar diz o motivo
+    const criada = n.sdk.auth.currentUser
+    if (criada?.email) {
+      conta.value = { etapa: 'confirmar', email: criada.email.toLowerCase(), falhaNoEnvio: descreverErro(erro) }
+      return
+    }
+    throw erro
+  }
 }
 
 export async function pedirNovaSenha(email: string): Promise<void> {
@@ -171,17 +192,28 @@ export async function pedirNovaSenha(email: string): Promise<void> {
 
 export async function reenviarEmailDeConfirmacao(): Promise<void> {
   const n = precisaDaNuvem()
+  const atual = conta.peek()
   await n.nuvem.reenviarConfirmacao(n.sdk)
+  if (atual.etapa === 'confirmar') conta.value = { etapa: 'confirmar', email: atual.email, enviadoEm: Date.now() }
 }
 
-/** "Já confirmei": confere a conta de novo; devolve false se o e-mail ainda não foi confirmado. */
+/** "Já confirmei": recarrega a conta; devolve false se o e-mail ainda não foi confirmado. */
 export async function jaConfirmei(): Promise<boolean> {
   const n = precisaDaNuvem()
   const u = await n.nuvem.conferirConfirmacao(n.sdk)
-  if (!u?.emailConfirmado) return false
+  if (!u) {
+    conta.value = { etapa: 'fora' }
+    return false
+  }
+  if (!u.emailConfirmado) return false
   usuario = u
   await abrirConta(u)
   return true
+}
+
+export async function trocarSenhaDaConta(senhaAtual: string, senhaNova: string): Promise<void> {
+  const n = precisaDaNuvem()
+  await n.nuvem.trocarSenha(n.sdk, senhaAtual, senhaNova)
 }
 
 export async function reivindicar(dados: DadosDoPrimeiroAcesso): Promise<void> {
@@ -199,6 +231,11 @@ export async function sairDaConta(): Promise<void> {
 /** Tenta de novo depois de uma falha de rede ao conferir o acesso. */
 export function tentarDeNovo(): void {
   if (usuario?.emailConfirmado) void abrirConta(usuario)
+}
+
+/** E-mail da conta que entrou (Firebase), para a tela de ajustes. */
+export function emailDaConta(): string | null {
+  return usuario?.email ?? null
 }
 
 // ---------- início ----------

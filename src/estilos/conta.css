@@ -21,6 +21,72 @@
   gap: 14px;
 }
 
+/* o selo do reCAPTCHA v3 (App Check) fica escondido; a frase exigida pelo Google vai no rodapé */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
+.aviso-recaptcha {
+  font-size: 16px;
+}
+
+/* a falha como a pessoa lê, e o código bruto atrás de "Detalhes" */
+.erro-da-conta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.erro-da-conta .erro-detalhes {
+  align-self: flex-start;
+}
+
+.erro-detalhe {
+  padding: 10px 12px;
+  border-radius: var(--raio-campo);
+  background: var(--surface-sunken);
+  font-size: 16px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.erro-detalhe code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+}
+
+/* força da senha enquanto digita: só a barra cresce (transform), a cor troca na hora */
+.medidor-senha {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.medidor-senha-barra {
+  display: block;
+  height: 6px;
+  border-radius: var(--raio-pilula);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.medidor-senha-barra .barra-cheia {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  background: var(--danger);
+  transform-origin: left center;
+  transition: transform var(--dur-curta) var(--mola-viva);
+}
+
+.medidor-senha[data-nivel='2'] .barra-cheia {
+  background: var(--warning);
+}
+
+.medidor-senha[data-nivel='3'] .barra-cheia {
+  background: var(--success);
+}
+
 /* item de lista que vive sozinho, como um cartão */
 .lista-item--cartao {
   border-radius: var(--raio-card);

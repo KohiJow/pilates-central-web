@@ -1,5 +1,6 @@
 import type { JSX } from 'preact'
 import { useState } from 'preact/hooks'
+import { emailDaConta } from '../../app/conta'
 import { abrir } from '../../app/navegacao'
 import { membro, papel, pode } from '../../app/perfil'
 import { hoje } from '../../app/relogio'
@@ -22,6 +23,7 @@ import { ehAdministracao, NOME_DO_PAPEL } from '../../dominio/permissoes'
 import { listaFalada, plural, telefoneLegivel } from '../../dominio/texto'
 import type { RepositorioDeDemonstracao } from '../../dados/repositorio'
 import type { Configuracao } from '../../dominio/tipos'
+import { FolhaDeTrocaDeSenha } from '../conta/FolhaDeTrocaDeSenha'
 
 export const TEMAS: { id: Tema; rotulo: string }[] = [
   { id: 'automatico', rotulo: 'Automático' },
@@ -227,13 +229,19 @@ export function Ajustes() {
         </a>
       </section>
 
-      <Botao variante="terciario" icone="sair" largo onClick={sair}>
-        {demo ? 'Trocar de perfil' : 'Sair da conta'}
-      </Botao>
-      {demo && temProjeto && (
-        <Botao variante="terciario" icone="voltar" largo onClick={voltarAsPortas}>
-          Sair da demonstração
-        </Botao>
+      {demo ? (
+        <>
+          <Botao variante="terciario" icone="sair" largo onClick={sair}>
+            Trocar de perfil
+          </Botao>
+          {temProjeto && (
+            <Botao variante="terciario" icone="voltar" largo onClick={voltarAsPortas}>
+              Sair da demonstração
+            </Botao>
+          )}
+        </>
+      ) : (
+        <SecaoDaConta />
       )}
 
       <p class="rodape-versao">Pilates Central, versão {__VERSAO__}</p>
@@ -256,6 +264,31 @@ export function Ajustes() {
       >
         <p>As presenças, avisos e reposições que você marcou somem e os dados fictícios voltam ao começo.</p>
       </FolhaInferior>
+    </section>
+  )
+}
+
+/** Com login de verdade: o e-mail da conta, trocar a senha e sair (vale para a equipe e o aluno). */
+export function SecaoDaConta() {
+  const [trocando, setTrocando] = useState(false)
+  const email = emailDaConta()
+  return (
+    <section class="secao" aria-labelledby="titulo-conta">
+      <h2 id="titulo-conta" class="micro">
+        Conta
+      </h2>
+      {email && (
+        <p class="texto-secundario">
+          Você entrou como <span class="quebra-livre">{email}</span>.
+        </p>
+      )}
+      <Botao variante="secundario" icone="editar" largo onClick={() => setTrocando(true)}>
+        Trocar a senha
+      </Botao>
+      <Botao variante="terciario" icone="sair" largo onClick={sair}>
+        Sair da conta
+      </Botao>
+      <FolhaDeTrocaDeSenha aberta={trocando} aoFechar={() => setTrocando(false)} />
     </section>
   )
 }

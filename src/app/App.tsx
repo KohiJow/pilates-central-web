@@ -35,7 +35,7 @@ function Tela() {
     case 'fora':
       return <EntrarComEmail />
     case 'confirmar':
-      return <ConfirmarEmail email={c.email} />
+      return <ConfirmarEmail email={c.email} enviadoEm={c.enviadoEm} falhaNoEnvio={c.falhaNoEnvio} />
     case 'primeiroAcesso':
       return <PrimeiroAcesso email={c.email} />
     case 'semAcesso':

@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { criarContaNova, entrarNaConta, mensagemDoErro, pedirNovaSenha } from '../../app/conta'
+import { criarContaNova, descreverErro, entrarNaConta, pedirNovaSenha } from '../../app/conta'
+import type { ErroNaTela } from '../../app/conta'
 import { voltarAsPortas } from '../../app/modo'
 import { Botao } from '../../componentes/Botao'
 import { Campo } from '../../componentes/Campo'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
+import { Interruptor } from '../../componentes/Interruptor'
+import { SENHA_MINIMA } from '../../dominio/senha'
 import { ehEmailValido } from '../../dominio/texto'
+import { ErroDaConta, MedidorDeSenha } from './ErroDaConta'
 import { TelaDeEntrada } from './TelaDeEntrada'
 
 type Etapa = 'entrar' | 'criar'
-
-const SENHA_MINIMA = 8
 
 /**
  * Entrar com e-mail e senha, criar a conta (quem foi convidado e o primeiro acesso do estúdio)
@@ -20,23 +22,24 @@ export function EntrarComEmail() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [mostrar, setMostrar] = useState(false)
-  const [erro, setErro] = useState('')
+  const [lembrar, setLembrar] = useState(true)
+  const [erro, setErro] = useState<ErroNaTela | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [recuperando, setRecuperando] = useState(false)
   const formulario = useRef<HTMLFormElement>(null)
 
   const enviar = async (e: Event) => {
     e.preventDefault()
-    if (!ehEmailValido(email)) return setErro('Confira o e-mail.')
-    if (etapa === 'criar' && senha.length < SENHA_MINIMA) return setErro(`Use uma senha com pelo menos ${SENHA_MINIMA} caracteres.`)
-    if (!senha) return setErro('Digite a senha.')
-    setErro('')
+    if (!ehEmailValido(email)) return setErro({ mensagem: 'Confira o e-mail.' })
+    if (etapa === 'criar' && senha.length < SENHA_MINIMA) return setErro({ mensagem: `Use uma senha com pelo menos ${SENHA_MINIMA} caracteres.` })
+    if (!senha) return setErro({ mensagem: 'Digite a senha.' })
+    setErro(null)
     setOcupado(true)
     try {
-      if (etapa === 'entrar') await entrarNaConta(email, senha)
-      else await criarContaNova(email, senha)
+      if (etapa === 'entrar') await entrarNaConta(email, senha, lembrar)
+      else await criarContaNova(email, senha, lembrar)
     } catch (falha) {
-      setErro(mensagemDoErro(falha))
+      setErro(descreverErro(falha))
     } finally {
       setOcupado(false)
     }
@@ -44,7 +47,7 @@ export function EntrarComEmail() {
 
   const trocar = (nova: Etapa) => {
     setEtapa(nova)
-    setErro('')
+    setErro(null)
   }
 
   return (
@@ -73,16 +76,19 @@ export function EntrarComEmail() {
           autoComplete={etapa === 'entrar' ? 'current-password' : 'new-password'}
           valor={senha}
           aoMudar={setSenha}
-          ajuda={etapa === 'criar' ? `Pelo menos ${SENHA_MINIMA} caracteres.` : undefined}
+          ajuda={etapa === 'criar' && !senha ? `Pelo menos ${SENHA_MINIMA} caracteres. Uma frase comprida vale mais que símbolos.` : undefined}
         />
+        {etapa === 'criar' && <MedidorDeSenha senha={senha} />}
         <Botao variante="terciario" onClick={() => setMostrar(!mostrar)} aria-pressed={mostrar}>
           {mostrar ? 'Esconder a senha' : 'Mostrar a senha'}
         </Botao>
-        {erro && (
-          <p class="campo-erro" role="alert">
-            {erro}
-          </p>
-        )}
+        <Interruptor
+          ligado={lembrar}
+          aoMudar={setLembrar}
+          rotulo="Lembrar neste aparelho"
+          ajuda={lembrar ? 'O app abre sem pedir a senha até você sair.' : 'Num celular emprestado: ao fechar o navegador, a sessão some.'}
+        />
+        <ErroDaConta erro={erro} />
         <Botao variante="primario" type="submit" largo disabled={ocupado}>
           {ocupado ? 'Um momento...' : etapa === 'entrar' ? 'Entrar' : 'Criar conta'}
         </Botao>
@@ -114,40 +120,45 @@ export function EntrarComEmail() {
 function FolhaDeSenhaNova({ aberta, emailInicial, aoFechar }: { aberta: boolean; emailInicial: string; aoFechar: () => void }) {
   const [email, setEmail] = useState(emailInicial)
   const [estado, setEstado] = useState<'editando' | 'enviando' | 'enviado'>('editando')
-  const [erro, setErro] = useState('')
+  const [erro, setErro] = useState<ErroNaTela | null>(null)
   useEffect(() => {
     if (aberta) {
       setEmail(emailInicial)
       setEstado('editando')
-      setErro('')
+      setErro(null)
     }
   }, [aberta, emailInicial])
 
   const enviar = async (e: Event) => {
     e.preventDefault()
-    if (!ehEmailValido(email)) return setErro('Confira o e-mail.')
-    setErro('')
+    if (!ehEmailValido(email)) return setErro({ mensagem: 'Confira o e-mail.' })
+    setErro(null)
     setEstado('enviando')
     try {
       await pedirNovaSenha(email)
       setEstado('enviado')
     } catch (falha) {
-      setErro(mensagemDoErro(falha))
+      setErro(descreverErro(falha))
       setEstado('editando')
     }
   }
 
   return (
-    <FolhaInferior
-      aberta={aberta}
-      aoFechar={aoFechar}
-      rotulo="Senha"
-      titulo="Criar uma senha nova"
-    >
+    <FolhaInferior aberta={aberta} aoFechar={aoFechar} rotulo="Senha" titulo="Criar uma senha nova">
       {estado === 'enviado' ? (
-        <p role="status">Se houver uma conta com este e-mail, enviamos um link para criar uma senha nova. Olhe também o spam.</p>
+        <div class="pilha">
+          <p role="status">
+            Se houver uma conta com este e-mail, enviamos um link para criar uma senha nova para{' '}
+            <strong class="quebra-livre">{email.trim()}</strong>. Olhe também o spam. Abra o link, escolha a senha nova e volte aqui para
+            entrar.
+          </p>
+          <Botao variante="secundario" largo onClick={aoFechar}>
+            Voltar para entrar
+          </Botao>
+        </div>
       ) : (
         <form class="pilha" onSubmit={(e) => void enviar(e)} noValidate>
+          <p class="texto-secundario">Mandamos um link por e-mail. Com ele você escolhe a senha nova e volta aqui para entrar.</p>
           <Campo
             rotulo="E-mail"
             type="email"
@@ -156,8 +167,8 @@ function FolhaDeSenhaNova({ aberta, emailInicial, aoFechar }: { aberta: boolean;
             autoCapitalize="none"
             valor={email}
             aoMudar={setEmail}
-            erro={erro || undefined}
           />
+          <ErroDaConta erro={erro} />
           <Botao variante="primario" type="submit" largo disabled={estado === 'enviando'}>
             {estado === 'enviando' ? 'Enviando...' : 'Enviar o link'}
           </Botao>

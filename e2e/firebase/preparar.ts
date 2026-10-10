@@ -10,7 +10,7 @@ import { documentoDoMembro } from '../../src/dados/firebase/conversao'
 import { momentoDe } from '../../src/dominio/datas'
 import { paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
-import { AUTH, CONTAS, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
+import { AUTH, CHAVE_DO_EMULADOR, CONTAS, contaDeSenhaDoMotor, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
 
 async function pedir(url: string, corpo?: unknown, metodo = 'POST') {
   const r = await fetch(url, {
@@ -23,7 +23,7 @@ async function pedir(url: string, corpo?: unknown, metodo = 'POST') {
 }
 
 async function criarConta(email: string): Promise<string> {
-  const r = await pedir(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=chave-do-emulador`, {
+  const r = await pedir(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CHAVE_DO_EMULADOR}`, {
     email,
     password: SENHA,
     returnSecureToken: true,
@@ -44,7 +44,21 @@ export default async function preparar(): Promise<void> {
   }
 
   const uids = new Map<string, string>()
-  for (const conta of [CONTAS.responsavel, CONTAS.professor]) uids.set(conta.membroId, await criarConta(conta.email))
+  // um professor por motor só para os testes de senha (a senha dele muda no meio do teste); o
+  // Hoje cumprimenta pelo primeiro nome, e o teste o procura no título
+  const nomeDeSenha = { chromium: 'Olivia Senha', webkit: 'Otavio Senha' } as const
+  const deSenha: MembroEquipe[] = MOTORES.map((motor) => ({
+    id: contaDeSenhaDoMotor(motor).membroId,
+    nome: nomeDeSenha[motor],
+    papel: 'professor',
+    email: contaDeSenhaDoMotor(motor).email,
+    telefone: '',
+    unidades: ['u-centro'],
+    ativo: true,
+  }))
+  for (const conta of [CONTAS.responsavel, CONTAS.professor, ...deSenha.map((m) => ({ email: m.email, membroId: m.id }))]) {
+    uids.set(conta.membroId, await criarConta(conta.email))
+  }
   const alunos = new Map<string, string>()
   for (const conta of [CONTAS.alunoChromium, CONTAS.alunoWebkit]) alunos.set(conta.alunoId, await criarConta(conta.email))
 
@@ -72,7 +86,8 @@ export default async function preparar(): Promise<void> {
   documentos.push(['estudio/posse', { titularUid, titularMembroId: CONTAS.responsavel.membroId, criadoEm: serverTimestamp() }])
   documentos.push(['configuracao/estudio', limpo(b.configuracao)])
   for (const u of b.unidades) documentos.push([`unidades/${u.id}`, limpo(u)])
-  for (const m of [...b.equipe, ...convidados]) {
+  const equipe = [...b.equipe, ...deSenha]
+  for (const m of [...equipe, ...convidados]) {
     const uid = uids.get(m.id)
     documentos.push([`equipe/${m.id}`, limpo({ ...documentoDoMembro(m), ...(uid ? { uid } : {}) })])
   }
@@ -80,7 +95,7 @@ export default async function preparar(): Promise<void> {
     documentos.push([`convites/${c.email}`, { email: c.email, papel: 'professor', pessoaId: c.id, porId: CONTAS.responsavel.membroId, criadoEm: instante }])
   }
   for (const [membroId, uid] of uids) {
-    const m = b.equipe.find((x) => x.id === membroId)
+    const m = equipe.find((x) => x.id === membroId)
     documentos.push([`acessos/${uid}`, { tipo: 'equipe', pessoaId: membroId, email: m?.email ?? '', criadoEm: instante }])
   }
   for (const [alunoId, uid] of alunos) {

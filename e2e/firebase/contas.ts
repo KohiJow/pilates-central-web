@@ -1,7 +1,10 @@
 // Contas e endereços do teste com os emuladores do Firebase (projeto demo-pilates).
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-const config = JSON.parse(readFileSync(new URL('../../firebase.json', import.meta.url), 'utf8')) as {
+// FIREBASE_JSON aponta para outro firebase.json (portas diferentes, para dois conjuntos de
+// emuladores na mesma máquina); o build do app lê o mesmo arquivo (vite.config.ts)
+const config = JSON.parse(readFileSync(resolve(process.env.FIREBASE_JSON ?? 'firebase.json'), 'utf8')) as {
   emulators: { auth: { port: number }; firestore: { port: number } }
 }
 
@@ -9,6 +12,7 @@ export const PROJETO = 'demo-pilates'
 export const AUTH = `http://127.0.0.1:${config.emulators.auth.port}`
 export const FIRESTORE = `http://127.0.0.1:${config.emulators.firestore.port}`
 export const SENHA = 'senha-de-teste-123'
+export const CHAVE_DO_EMULADOR = 'chave-do-emulador'
 
 export const CONTAS = {
   responsavel: { email: 'helena@example.com', membroId: 'e-helena' },
@@ -21,6 +25,11 @@ export const CONTAS = {
 /** Professor convidado que ainda não criou a conta (o teste de primeiro acesso cria). */
 export function convidadoDoMotor(motor: string) {
   return { email: `convidado-${motor}@example.com`, membroId: `e-convidado-${motor}` }
+}
+
+/** Professor só para os testes de senha (esqueci, trocar): a senha dele muda durante o teste. */
+export function contaDeSenhaDoMotor(motor: string) {
+  return { email: `senha-${motor}@example.com`, membroId: `e-senha-${motor}` }
 }
 
 export const MOTORES = ['chromium', 'webkit'] as const
@@ -43,11 +52,38 @@ export async function lerDocumento(caminho: string, projeto = PROJETO): Promise<
   return (await r.json()) as Record<string, unknown>
 }
 
-/** Link de confirmação de e-mail que o emulador "enviou" para este endereço. */
-export async function linkDeConfirmacao(email: string, projeto = PROJETO): Promise<string> {
+export interface CodigoDeEmail {
+  email: string
+  requestType: 'VERIFY_EMAIL' | 'PASSWORD_RESET' | string
+  oobCode: string
+  oobLink: string
+}
+
+/** Os e-mails que o emulador "mandou" (do mais antigo ao mais novo). */
+export async function emailsEnviados(projeto = PROJETO): Promise<CodigoDeEmail[]> {
   const r = await fetch(`${AUTH}/emulator/v1/projects/${projeto}/oobCodes`)
-  const { oobCodes } = (await r.json()) as { oobCodes: { email: string; requestType: string; oobLink: string }[] }
-  const codigo = [...oobCodes].reverse().find((c) => c.email === email && c.requestType === 'VERIFY_EMAIL')
+  const { oobCodes } = (await r.json()) as { oobCodes: CodigoDeEmail[] }
+  return oobCodes
+}
+
+/** Link de confirmação de e-mail que o emulador "enviou" para este endereço (o mais recente). */
+export async function linkDeConfirmacao(email: string, projeto = PROJETO): Promise<string> {
+  const codigo = [...(await emailsEnviados(projeto))].reverse().find((c) => c.email === email && c.requestType === 'VERIFY_EMAIL')
   if (!codigo) throw new Error(`sem e-mail de confirmação para ${email}`)
   return codigo.oobLink
+}
+
+/**
+ * Faz o que a pessoa faria na página do Firebase ao abrir o link de senha nova: escolhe a senha.
+ * (A mesma chamada REST que aquela página faz, com o código do e-mail mais recente.)
+ */
+export async function definirSenhaPeloEmail(email: string, senhaNova: string, projeto = PROJETO): Promise<void> {
+  const codigo = [...(await emailsEnviados(projeto))].reverse().find((c) => c.email === email && c.requestType === 'PASSWORD_RESET')
+  if (!codigo) throw new Error(`sem e-mail de senha nova para ${email}`)
+  const r = await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${CHAVE_DO_EMULADOR}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oobCode: codigo.oobCode, newPassword: senhaNova }),
+  })
+  if (!r.ok) throw new Error(`senha nova pelo link: ${r.status} ${await r.text()}`)
 }
