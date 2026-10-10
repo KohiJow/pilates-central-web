@@ -2,7 +2,7 @@ import type { JSX } from 'preact'
 import { useState } from 'preact/hooks'
 import { abrirEm, irPara } from '../app/navegacao'
 import { hoje, momento } from '../app/relogio'
-import { membro as membroAtual, papel } from '../app/perfil'
+import { membro as membroAtual, papel, pode } from '../app/perfil'
 import { Botao } from '../componentes/Botao'
 import { Card } from '../componentes/Card'
 import { Esqueleto, EsqueletoDeLista } from '../componentes/Esqueleto'
@@ -76,6 +76,23 @@ export function Hoje() {
           <Esqueleto altura={188} raio={16} />
           <EsqueletoDeLista itens={3} altura={72} />
         </>
+      ) : !base.value?.turmas.some((t) => t.ativa) ? (
+        // estúdio sem grade: sem turma não há aula, chamada nem reposição; o caminho é montar a grade
+        <EstadoVazio
+          icone="grade"
+          rotulo="Sem turmas ainda"
+          texto={
+            pode('editar-turmas')
+              ? 'O estúdio ainda não tem turmas. Monte a grade da semana: tocar no horário cria a turma.'
+              : 'O estúdio ainda não tem turmas. Quando a administração montar a grade, as suas aulas aparecem aqui.'
+          }
+        >
+          {pode('editar-turmas') && (
+            <Botao variante="primario" icone="grade" onClick={() => abrirEm('mais', ['montar', 'turmas'])}>
+              Montar a grade
+            </Botao>
+          )}
+        </EstadoVazio>
       ) : resumo.totalDeAulas === 0 ? (
         <EstadoVazio icone="folga" rotulo="Sem aulas hoje" texto={textoDoDiaSemAula(dia, ehAdm ? {} : { professorId: membro?.id ?? '' })}>
           <Botao variante="secundario" icone="agenda" onClick={() => irPara('agenda', papel.value)}>

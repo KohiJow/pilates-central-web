@@ -10,6 +10,7 @@ import type { Repositorio } from '../dados/repositorio'
 import type * as ModuloDoFirebase from '../dados/firebase/firebase'
 import type { DadosDoPrimeiroAcesso, Sdk, Usuario } from '../dados/firebase/firebase'
 import type { Id } from '../dominio/tipos'
+import { abrirGuiaSePreciso } from './guia'
 import { configuracaoAtiva, usaEmulador } from './modo'
 import type { Modo } from './modo'
 import { agoraDoApp, fixarAgora, hoje, lerAgoraDaUrl } from './relogio'
@@ -126,6 +127,7 @@ async function abrirConta(u: Usuario): Promise<void> {
       }
       entrar({ papel: eu.papel, membroId: eu.id })
       conta.value = { etapa: 'equipe' }
+      abrirGuiaSePreciso(eu.papel)
       return
     }
     if (acesso.tipo === 'aluno') {

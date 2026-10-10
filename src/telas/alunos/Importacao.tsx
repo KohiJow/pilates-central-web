@@ -183,7 +183,7 @@ function Colunas<C extends CampoDaPlanilha>({
           </span>
         </p>
       )}
-      <Botao variante="terciario" icone={aberto ? 'menos' : 'editar'} class="botao--alinhado" onClick={() => setAberto(!aberto)} aria-expanded={aberto}>
+      <Botao variante="terciario" icone={aberto ? 'menos' : 'editar'} class="botao--alinhado botao--texto-longo" onClick={() => setAberto(!aberto)} aria-expanded={aberto}>
         {aberto ? 'Fechar as colunas' : `Colunas: ${resumo || 'nenhuma reconhecida'}`}
       </Botao>
       {aberto && (
@@ -448,7 +448,14 @@ function LinhaDeAlunoLido({ lido, aoTocar }: { lido: AlunoLido; aoTocar: () => v
       </span>
       <span class="lista-item-texto">
         <span class="lista-item-titulo">{r.nome || 'Sem nome'}</span>
-        <span class="lista-item-sub">{partes.join(', ')}</span>
+        <span class="lista-item-sub">
+          {partes.map((parte, i) => (
+            <span key={i} class="sem-quebra">
+              {parte}
+              {i < partes.length - 1 ? ', ' : ''}
+            </span>
+          ))}
+        </span>
         {erro ? <span class="campo-erro">{erro}</span> : lido.avisos[0] && <span class="lista-item-sub">{lido.avisos[0]}</span>}
       </span>
       <Pilula tom={erro ? 'alerta' : 'sucesso'}>{erro ? 'corrigir' : 'pronto'}</Pilula>

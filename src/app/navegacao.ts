@@ -145,6 +145,19 @@ export function substituir(...caminho: string[]): void {
 }
 
 /**
+ * Troca a tela atual por outra da mesma aba sem empilhar, entrando do lado pedido: os passos do
+ * guia de primeiro uso (o "voltar" do celular sai do guia, não passa pelos passos).
+ */
+export function trocarTela(caminho: string[], direcao: 'frente' | 'tras'): void {
+  const r = { aba: rota.peek().aba, caminho }
+  history.replaceState(history.state, '', enderecoDe(r))
+  mudar(r, direcao)
+}
+
+/** O guia de primeiro uso ocupa a tela inteira: sem a barra de abas, só "Sair do guia". */
+export const emFoco = computed(() => rota.value.aba === 'mais' && rota.value.caminho[0] === 'montar')
+
+/**
  * Troca de seção no mesmo nível (Alunos, Turmas, Reposições): substitui sem empilhar.
  * `ordem` diz de que lado a seção nova entra.
  */

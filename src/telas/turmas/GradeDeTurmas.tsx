@@ -1,6 +1,6 @@
 import type { JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
-import { abrir } from '../../app/navegacao'
+import { abrir, abrirEm } from '../../app/navegacao'
 import { membro, pode } from '../../app/perfil'
 import { hoje } from '../../app/relogio'
 import { Botao } from '../../componentes/Botao'
@@ -65,16 +65,25 @@ export function GradeDeTurmas() {
         <EstadoVazio
           icone="grade"
           rotulo="Sem turmas"
-          texto={pode('editar-turmas') ? 'Esta unidade ainda não tem turma. Crie uma a uma, ou traga a grade de uma planilha.' : 'Esta unidade ainda não tem turma.'}
+          texto={
+            pode('editar-turmas')
+              ? 'Esta unidade ainda não tem turma. Monte a grade da semana tocando nos horários, ou traga de uma planilha.'
+              : 'Esta unidade ainda não tem turma. A administração monta a grade.'
+          }
         >
           {pode('editar-turmas') && (
             <>
-              <Botao variante="primario" icone="adicionar" onClick={() => abrir('turmas', 'nova')}>
-                Nova turma
+              <Botao variante="primario" icone="grade" onClick={() => abrirEm('mais', ['montar', 'turmas'])}>
+                Montar a grade
               </Botao>
-              <Botao variante="secundario" icone="planilha" onClick={() => abrir('turmas', 'importar')}>
-                Importar de uma planilha
-              </Botao>
+              <div class="linha-acoes">
+                <Botao variante="secundario" icone="adicionar" onClick={() => abrir('turmas', 'nova')}>
+                  Nova turma
+                </Botao>
+                <Botao variante="secundario" icone="planilha" onClick={() => abrir('turmas', 'importar')}>
+                  Importar
+                </Botao>
+              </div>
             </>
           )}
         </EstadoVazio>

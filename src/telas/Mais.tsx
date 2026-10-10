@@ -7,10 +7,12 @@ import { FormularioDoEstudio } from './mais/FormularioDoEstudio'
 import { RegistroDeAlteracoes } from './mais/RegistroDeAlteracoes'
 import { RegrasDeReposicao } from './mais/RegrasDeReposicao'
 import { Unidades } from './mais/Unidades'
+import { MontarEstudio } from './montar/MontarEstudio'
 
 /** Aba Mais: ajustes pessoais e, para a administração, estúdio, regras, unidades e equipe. */
 export function Mais() {
   const [primeiro, segundo, terceiro] = rota.value.caminho
+  if (primeiro === 'montar') return <MontarEstudio passo={segundo} />
   if (primeiro === 'estudio') return <FormularioDoEstudio />
   if (primeiro === 'regras') return <RegrasDeReposicao />
   if (primeiro === 'unidades') return <Unidades />

@@ -160,6 +160,23 @@ test.describe('acessibilidade para uso com uma mão', () => {
     await auditar(page, 'importar turmas')
   })
 
+  test('alvos, texto e contraste no guia de primeiro uso (cada passo e a grade da semana)', async ({ page }) => {
+    test.setTimeout(90_000)
+    await entrarComoAdministracao(page)
+    for (const passo of ['estudio', 'unidades', 'equipe', 'alunos', 'fim']) {
+      await irPara(page, `#/mais/montar/${passo}`)
+      await auditar(page, `guia: ${passo}`)
+    }
+    await irPara(page, '#/mais/montar/turmas')
+    await page.getByRole('radiogroup', { name: 'Unidade' }).getByRole('radio', { name: 'Jardim' }).click()
+    await page.getByRole('button', { name: 'Sexta, 7h: criar turma' }).click()
+    await auditar(page, 'guia: turmas')
+    for (const esquema of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: esquema })
+      await medirContraste(page, `guia: turmas, ${esquema}`)
+    }
+  })
+
   test('alvos e texto nas telas do professor', async ({ page }) => {
     await entrarComoProfessor(page, 'Camila Nunes')
     for (const tela of ['#/alunos', '#/alunos/a-10', '#/alunos/turmas', '#/alunos/reposicoes', '#/mais']) {

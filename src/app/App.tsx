@@ -9,6 +9,7 @@ import { Entrar } from '../telas/Entrar'
 import { conta } from './conta'
 import { Estrutura } from './Estrutura'
 import { modo } from './modo'
+import { emFoco } from './navegacao'
 import { hoje } from './relogio'
 import { sessao, sessaoDoAluno } from './sessao'
 
@@ -62,7 +63,7 @@ export function App() {
   return (
     <>
       <Tela />
-      <Avisos semAbas={!dentro} />
+      <Avisos semAbas={!dentro || emFoco.value} />
     </>
   )
 }

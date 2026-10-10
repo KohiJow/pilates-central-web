@@ -155,6 +155,7 @@ export function Ajustes() {
           <ul class="lista">
             {(
               [
+                ['montar', 'Montar o estúdio', 'Passo a passo: unidades, professores, grade da semana e alunos', 'montar'],
                 ['local', 'Estúdio', resumoDoEstudio(config), 'estudio'],
                 ['regras', 'Regras de reposição', textoDasRegras(config), 'regras'],
                 ['grade', 'Unidades', plural(unidades.value.length, 'unidade aberta', 'unidades abertas'), 'unidades'],

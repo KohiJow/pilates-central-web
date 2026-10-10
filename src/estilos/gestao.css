@@ -593,3 +593,111 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+/* ---------- guia de primeiro uso (Montar o estúdio) ---------- */
+
+.guia-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* a barra cresce por transform (scaleX), como as outras barras do app */
+.guia-progresso {
+  height: 6px;
+  border-radius: var(--raio-pilula);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  margin: 4px 0 8px;
+}
+.guia-progresso-barra {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transform-origin: left center;
+  transition: transform var(--dur-longa) var(--mola-suave);
+}
+
+.guia-pe {
+  margin-top: 8px;
+}
+
+.guia-padrao,
+.guia-linha {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guia-padrao {
+  align-items: center;
+}
+.guia-linha > .campo {
+  flex: 1;
+}
+
+/* a grade da semana: dias nas colunas, horários nas linhas, cada célula um alvo de 48px.
+   Em tela estreita (ou com domingo) a grade rola de lado dentro da caixa, nunca a página. */
+.grade-visual-caixa {
+  overflow-x: auto;
+  margin: 0 calc(var(--margem) * -1);
+  padding: 0 var(--margem);
+}
+.grade-visual {
+  width: 100%;
+  min-width: calc(44px + 6 * 50px);
+  border-collapse: separate;
+  border-spacing: 2px;
+  table-layout: fixed;
+}
+.grade-visual th {
+  text-align: center;
+  font-weight: 600;
+}
+.grade-visual thead th:first-child {
+  width: 44px;
+}
+.grade-visual abbr {
+  text-decoration: none;
+}
+.grade-visual-hora {
+  color: var(--text-secondary);
+  font-size: 16px;
+  white-space: nowrap;
+}
+.grade-visual td {
+  padding: 0;
+}
+.grade-visual-celula {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: var(--toque);
+  height: var(--toque);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--brand-ghost);
+  background: var(--surface-raised);
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 16px;
+}
+.grade-visual-celula--nova {
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+.grade-visual-celula--gravada {
+  background: var(--surface-sunken);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--brand-muted);
+}
+
+/* pedaço de texto que não quebra no meio (telefone, "Linha 3") */
+.sem-quebra {
+  white-space: nowrap;
+}
+/* botão de texto com uma frase comprida (as colunas reconhecidas): alinha à esquerda ao quebrar */
+.botao--texto-longo span {
+  text-align: left;
+}

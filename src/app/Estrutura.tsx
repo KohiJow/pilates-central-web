@@ -15,7 +15,7 @@ import { useLayoutEffect, useRef } from 'preact/hooks'
 import type { ComponentChildren, JSX } from 'preact'
 import { animarDepoisDePintar } from '../movimento/animar'
 import { CURVA, DURACAO } from '../movimento/tempos'
-import { abasDoPapel, chaveDaTela, irPara, rota } from './navegacao'
+import { abasDoPapel, chaveDaTela, emFoco, irPara, rota } from './navegacao'
 import type { Aba } from './navegacao'
 import { papel } from './perfil'
 
@@ -65,7 +65,7 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
         )}
       </main>
 
-      <BarraAbas itens={itens} atual={atual} aoEscolher={(id) => irPara(id, papel.value)} />
+      {!emFoco.value && <BarraAbas itens={itens} atual={atual} aoEscolher={(id) => irPara(id, papel.value)} />}
       <FolhaDaAula />
     </div>
   )

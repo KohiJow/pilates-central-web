@@ -1,7 +1,8 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import { hoje } from '../app/relogio'
-import { membro as membroAtual, papel } from '../app/perfil'
+import { abrirEm } from '../app/navegacao'
+import { membro as membroAtual, papel, pode } from '../app/perfil'
 import { Botao } from '../componentes/Botao'
 import { EsqueletoDeLista } from '../componentes/Esqueleto'
 import { EstadoVazio } from '../componentes/EstadoVazio'
@@ -104,6 +105,19 @@ export function Agenda() {
       >
         {situacao.value !== 'pronto' ? (
           <EsqueletoDeLista itens={4} altura={112} />
+        ) : !base.value?.turmas.some((t) => t.ativa) ? (
+          // sem grade não há agenda: o caminho é montar as turmas da semana
+          <EstadoVazio
+            icone="grade"
+            rotulo="Sem turmas ainda"
+            texto={pode('editar-turmas') ? 'A agenda nasce da grade da semana. Monte as turmas: tocar no horário cria a turma.' : 'A agenda aparece quando a administração montar a grade da semana.'}
+          >
+            {pode('editar-turmas') && (
+              <Botao variante="primario" icone="grade" onClick={() => abrirEm('mais', ['montar', 'turmas'])}>
+                Montar a grade
+              </Botao>
+            )}
+          </EstadoVazio>
         ) : aulas.length === 0 ? (
           <EstadoVazio
             icone="folga"
