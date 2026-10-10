@@ -513,3 +513,25 @@
   align-self: flex-start;
   margin-left: -12px;
 }
+
+/* sem internet: o que espera na fila para gravar */
+.faixa-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 4px 4px 4px 14px;
+  border-radius: 12px;
+  background: var(--warning-surface);
+  color: var(--warning);
+  font-weight: 600;
+}
+.faixa-fila svg {
+  flex: none;
+}
+.faixa-fila span {
+  flex: 1;
+}
+.faixa-fila .botao {
+  color: var(--warning);
+}

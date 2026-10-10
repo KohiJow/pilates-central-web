@@ -1,7 +1,9 @@
 import { avisar } from '../componentes/Avisos'
 import { BarraAbas } from '../componentes/BarraAbas'
 import { Logo } from '../componentes/Marca'
-import { base, repositorio, situacao } from '../dados/estado'
+import { base, fila, processarFila, repositorio, situacao } from '../dados/estado'
+import { plural } from '../dominio/texto'
+import { Icone } from '../componentes/Icone'
 import { CONFIGURACAO_PADRAO } from '../dominio/configuracao'
 import { Agenda } from '../telas/Agenda'
 import { Alunos } from '../telas/alunos/Alunos'
@@ -52,6 +54,16 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
       </header>
 
       <main class="conteudo" id="conteudo">
+        {fila.value.length > 0 && (
+          // sem internet: o que a pessoa fez está na tela e espera na fila; a faixa fica até gravar
+          <div class="faixa-fila" role="status">
+            <Icone nome="relogio" tamanho={20} />
+            <span>{plural(fila.value.length, 'mudança esperando', 'mudanças esperando')} a internet para gravar.</span>
+            <Botao variante="terciario" onClick={() => void processarFila()}>
+              Tentar agora
+            </Botao>
+          </div>
+        )}
         {situacao.value === 'erro' ? (
           <EstadoVazio icone="info" rotulo="Não abriu" texto="Não deu para carregar os dados. Confira a internet e tente de novo.">
             <Botao variante="secundario" icone="recomecar" onClick={aoRecarregar}>

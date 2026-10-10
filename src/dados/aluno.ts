@@ -15,6 +15,7 @@ import type { DadosDoAluno, MinhaAula } from '../dominio/minhasAulas'
 import { aceito, recusado } from '../dominio/resultado'
 import type { Resultado } from '../dominio/resultado'
 import type { CreditoReposicao, VagaDaAula } from '../dominio/tipos'
+import { tipoDaFalha } from './falhas'
 import { RecusaDoAluno } from './repositorioDoAluno'
 import type { RepositorioDoAluno } from './repositorioDoAluno'
 
@@ -44,6 +45,14 @@ export async function carregarAluno(repo: RepositorioDoAluno, silencioso = false
   }
 }
 
+/** Sem fila para o aluno (o prazo e a vaga mudam enquanto espera): diz o que houve e pede para tentar de novo. */
+function fraseParaOAluno(erro: unknown): string {
+  const tipo = tipoDaFalha(erro)
+  if (tipo === 'rede') return 'Sem internet agora: nada foi gravado. Tente de novo quando a conexão voltar.'
+  if (tipo === 'permissao') return 'O app não conseguiu gravar com a sua conta. Fale com o estúdio pelo WhatsApp.'
+  return 'Não deu para salvar. Confira a internet e tente de novo.'
+}
+
 type Feito = Resultado<{ desfazer?: () => Promise<Resultado<object>> }>
 
 async function executar(acao: (repo: RepositorioDoAluno) => Promise<void>): Promise<Resultado<object>> {
@@ -53,7 +62,7 @@ async function executar(acao: (repo: RepositorioDoAluno) => Promise<void>): Prom
     await acao(repo)
   } catch (erro) {
     await carregarAluno(repo, true)
-    return recusado('nada-a-fazer', erro instanceof RecusaDoAluno ? erro.message : 'Não deu para salvar. Confira a internet e tente de novo.')
+    return recusado('nada-a-fazer', erro instanceof RecusaDoAluno ? erro.message : fraseParaOAluno(erro))
   }
   await carregarAluno(repo, true)
   return aceito({})

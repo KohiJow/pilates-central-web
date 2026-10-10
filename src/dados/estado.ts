@@ -26,7 +26,12 @@ import type {
   Participante,
   RegistroAula,
 } from '../dominio/tipos'
+import { avisar } from '../componentes/Avisos'
+import { sessao } from '../app/sessao'
+import { hoje } from '../app/relogio'
 import { inversoDe } from './desfazer'
+import { acessoMudou, FRASE_FILA_GRAVADA, FRASE_OUTRA, FRASE_SEM_ACESSO, FRASE_SEM_REDE, fraseDaFalha, fraseDoErro, tipoDaFalha } from './falhas'
+import type { RetratoDoAcesso } from './falhas'
 import { mesclarBase } from './mesclar'
 import type { DadosBase, Gravacao, Intervalo, Repositorio } from './repositorio'
 
@@ -217,6 +222,115 @@ function aplicarNaTela(a: Alteracoes): void {
   })
 }
 
+// ---------- sem internet: a fila ----------
+// O Firestore "lite" não guarda nada fora da rede. Quando a gravação cai por falta de conexão,
+// a tela fica como a pessoa deixou e a gravação entra numa fila, que anda sozinha quando a
+// conexão volta (evento online, ou a cada 20 s). A fila mora só na memória: fechar o app antes
+// de gravar perde o que estava nela, e a faixa no topo avisa enquanto houver algo esperando.
+
+export const fila = signal<readonly Gravacao[]>([])
+let processandoFila = false
+let filaLigada = false
+const ESPERA_ENTRE_TENTATIVAS_MS = 20_000
+
+function ligarFila(): void {
+  if (filaLigada || typeof window === 'undefined') return
+  filaLigada = true
+  window.addEventListener('online', () => void processarFila())
+  setInterval(() => {
+    if (fila.peek().length) void processarFila()
+  }, ESPERA_ENTRE_TENTATIVAS_MS)
+}
+
+function enfileirar(g: Gravacao): void {
+  ligarFila()
+  const primeira = fila.peek().length === 0
+  fila.value = [...fila.peek(), g]
+  // depois do aviso da própria ação ("Cadastro feito"), para a fila ser a última palavra
+  if (primeira) setTimeout(() => avisar({ texto: FRASE_SEM_REDE, icone: 'info', duracao: 7000 }), 400)
+  if (navigator.onLine) void processarFila()
+}
+
+/** Como está o acesso de quem usa o app, para saber se uma recusa do banco é da conta ou das regras. */
+function meuRetrato(b: DadosBase | null): RetratoDoAcesso | undefined {
+  const membroId = sessao.peek()?.membroId
+  const eu = b?.equipe.find((m) => m.id === membroId)
+  return eu ? { ativo: eu.ativo, papel: eu.papel, unidades: eu.unidades } : undefined
+}
+
+/**
+ * A frase de uma recusa do banco. Recusada pelas regras, relê os cadastros: se o acesso de quem
+ * gravou mudou (desligado, outro papel, outras unidades), ou se nem a leitura passa mais, a
+ * recusa é da conta; com a conta em dia, as regras publicadas estão velhas para esta versão do
+ * app. A releitura também põe a tela em dia.
+ */
+async function fraseDaRecusa(repo: Repositorio, erro: unknown): Promise<string> {
+  if (tipoDaFalha(erro) !== 'permissao') return fraseDoErro(erro)
+  const antes = meuRetrato(base.peek())
+  try {
+    const b = await repo.carregarBase()
+    base.value = b
+    return fraseDaFalha('permissao', acessoMudou(antes, meuRetrato(b)))
+  } catch (releitura) {
+    return tipoDaFalha(releitura) === 'permissao' ? FRASE_SEM_ACESSO : FRASE_OUTRA
+  }
+}
+
+/** Tenta gravar o que está na fila, na ordem; para na primeira falta de rede e espera a próxima chance. */
+export async function processarFila(): Promise<void> {
+  const repo = repositorio.peek()
+  if (processandoFila || !repo || fila.peek().length === 0) return
+  processandoFila = true
+  let recusada = false
+  try {
+    while (fila.peek().length) {
+      const [g, ...resto] = fila.peek()
+      if (!g) break
+      try {
+        await repo.salvar(g)
+      } catch (erro) {
+        if (tipoDaFalha(erro) === 'rede') return
+        // recusada pelo banco: sai da fila, a pessoa fica sabendo e a tela é relida do banco
+        fila.value = resto
+        recusada = true
+        avisar({ texto: await fraseDaRecusa(repo, erro), icone: 'info', duracao: 9000 })
+        continue
+      }
+      fila.value = resto
+    }
+    if (!recusada) avisar({ texto: FRASE_FILA_GRAVADA, icone: 'presente' })
+    else void carregar(repo, hoje.peek())
+  } finally {
+    processandoFila = false
+  }
+}
+
+/**
+ * Grava no repositório ou, sem rede, põe na fila (a tela já está como a pessoa deixou). Com
+ * algo na fila, a gravação nova entra atrás, para manter a ordem. Recusada pelo banco, lança
+ * o erro para quem chamou desfazer a tela e pedir a frase (fraseDaRecusa).
+ */
+async function salvarOuEnfileirar(repo: Repositorio, g: Gravacao): Promise<'gravado' | 'na-fila'> {
+  // a demonstração grava no aparelho: não depende de rede nem tem fila
+  if (repo.modo === 'demonstracao') {
+    await repo.salvar(g)
+    return 'gravado'
+  }
+  // com algo esperando, ou o aparelho sabidamente sem rede, nem tenta: o SDK insistiria por segundos
+  if (fila.peek().length || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    enfileirar(g)
+    return 'na-fila'
+  }
+  try {
+    await repo.salvar(g)
+    return 'gravado'
+  } catch (erro) {
+    if (tipoDaFalha(erro) !== 'rede') throw erro
+    enfileirar(g)
+    return 'na-fila'
+  }
+}
+
 async function gravar(feito: Alteracoes): Promise<() => Promise<void>> {
   const repo = repositorio.peek()
   if (!repo) throw new Error('sem repositório')
@@ -231,10 +345,10 @@ async function gravar(feito: Alteracoes): Promise<() => Promise<void>> {
     )
   aplicarNaTela(feito)
   try {
-    await repo.salvar(feito)
+    await salvarOuEnfileirar(repo, feito)
   } catch (erro) {
     aplicarNaTela(voltar())
-    throw erro
+    throw new Error(await fraseDaRecusa(repo, erro))
   }
   let desfeito = false
   return async () => {
@@ -242,7 +356,11 @@ async function gravar(feito: Alteracoes): Promise<() => Promise<void>> {
     desfeito = true
     const inverso = voltar()
     aplicarNaTela(inverso)
-    await repo.salvar(inverso)
+    try {
+      await salvarOuEnfileirar(repo, inverso)
+    } catch (erro) {
+      avisar({ texto: await fraseDaRecusa(repo, erro), icone: 'info', duracao: 8000 })
+    }
   }
 }
 
@@ -289,8 +407,8 @@ export async function gravarComDesfazer(
   }
   aplicarGravacao(g)
   try {
-    await repo.salvar(g)
-  } catch {
+    await salvarOuEnfileirar(repo, g)
+  } catch (erro) {
     batch(() => {
       base.value = antes.base
       registros.value = antes.registros
@@ -298,7 +416,7 @@ export async function gravarComDesfazer(
       financeiro.value = antes.financeiro
       pagamentos.value = antes.pagamentos
     })
-    return recusado('nada-a-fazer', 'Não deu para salvar. Tente de novo.')
+    return recusado('nada-a-fazer', await fraseDaRecusa(repo, erro))
   }
   if (!inverso) return aceito({})
   let desfeito = false
@@ -309,7 +427,11 @@ export async function gravarComDesfazer(
       const volta = inverso()
       if (!volta) return
       aplicarGravacao(volta)
-      await repo.salvar(volta)
+      try {
+        await salvarOuEnfileirar(repo, volta)
+      } catch (erro) {
+        avisar({ texto: await fraseDaRecusa(repo, erro), icone: 'info', duracao: 8000 })
+      }
     },
   })
 }
@@ -322,8 +444,8 @@ async function executar<T extends object>(calcular: () => Resultado<T & { altera
   try {
     const desfazer = await gravar(r.valor.alteracoes)
     return aceito({ ...r.valor, desfazer })
-  } catch {
-    return recusado('nada-a-fazer', 'Não deu para salvar. Tente de novo.')
+  } catch (erro) {
+    return recusado('nada-a-fazer', erro instanceof Error && erro.message ? erro.message : FRASE_OUTRA)
   }
 }
 
