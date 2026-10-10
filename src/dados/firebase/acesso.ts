@@ -31,6 +31,10 @@ export async function resolverAcesso(sdk: Sdk, u: Usuario): Promise<Acesso> {
   const convite = await getDoc(doc(sdk.db, 'convites', u.email))
   if (convite.exists()) {
     const c = convite.data() as DocumentoDeConvite
+    // as regras recusariam do mesmo jeito; aqui a frase diz o motivo
+    if (typeof c.expiraEm === 'number' && c.expiraEm < Date.now()) {
+      throw new ErroDeConta('O convite para este e-mail venceu. Peça à administração do estúdio para mandar o convite de novo.')
+    }
     await aceitarConvite(sdk, u, c)
     return c.papel === 'aluno' ? { tipo: 'aluno', alunoId: c.pessoaId } : { tipo: 'equipe', membroId: c.pessoaId }
   }
@@ -60,7 +64,7 @@ async function aceitarConvite(sdk: Sdk, u: Usuario, c: DocumentoDeConvite): Prom
     await lote.commit()
   } catch (erro) {
     if (codigoDe(erro) === 'permission-denied') {
-      throw new ErroDeConta('O convite para este e-mail não vale mais. Peça um convite novo à administração do estúdio.')
+      throw new ErroDeConta('O convite para este e-mail não vale mais (venceu ou foi revogado). Peça um convite novo à administração do estúdio.')
     }
     throw erro
   }

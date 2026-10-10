@@ -8,6 +8,8 @@ import {
   ordenarEquipe,
   quemPodeDarAula,
   reativarMembro,
+  renovarConvite,
+  revogarConvite,
   transferirTitularidade,
   validarMembro,
 } from './equipe'
@@ -138,6 +140,33 @@ describe('desativar e reativar', () => {
 
   it('ninguém se desativa', () => {
     expect(desativarMembro(titular, titular, [])).toMatchObject({ ok: false, codigo: 'sem-permissao' })
+  })
+})
+
+describe('convite pendente: revogar e mandar de novo', () => {
+  const convidado = membro('novo', 'professor', { convite: { enviadoEm: AGORA, porId: 'adm' } })
+  const convidadoAdm = membro('novoadm', 'administrador', { convite: { enviadoEm: AGORA, porId: 'tit' } })
+  const DEPOIS = '2026-10-20T13:00:00.000Z'
+
+  it('a administração revoga o convite de professor; só o titular, o de administração', () => {
+    expect(revogarConvite(admin, convidado)).toMatchObject({ ok: true, valor: { ativo: false, convite: { enviadoEm: AGORA } } })
+    expect(revogarConvite(admin, convidadoAdm)).toMatchObject({ ok: false, codigo: 'sem-permissao' })
+    expect(revogarConvite(titular, convidadoAdm)).toMatchObject({ ok: true, valor: { ativo: false } })
+    expect(revogarConvite(prof, convidado)).toMatchObject({ ok: false, codigo: 'sem-permissao' })
+  })
+
+  it('quem já entrou não tem convite para revogar, e revogado duas vezes não muda', () => {
+    expect(revogarConvite(admin, prof)).toMatchObject({ ok: false, codigo: 'nada-a-fazer' })
+    expect(revogarConvite(admin, { ...convidado, ativo: false })).toMatchObject({ ok: false, codigo: 'nada-a-fazer' })
+  })
+
+  it('mandar de novo recomeça o prazo e devolve o acesso a um convite revogado', () => {
+    const vencido = renovarConvite(admin, convidado, DEPOIS)
+    expect(vencido).toMatchObject({ ok: true, valor: { ativo: true, convite: { enviadoEm: DEPOIS, porId: 'adm' } } })
+    const revogado = renovarConvite(titular, { ...convidadoAdm, ativo: false }, DEPOIS)
+    expect(revogado).toMatchObject({ ok: true, valor: { ativo: true, convite: { enviadoEm: DEPOIS, porId: 'tit' } } })
+    expect(renovarConvite(admin, { ...convidadoAdm, ativo: false }, DEPOIS)).toMatchObject({ ok: false, codigo: 'sem-permissao' })
+    expect(renovarConvite(admin, prof, DEPOIS)).toMatchObject({ ok: false, codigo: 'nada-a-fazer' })
   })
 })
 

@@ -1,23 +1,28 @@
 import { useState } from 'preact/hooks'
 import { abrir } from '../../app/navegacao'
 import { membro as eu, pode } from '../../app/perfil'
+import { agoraDoApp } from '../../app/relogio'
 import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
 import { CabecalhoDeSubtela } from '../../componentes/CabecalhoDeSubtela'
+import { CompartilharTexto } from '../../componentes/CompartilharTexto'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
 import { Icone } from '../../componentes/Icone'
 import { Pilula } from '../../componentes/Pilula'
 import { base, equipePorId, nomeDaUnidade } from '../../dados/estado'
-import { mudarAcessoDoMembro, mudarPapelDoMembro, passarAConta } from '../../dados/gestao'
+import { mudarAcessoDoMembro, mudarPapelDoMembro, passarAConta, renovarConviteDaEquipe, revogarConviteDaEquipe } from '../../dados/gestao'
+import { CONFIGURACAO_PADRAO } from '../../dominio/configuracao'
+import { linkDeEntrada, mensagemDoConvite, prazoDoConvite } from '../../dominio/convites'
 import { dataCurta } from '../../dominio/datas'
 import { podeEditarMembro } from '../../dominio/equipe'
 import { NOME_DO_PAPEL } from '../../dominio/permissoes'
 import { linkDoWhatsApp, listaFalada, plural, primeiroNome, telefoneLegivel } from '../../dominio/texto'
 import type { Id } from '../../dominio/tipos'
 import { nomeDaTurma } from '../../dominio/turmas'
+import { situacaoDoConvite } from './Equipe'
 import { SemAcesso } from './SemAcesso'
 
-/** Uma pessoa da equipe: contato, papel e o que a administração pode fazer com o acesso dela. */
+/** Uma pessoa da equipe: contato, papel, o convite (enquanto não entrou) e o que a administração pode fazer com o acesso dela. */
 export function DetalheDoMembro({ membroId }: { membroId: Id }) {
   const ator = eu.value
   const alvo = equipePorId.value.get(membroId)
@@ -28,6 +33,11 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
   const titular = ator.papel === 'titular'
   const turmas = (base.value?.turmas ?? []).filter((t) => t.ativa && t.professorId === alvo.id)
   const convidadoPor = alvo.convite ? equipePorId.value.get(alvo.convite.porId) : undefined
+  const validade = base.value?.configuracao.validadeDoConviteDias ?? CONFIGURACAO_PADRAO.validadeDoConviteDias
+  const convite = situacaoDoConvite(alvo, validade, agoraDoApp())
+  // quem mexe no convite: a administração nos de professor, só o titular nos de administração
+  const mexeNoConvite = !souEu && (alvo.papel === 'professor' || titular)
+  const textoDoConvite = mensagemDoConvite('equipe', alvo.nome, alvo.email, linkDeEntrada(location.origin, import.meta.env.BASE_URL), validade)
 
   const resultado = (r: Awaited<ReturnType<typeof mudarPapelDoMembro>>, texto: string) => {
     if (!r.ok) return avisar({ texto: r.mensagem, icone: 'info' })
@@ -47,8 +57,8 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
       <CabecalhoDeSubtela voltarPara="Equipe" rotulo={NOME_DO_PAPEL[alvo.papel]} titulo={alvo.nome} idTitulo="titulo-membro">
         <div class="chips">
           {souEu && <Pilula tom="acento">você</Pilula>}
-          {alvo.convite && <Pilula tom="acento">convite pendente</Pilula>}
-          {!alvo.ativo && <Pilula tom="alerta">sem acesso</Pilula>}
+          {convite && <Pilula tom={convite === 'pendente' ? 'acento' : 'alerta'}>convite {convite}</Pilula>}
+          {!alvo.ativo && !convite && <Pilula tom="alerta">sem acesso</Pilula>}
         </div>
       </CabecalhoDeSubtela>
 
@@ -80,25 +90,39 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
             <dt>Convite</dt>
             <dd>
               Registrado em {dataCurta(alvo.convite.enviadoEm.slice(0, 10))}
-              {convidadoPor ? ` por ${primeiroNome(convidadoPor.nome)}` : ''}. A pessoa entra criando a conta com este e-mail.
+              {convidadoPor ? ` por ${primeiroNome(convidadoPor.nome)}` : ''}
+              {convite === 'revogado' ? ' e revogado.' : `, ${prazoDoConvite(alvo.convite.enviadoEm, validade, agoraDoApp())}.`}{' '}
+              {convite === 'pendente' && 'A pessoa entra criando a conta com este e-mail.'}
+              {convite === 'vencido' && 'Passou do prazo sem a pessoa criar a conta: mande de novo.'}
+              {convite === 'revogado' && 'A pessoa não consegue mais entrar com este e-mail até ser convidada de novo.'}
             </dd>
           </div>
         )}
       </dl>
 
-      {alvo.convite && alvo.telefone && (
-        <a
-          class="botao botao--secundario botao--largo tocavel"
-          href={linkDoWhatsApp(alvo.telefone, mensagemDoConvite(alvo.nome, alvo.email))}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Icone nome="mensagem" tamanho={20} />
-          <span>Mandar o convite pelo WhatsApp</span>
-        </a>
+      {convite === 'pendente' && (
+        <section class="secao" aria-label="Mandar o convite">
+          {alvo.telefone && (
+            <a class="botao botao--secundario botao--largo tocavel" href={linkDoWhatsApp(alvo.telefone, textoDoConvite)} target="_blank" rel="noopener noreferrer">
+              <Icone nome="mensagem" tamanho={20} />
+              <span>Mandar o convite pelo WhatsApp</span>
+            </a>
+          )}
+          <CompartilharTexto titulo="Convite para a equipe" texto={textoDoConvite} />
+        </section>
       )}
 
       <section class="secao" aria-label="Ações">
+        {mexeNoConvite && (convite === 'vencido' || convite === 'revogado') && (
+          <Botao
+            variante="secundario"
+            icone="convidar"
+            largo
+            onClick={async () => resultado(await renovarConviteDaEquipe(ator, alvo.id), `Convite de ${primeiroNome(alvo.nome)} mandado de novo: vale por ${plural(validade, 'dia')}.`)}
+          >
+            {convite === 'revogado' ? 'Convidar de novo' : 'Mandar o convite de novo'}
+          </Botao>
+        )}
         {podeEditarMembro(ator, alvo) && (
           <Botao variante="secundario" icone="editar" largo onClick={() => abrir('equipe', alvo.id, 'editar')}>
             Editar contato{alvo.papel === 'professor' && pode('editar-professores') ? ' e unidades' : ''}
@@ -127,7 +151,16 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
             </Botao>
           </>
         )}
-        {!souEu && alvo.papel !== 'titular' && (alvo.papel === 'professor' || titular) && (
+        {mexeNoConvite && (convite === 'pendente' || convite === 'vencido') && (
+          <Botao
+            variante="perigo"
+            largo
+            onClick={async () => resultado(await revogarConviteDaEquipe(ator, alvo.id), `Convite de ${primeiroNome(alvo.nome)} revogado.`)}
+          >
+            Revogar o convite
+          </Botao>
+        )}
+        {!souEu && !convite && alvo.papel !== 'titular' && (alvo.papel === 'professor' || titular) && (
           <Botao
             variante={alvo.ativo ? 'perigo' : 'secundario'}
             largo
@@ -169,10 +202,4 @@ export function DetalheDoMembro({ membroId }: { membroId: Id }) {
       </FolhaInferior>
     </section>
   )
-}
-
-/** O app não manda e-mail de convite (sem Cloud Functions): o convite vai pelo WhatsApp. */
-function mensagemDoConvite(nome: string, email: string): string {
-  const endereco = `${location.origin}${import.meta.env.BASE_URL}`
-  return `Olá, ${primeiroNome(nome)}! Você foi convidado para a equipe do estúdio no app. Entre em ${endereco}, toque em Entrar e depois em "Primeiro acesso? Criar conta", com o e-mail ${email}, e confirme o e-mail no link que chegar.`
 }

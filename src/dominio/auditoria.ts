@@ -16,6 +16,8 @@ export const ACOES_AUDITADAS: readonly AcaoAuditada[] = [
   'acesso-da-equipe-desligado',
   'acesso-da-equipe-religado',
   'conta-passada',
+  'convite-revogado',
+  'convite-reenviado',
 ]
 
 /** Teto do complemento (o mesmo das regras do Firestore). */
@@ -70,6 +72,11 @@ export function descreverAuditoria(r: RegistroDeAuditoria, nomes: Nomes): string
       return `${quem} religou o acesso de ${membro()}`
     case 'conta-passada':
       return `${quem} passou a conta do estúdio para ${membro()}`
+    case 'convite-revogado':
+      return `${quem} revogou o convite de ${membro()}`
+    // o alvo pode ser alguém da equipe ou um aluno: o complemento diz qual
+    case 'convite-reenviado':
+      return `${quem} mandou de novo o convite de ${r.detalhe === 'aluno' ? aluno() : membro()}`
   }
 }
 

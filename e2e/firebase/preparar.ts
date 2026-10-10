@@ -92,7 +92,10 @@ export default async function preparar(): Promise<void> {
     documentos.push([`equipe/${m.id}`, limpo({ ...documentoDoMembro(m), ...(uid ? { uid } : {}) })])
   }
   for (const c of convidados) {
-    documentos.push([`convites/${c.email}`, { email: c.email, papel: 'professor', pessoaId: c.id, porId: CONTAS.responsavel.membroId, criadoEm: instante }])
+    documentos.push([
+      `convites/${c.email}`,
+      { email: c.email, papel: 'professor', pessoaId: c.id, porId: CONTAS.responsavel.membroId, criadoEm: instante, expiraEm: Date.now() + 7 * 86_400_000 },
+    ])
   }
   for (const [membroId, uid] of uids) {
     const m = equipe.find((x) => x.id === membroId)

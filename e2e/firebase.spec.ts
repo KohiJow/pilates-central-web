@@ -199,7 +199,11 @@ test.describe('Firebase (emuladores)', () => {
     await irPara(page, `#/alunos/${aluno}`)
     await page.getByRole('button', { name: /Liberar o app para/ }).click()
     await expect(aviso(page, /Acesso de .* liberado/)).toBeVisible()
-    await esperarNoBanco(`convites/aluno${aluno.slice(2)}@example.com`, (d) => campo(d, 'papel')?.stringValue === 'aluno')
+    // o convite nasce com prazo (7 dias, a validade padrão), que as regras conferem no aceite
+    await esperarNoBanco(
+      `convites/aluno${aluno.slice(2)}@example.com`,
+      (d) => campo(d, 'papel')?.stringValue === 'aluno' && Number(campo(d, 'expiraEm')?.integerValue) > Date.now() + 6 * 86_400_000,
+    )
     await esperarNoBanco(`portal/${aluno}`, (d) => d !== null && !JSON.stringify(d).includes('aluno1'))
 
     // convite de professor

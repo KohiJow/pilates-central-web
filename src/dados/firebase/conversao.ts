@@ -148,13 +148,17 @@ export function mudancaDeLista(antes: readonly string[], depois: readonly string
   }
 }
 
-/** Convite gravado em convites/{email}: quem foi convidado lê o seu e aceita. */
+/**
+ * Convite gravado em convites/{email}: quem foi convidado lê o seu e aceita, até `expiraEm`
+ * (milissegundos desde 1970; as regras do Firestore recusam o aceite depois disso).
+ */
 export interface DocumentoDeConvite {
   email: string
   papel: 'administrador' | 'professor' | 'aluno'
   pessoaId: Id
   porId: Id
   criadoEm: string
+  expiraEm: number
 }
 
 /** Ligação da conta (uid) com a pessoa, em acessos/{uid}. */

@@ -12,6 +12,8 @@ import {
   editarMembro,
   mudarPapel,
   reativarMembro,
+  renovarConvite,
+  revogarConvite,
   transferirTitularidade,
 } from '../dominio/equipe'
 import type { RascunhoMembro } from '../dominio/equipe'
@@ -353,6 +355,39 @@ export async function mudarAcessoDoMembro(ator: MembroEquipe, alvoId: Id, ativo:
   return gravarComDesfazer({ equipe: [r.valor], auditoria: [anotar(acao(ativo), alvoId, '', ator.id)] }, () => {
     const agora = membro(alvoId)
     return agora ? { equipe: [{ ...agora, ativo: !ativo }], auditoria: [anotar(acao(!ativo), alvoId, '', ator.id)] } : null
+  })
+}
+
+/** Revoga um convite pendente: a pessoa fica sem acesso e, no Firebase, o convite do e-mail some. */
+export async function revogarConviteDaEquipe(ator: MembroEquipe, alvoId: Id): Promise<Resultado<ComDesfazer>> {
+  const alvo = membro(alvoId)
+  if (!alvo) return recusado('nada-a-fazer', 'Pessoa não encontrada.')
+  const r = revogarConvite(ator, alvo)
+  if (!r.ok) return r
+  return gravarComDesfazer({ equipe: [r.valor], auditoria: [anotar('convite-revogado', alvoId, '', ator.id)] }, () => {
+    const agora = membro(alvoId)
+    if (!agora) return null
+    const volta = renovarConvite(ator, agora, agoraDoApp().toISOString())
+    return volta.ok ? { equipe: [volta.valor], auditoria: [anotar('convite-reenviado', alvoId, 'equipe', ator.id)] } : null
+  })
+}
+
+/** Manda o convite de novo (venceu, ou tinha sido revogado): o prazo recomeça agora. */
+export async function renovarConviteDaEquipe(ator: MembroEquipe, alvoId: Id): Promise<Resultado<ComDesfazer>> {
+  const alvo = membro(alvoId)
+  if (!alvo) return recusado('nada-a-fazer', 'Pessoa não encontrada.')
+  const r = renovarConvite(ator, alvo, agoraDoApp().toISOString())
+  if (!r.ok) return r
+  return gravarComDesfazer({ equipe: [r.valor], auditoria: [anotar('convite-reenviado', alvoId, 'equipe', ator.id)] })
+}
+
+/** O convite do aluno de novo (venceu antes de ele criar a conta): o prazo recomeça agora. */
+export async function renovarConviteDoAluno(alunoId: Id, ator: MembroEquipe): Promise<Resultado<ComDesfazer>> {
+  const aluno = alunosPorId.peek().get(alunoId)
+  if (!aluno?.acesso) return recusado('nada-a-fazer', 'O acesso ainda não foi liberado.')
+  return gravarComDesfazer({
+    alunos: [{ ...aluno, acesso: { convidadoEm: agoraDoApp().toISOString(), porId: ator.id } }],
+    auditoria: [anotar('convite-reenviado', alunoId, 'aluno', ator.id)],
   })
 }
 

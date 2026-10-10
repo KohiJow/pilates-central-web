@@ -148,6 +148,37 @@ export function reativarMembro(ator: MembroEquipe, alvo: MembroEquipe): Resultad
   return aceito({ ...alvo, ativo: true })
 }
 
+/** Quem pode mexer no convite de `alvo`: a administração nos de professor, só o titular nos de administração. */
+function podeMexerNoConvite(ator: MembroEquipe, alvo: MembroEquipe): Resultado<true> {
+  if (!alvo.convite) return recusado('nada-a-fazer', `${primeiroNome(alvo.nome)} já fez o primeiro acesso.`)
+  if (alvo.papel === 'administrador' && !pode(ator.papel, 'gerenciar-administradores')) {
+    return semPermissao('Só quem é responsável pela conta mexe em convites para a administração.')
+  }
+  if (!pode(ator.papel, 'editar-professores')) return semPermissao('Só a administração mexe em convites.')
+  return aceito(true)
+}
+
+/**
+ * Revoga um convite que ainda não foi aceito: a pessoa fica sem acesso (no Firebase, o convite
+ * para o e-mail dela some) e o cadastro fica guardado para convidar de novo.
+ */
+export function revogarConvite(ator: MembroEquipe, alvo: MembroEquipe): Resultado<MembroEquipe> {
+  const p = podeMexerNoConvite(ator, alvo)
+  if (!p.ok) return p
+  if (!alvo.ativo) return recusado('nada-a-fazer', 'Este convite já foi revogado.')
+  return aceito({ ...alvo, ativo: false })
+}
+
+/**
+ * Manda o convite de novo (venceu, ou foi revogado): o prazo recomeça agora e, se estava
+ * revogado, a pessoa volta a poder entrar.
+ */
+export function renovarConvite(ator: MembroEquipe, alvo: MembroEquipe, instante: Instante): Resultado<MembroEquipe> {
+  const p = podeMexerNoConvite(ator, alvo)
+  if (!p.ok) return p
+  return aceito({ ...alvo, ativo: true, convite: { enviadoEm: instante, porId: ator.id } })
+}
+
 /**
  * Passa a conta para um administrador. Quem era titular vira administrador (continua com o
  * mesmo acesso ao dia a dia). O novo titular precisa já ter entrado no app: com o login de

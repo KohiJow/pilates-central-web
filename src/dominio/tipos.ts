@@ -190,6 +190,8 @@ export type AcaoAuditada =
   | 'acesso-da-equipe-desligado'
   | 'acesso-da-equipe-religado'
   | 'conta-passada'
+  | 'convite-revogado'
+  | 'convite-reenviado'
 
 /**
  * Uma linha do registro de alterações, só com códigos (nenhum nome, telefone ou e-mail): quem
@@ -240,6 +242,8 @@ export interface Configuracao extends TextosDoEstudio {
   acessoDoAluno: boolean
   /** a página pública mostra os horários com vaga para aula experimental */
   paginaExperimental: boolean
+  /** por quantos dias um convite (equipe ou aluno) vale para a pessoa criar a conta */
+  validadeDoConviteDias: number
 }
 
 // ---------- cópias para quem não pode ler tudo (projeções) ----------

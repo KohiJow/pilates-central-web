@@ -6,7 +6,7 @@ import type { RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
-import { AMANHA, aulaId, banco, credito, criarAmbiente, DEPOIS, EMAILS, LOGO, semear, vagaDe } from './cenario'
+import { AMANHA, aulaId, banco, credito, criarAmbiente, DEPOIS, EMAILS, expiraEm, LOGO, semear, vagaDe } from './cenario'
 import type { Quem } from './cenario'
 
 let ambiente: RulesTestEnvironment
@@ -462,6 +462,7 @@ describe('administração: o que nem ela faz', () => {
       pessoaId: 'e-convidado-adm',
       porId: 'e-adm',
       criadoEm: instante,
+      expiraEm: expiraEm(7),
     })
     await assertSucceeds(b.commit())
     const outro = ambiente

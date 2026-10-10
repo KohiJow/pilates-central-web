@@ -58,6 +58,11 @@ function modoInicial(busca: string): Modo | null {
     gravarLocal(CHAVE_MODO, 'demonstracao')
     return 'demonstracao'
   }
+  // link do convite: vai direto à porta de entrar (criar a conta com o e-mail convidado)
+  if (params.has('entrar')) {
+    gravarLocal(CHAVE_MODO, 'firebase')
+    return 'firebase'
+  }
   const guardado = lerLocal(CHAVE_MODO)
   return guardado === 'demonstracao' || guardado === 'firebase' ? guardado : null
 }

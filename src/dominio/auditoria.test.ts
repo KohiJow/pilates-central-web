@@ -19,6 +19,9 @@ describe('registro de alterações', () => {
     expect(descreverAuditoria(r('acesso-do-aluno-liberado', 'a-10'), nomes)).toBe('Helena Prado liberou o app para Ana Almeida')
     expect(descreverAuditoria(r('papel-mudado', 'e-marcos', 'Administração'), nomes)).toBe('Helena Prado mudou Marcos Teles para Administração')
     expect(descreverAuditoria(r('conta-passada', 'e-marcos'), nomes)).toMatch(/passou a conta do estúdio para Marcos Teles/)
+    expect(descreverAuditoria(r('convite-revogado', 'e-marcos'), nomes)).toBe('Helena Prado revogou o convite de Marcos Teles')
+    expect(descreverAuditoria(r('convite-reenviado', 'e-marcos', 'equipe'), nomes)).toBe('Helena Prado mandou de novo o convite de Marcos Teles')
+    expect(descreverAuditoria(r('convite-reenviado', 'a-10', 'aluno'), nomes)).toBe('Helena Prado mandou de novo o convite de Ana Almeida')
   })
 
   it('aluno excluído aparece só pelo código, e quem saiu da equipe também', () => {

@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
-import { AMANHA, aulaId, banco, CONFIG, credito, criarAmbiente, DEPOIS, EMAILS, LOGO, semear, turma, uidDe } from './cenario'
+import { AMANHA, aulaId, banco, CONFIG, credito, criarAmbiente, DEPOIS, EMAILS, expiraEm, LOGO, semear, turma, uidDe } from './cenario'
 import type { Quem } from './cenario'
 
 let ambiente: RulesTestEnvironment
@@ -254,6 +254,7 @@ const conviteDe = (email: string, papel: string, pessoaId: string, porId: string
   pessoaId,
   porId,
   criadoEm: instante,
+  expiraEm: expiraEm(7),
 })
 
 describe('equipe: quem convida e quem muda o papel de quem', () => {

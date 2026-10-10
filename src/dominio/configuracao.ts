@@ -29,7 +29,11 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
   // os dois começam desligados: a administração liga quando quiser
   acessoDoAluno: false,
   paginaExperimental: false,
+  validadeDoConviteDias: 7,
 }
+
+/** Quantos dias um convite vale (o mesmo intervalo das regras do Firestore). */
+export const VALIDADE_DO_CONVITE = { minimo: 1, maximo: 90 } as const
 
 export type CampoConfiguracao = keyof Configuracao
 
@@ -98,6 +102,9 @@ export function validarConfiguracao(c: Configuracao): ErrosDeCampo<CampoConfigur
     erros.alertaAusenciasSeguidas = 'Use um número de 2 a 10.'
   }
   if (!inteiroEntre(c.capacidadePadrao, 1, 20)) erros.capacidadePadrao = 'A capacidade deve ficar entre 1 e 20 alunos.'
+  if (!inteiroEntre(c.validadeDoConviteDias, VALIDADE_DO_CONVITE.minimo, VALIDADE_DO_CONVITE.maximo)) {
+    erros.validadeDoConviteDias = `O convite vale de ${VALIDADE_DO_CONVITE.minimo} a ${VALIDADE_DO_CONVITE.maximo} dias.`
+  }
   return erros
 }
 

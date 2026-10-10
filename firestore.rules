@@ -272,10 +272,10 @@ service cloud.firestore {
     function configuracaoValida(c) {
       return c.keys().hasAll(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
           'validadeCreditoDias', 'antecedenciaAvisoHoras', 'limiteReposicoesMes', 'alertaAusenciasSeguidas',
-          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental', 'validadeDoConviteDias'])
         && c.keys().hasOnly(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
           'validadeCreditoDias', 'antecedenciaAvisoHoras', 'limiteReposicoesMes', 'alertaAusenciasSeguidas',
-          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental', 'validadeDoConviteDias'])
         && texto(c.nomeEstudio, 2, 80)
         && ehTelefone(c.whatsapp)
         && textosDoEstudioValidos(c)
@@ -285,7 +285,26 @@ service cloud.firestore {
         && inteiro(c.alertaAusenciasSeguidas, 2, 10)
         && inteiro(c.capacidadePadrao, 1, 20)
         && c.acessoDoAluno is bool
-        && c.paginaExperimental is bool;
+        && c.paginaExperimental is bool
+        && inteiro(c.validadeDoConviteDias, 1, 90);
+    }
+
+    // Por quantos dias um convite vale, da configuração (7 enquanto ela não existe: o padrão do app).
+    function validadeDoConviteDias() {
+      return dados(caminho('configuracao', 'estudio'), {}).get('validadeDoConviteDias', 7);
+    }
+
+    // O prazo do convite, em milissegundos desde 1970: no futuro, e dentro da validade combinada
+    // (com um dia de folga para o relógio do aparelho que registrou).
+    function prazoDoConviteValido(expiraEm) {
+      return expiraEm is int
+        && expiraEm > request.time.toMillis()
+        && expiraEm <= request.time.toMillis() + (validadeDoConviteDias() + 1) * 86400000;
+    }
+
+    // O convite deste e-mail ainda vale (um convite sem prazo não vale: todo convite nasce com um).
+    function conviteNoPrazo(c) {
+      return c.get('expiraEm', 0) >= request.time.toMillis();
     }
 
     match /configuracao/estudio {
@@ -375,6 +394,7 @@ service cloud.firestore {
         && !('convite' in request.resource.data)
         && exists(caminho('convites', meuEmail()))
         && get(caminho('convites', meuEmail())).data.pessoaId == membroId
+        && conviteNoPrazo(get(caminho('convites', meuEmail())).data)
         && getAfter(caminho('acessos', request.auth.uid)).data.pessoaId == membroId;
     }
 
@@ -396,16 +416,19 @@ service cloud.firestore {
       );
     }
 
+    // Todo convite nasce com prazo (expiraEm), dentro da validade combinada nas configurações;
+    // depois dele, o aceite é recusado (aceiteDoConvite, criarAcesso) e a administração manda de novo.
     function conviteValido(q, email, c) {
       let m = dadosDepois(caminho('equipe', c.pessoaId), {});
       let al = dadosDepois(caminho('alunos', c.pessoaId), {});
-      return c.keys().hasAll(['email', 'papel', 'pessoaId', 'porId', 'criadoEm'])
-        && c.keys().hasOnly(['email', 'papel', 'pessoaId', 'porId', 'criadoEm'])
+      return c.keys().hasAll(['email', 'papel', 'pessoaId', 'porId', 'criadoEm', 'expiraEm'])
+        && c.keys().hasOnly(['email', 'papel', 'pessoaId', 'porId', 'criadoEm', 'expiraEm'])
         && c.email == email
         && ehEmail(email)
         && ehId(c.pessoaId)
         && c.porId == q.id
         && ehInstante(c.criadoEm)
+        && prazoDoConviteValido(c.expiraEm)
         && (
           (c.papel in ['professor', 'administrador']
             && (c.papel == 'professor' || titular(q))
@@ -456,6 +479,7 @@ service cloud.firestore {
           (a.tipo == 'equipe'
             && c.get('pessoaId', '') == a.pessoaId
             && c.get('papel', '') in ['administrador', 'professor']
+            && conviteNoPrazo(c)
             && getAfter(caminho('equipe', a.pessoaId)).data.get('uid', '') == uid)
           // primeiro acesso do titular, no mesmo lote da posse
           || (a.tipo == 'equipe'
@@ -466,6 +490,7 @@ service cloud.firestore {
           || (a.tipo == 'aluno'
             && c.get('pessoaId', '') == a.pessoaId
             && c.get('papel', '') == 'aluno'
+            && conviteNoPrazo(c)
             && alunoPodeEntrar(a.pessoaId))
         );
     }
@@ -978,7 +1003,8 @@ service cloud.firestore {
         && r.keys().hasOnly(['id', 'acao', 'porId', 'alvoId', 'detalhe', 'em'])
         && r.id == id
         && r.acao in ['pagamento-lancado', 'pagamento-apagado', 'aluno-excluido', 'acesso-do-aluno-liberado',
-          'acesso-do-aluno-tirado', 'papel-mudado', 'acesso-da-equipe-desligado', 'acesso-da-equipe-religado', 'conta-passada']
+          'acesso-do-aluno-tirado', 'papel-mudado', 'acesso-da-equipe-desligado', 'acesso-da-equipe-religado', 'conta-passada',
+          'convite-revogado', 'convite-reenviado']
         && r.porId == q.id
         && ehId(r.alvoId)
         && texto(r.detalhe, 0, 120)

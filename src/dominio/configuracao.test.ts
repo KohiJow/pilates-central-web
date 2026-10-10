@@ -108,3 +108,14 @@ describe('os textos do estúdio na página pública', () => {
     expect(linkDoInstagram('estudio.exemplo')).toBe('https://www.instagram.com/estudio.exemplo/')
   })
 })
+
+describe('validade do convite', () => {
+  it('vale 7 dias por padrão, de 1 a 90, e a configuração antiga ganha o padrão', () => {
+    expect(CONFIGURACAO_PADRAO.validadeDoConviteDias).toBe(7)
+    expect(validarConfiguracao({ ...CONFIGURACAO_PADRAO, validadeDoConviteDias: 0 })).toHaveProperty('validadeDoConviteDias')
+    expect(validarConfiguracao({ ...CONFIGURACAO_PADRAO, validadeDoConviteDias: 91 })).toHaveProperty('validadeDoConviteDias')
+    expect(validarConfiguracao({ ...CONFIGURACAO_PADRAO, validadeDoConviteDias: 2.5 })).toHaveProperty('validadeDoConviteDias')
+    expect(validarConfiguracao({ ...CONFIGURACAO_PADRAO, validadeDoConviteDias: 90 })).toEqual({})
+    expect(completarConfiguracao({ nomeEstudio: 'X' }).validadeDoConviteDias).toBe(7)
+  })
+})

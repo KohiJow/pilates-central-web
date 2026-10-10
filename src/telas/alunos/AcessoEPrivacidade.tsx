@@ -4,20 +4,19 @@ import { useState } from 'preact/hooks'
 import { baixarArquivo } from '../../app/baixar'
 import { abrir } from '../../app/navegacao'
 import { membro, pode } from '../../app/perfil'
+import { agoraDoApp } from '../../app/relogio'
 import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
+import { CompartilharTexto } from '../../componentes/CompartilharTexto'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
 import { Icone } from '../../componentes/Icone'
 import { base } from '../../dados/estado'
 import { exportarDadosDoAluno } from '../../dados/exportacao'
-import { excluirAluno, liberarAcessoDoAluno, tirarAcessoDoAluno } from '../../dados/gestao'
+import { excluirAluno, liberarAcessoDoAluno, renovarConviteDoAluno, tirarAcessoDoAluno } from '../../dados/gestao'
+import { conviteVencido, linkDeEntrada, mensagemDoConvite, prazoDoConvite } from '../../dominio/convites'
 import { dataCurta } from '../../dominio/datas'
-import { linkDoWhatsApp, primeiroNome } from '../../dominio/texto'
+import { linkDoWhatsApp, plural, primeiroNome } from '../../dominio/texto'
 import type { Aluno } from '../../dominio/tipos'
-
-function enderecoDoApp(): string {
-  return `${location.origin}${import.meta.env.BASE_URL}`
-}
 
 export function AcessoAoApp({ aluno }: { aluno: Aluno }) {
   const eu = membro.value
@@ -42,7 +41,14 @@ export function AcessoAoApp({ aluno }: { aluno: Aluno }) {
     avisar(r.ok ? { texto: `${nome} não entra mais no app.`, icone: 'sair' } : { texto: r.mensagem, icone: 'info' })
   }
 
-  const convite = `Olá, ${nome}! O estúdio liberou o seu acesso ao app das aulas. Entre em ${enderecoDoApp()}, toque em Entrar e depois em "Primeiro acesso? Criar conta", com o e-mail ${aluno.email}. Pelo app você vê as suas aulas, avisa quando não puder vir e escolhe a reposição.`
+  const mandarDeNovo = async () => {
+    if (!eu) return
+    const r = await renovarConviteDoAluno(aluno.id, eu)
+    avisar(r.ok ? { texto: `Convite de ${nome} mandado de novo: vale por ${plural(config.validadeDoConviteDias, 'dia')}.`, icone: 'convidar' } : { texto: r.mensagem, icone: 'info' })
+  }
+
+  const convite = mensagemDoConvite('aluno', aluno.nome, aluno.email, linkDeEntrada(location.origin, import.meta.env.BASE_URL), config.validadeDoConviteDias)
+  const vencido = aluno.acesso ? conviteVencido(aluno.acesso.convidadoEm, config.validadeDoConviteDias, agoraDoApp()) : false
 
   return (
     <section class="secao" aria-labelledby="titulo-app-aluno">
@@ -61,14 +67,22 @@ export function AcessoAoApp({ aluno }: { aluno: Aluno }) {
       ) : aluno.acesso ? (
         <>
           <p class="texto-secundario">
-            Acesso liberado em {dataCurta(aluno.acesso.convidadoEm.slice(0, 10))}. {nome} entra com <span class="quebra-livre">{aluno.email}</span>.
+            Acesso liberado em {dataCurta(aluno.acesso.convidadoEm.slice(0, 10))}. {nome} entra com <span class="quebra-livre">{aluno.email}</span>; o
+            convite {prazoDoConvite(aluno.acesso.convidadoEm, config.validadeDoConviteDias, agoraDoApp())}.
+            {vencido ? ' Se ainda não criou a conta, mande de novo.' : ''}
           </p>
+          {vencido && (
+            <Botao variante="secundario" icone="convidar" largo onClick={() => void mandarDeNovo()}>
+              Mandar o convite de novo
+            </Botao>
+          )}
           {aluno.telefone && (
             <a class="botao botao--secundario botao--largo tocavel" href={linkDoWhatsApp(aluno.telefone, convite)} target="_blank" rel="noopener noreferrer">
               <Icone nome="mensagem" tamanho={20} />
               <span>Mandar o convite pelo WhatsApp</span>
             </a>
           )}
+          <CompartilharTexto titulo="Convite para o app do aluno" texto={convite} />
           <Botao variante="terciario" icone="sair" largo onClick={() => void tirar()}>
             Tirar o acesso
           </Botao>

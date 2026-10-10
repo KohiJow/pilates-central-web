@@ -72,6 +72,12 @@ export const CONFIG = {
   capacidadePadrao: 5,
   acessoDoAluno: true,
   paginaExperimental: true,
+  validadeDoConviteDias: 7,
+}
+
+/** Prazo de um convite registrado agora: daqui a `dias` (em ms), como o app grava. */
+export function expiraEm(dias: number): number {
+  return Date.now() + dias * 86_400_000
 }
 
 function membro(id: string, papel: string, email: string, unidades: string[], extra: Record<string, unknown> = {}) {
@@ -157,7 +163,8 @@ export async function semear(ambiente: RulesTestEnvironment): Promise<void> {
     await gravar('acessos/uid-aluno', acesso('aluno', 'a-1', EMAILS.aluno))
     await gravar('acessos/uid-aluno2', acesso('aluno', 'a-2', EMAILS.aluno2))
 
-    const conv = (email: string, papel: string, pessoaId: string) => ({ email, papel, pessoaId, porId: 'e-titular', criadoEm: instante })
+    // o convite vale até expiraEm (ms); aqui, daqui a 7 dias
+    const conv = (email: string, papel: string, pessoaId: string) => ({ email, papel, pessoaId, porId: 'e-titular', criadoEm: instante, expiraEm: Date.now() + 7 * 86_400_000 })
     await gravar(`convites/${EMAILS.convidado}`, conv(EMAILS.convidado, 'professor', 'e-convidado'))
     await gravar(`convites/${EMAILS.convidadoAdm}`, conv(EMAILS.convidadoAdm, 'administrador', 'e-convidado-adm'))
     await gravar(`convites/${EMAILS.aluno3}`, conv(EMAILS.aluno3, 'aluno', 'a-3'))

@@ -10,7 +10,7 @@ import { Contador } from '../../componentes/Contador'
 import { Interruptor } from '../../componentes/Interruptor'
 import { base } from '../../dados/estado'
 import { salvarConfiguracao } from '../../dados/gestao'
-import { TAMANHOS, validarConfiguracao } from '../../dominio/configuracao'
+import { TAMANHOS, VALIDADE_DO_CONVITE, validarConfiguracao } from '../../dominio/configuracao'
 import type { CampoConfiguracao } from '../../dominio/configuracao'
 import { semErros } from '../../dominio/resultado'
 import type { ErrosDeCampo } from '../../dominio/resultado'
@@ -154,6 +154,16 @@ export function FormularioDoEstudio() {
           <a class="link" href={`${import.meta.env.BASE_URL}experimental/`} target="_blank" rel="noopener">
             Ver a página pública
           </a>
+          <Contador
+            rotulo="Validade do convite"
+            valor={c.validadeDoConviteDias}
+            aoMudar={(v) => mudar('validadeDoConviteDias', v)}
+            min={VALIDADE_DO_CONVITE.minimo}
+            max={VALIDADE_DO_CONVITE.maximo}
+            formatar={(v) => plural(v, 'dia')}
+            erro={erros.validadeDoConviteDias}
+            ajuda="Quem é convidado (equipe ou aluno) cria a conta dentro desse prazo. Passou? É só mandar o convite de novo."
+          />
         </fieldset>
         <Botao variante="primario" type="submit" largo icone="presente">
           Salvar

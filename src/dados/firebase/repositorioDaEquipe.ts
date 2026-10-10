@@ -24,6 +24,7 @@ import {
   writeBatch,
 } from 'firebase/firestore/lite'
 import type { Transaction } from 'firebase/firestore/lite'
+import { vencimentoDoConvite } from '../../dominio/convites'
 import { momentoDe, somarDias } from '../../dominio/datas'
 import { ehAdministracao } from '../../dominio/permissoes'
 import {
@@ -182,6 +183,9 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
   // ---------- gravação ----------
 
   function gravarCadastros(tx: Transaction, antes: DadosBase, g: Gravacao, instante: string): void {
+    // o convite vale pelos dias da configuração (a que fica depois desta gravação); as regras
+    // conferem o vencimento na hora do aceite
+    const validadeDias = (g.configuracao ?? antes.configuracao).validadeDoConviteDias
     for (const a of g.alunos ?? []) {
       const anterior = antes.alunos.find((x) => x.id === a.id)
       const ref = doc(db, 'alunos', a.id)
@@ -190,12 +194,21 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
         const campos = camposAlterados(semIndefinidos(anterior), semIndefinidos(a))
         if (Object.keys(campos).length) tx.update(ref, paraOBanco(campos))
       }
-      // convite do app do aluno: segue o acesso liberado e o e-mail
+      // convite do app do aluno: segue o acesso liberado e o e-mail; mandado de novo (data nova),
+      // o prazo recomeça
       const tinha = anterior?.acesso && anterior.email ? anterior.email : null
       const tem = a.acesso && a.email ? a.email : null
+      const renovado = tem !== null && tem === tinha && anterior?.acesso?.convidadoEm !== a.acesso?.convidadoEm
       if (tinha && tinha !== tem) tx.delete(doc(db, 'convites', tinha))
-      if (tem && tem !== tinha) {
-        const convite: DocumentoDeConvite = { email: tem, papel: 'aluno', pessoaId: a.id, porId: sessao.membroId, criadoEm: instante }
+      if (tem && a.acesso && (tem !== tinha || renovado)) {
+        const convite: DocumentoDeConvite = {
+          email: tem,
+          papel: 'aluno',
+          pessoaId: a.id,
+          porId: sessao.membroId,
+          criadoEm: instante,
+          expiraEm: vencimentoDoConvite(a.acesso.convidadoEm, validadeDias),
+        }
         tx.set(doc(db, 'convites', tem), convite)
       }
     }
@@ -244,17 +257,20 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
         const campos = camposAlterados(documentoDoMembro(anterior), depois)
         if (Object.keys(campos).length) tx.update(ref, paraOBanco(campos))
       }
-      // convite da equipe: enquanto a pessoa não entrou, o convite segue o e-mail do cadastro
-      const pendenteAntes = anterior?.convite ? anterior.email : null
-      const pendente = m.convite ? m.email : null
+      // convite da equipe: enquanto a pessoa não entrou, o convite segue o e-mail do cadastro;
+      // revogado (acesso desligado) some, mandado de novo (data nova) recomeça o prazo
+      const pendenteAntes = anterior?.convite && anterior.ativo ? anterior.email : null
+      const pendente = m.convite && m.ativo ? m.email : null
+      const renovado = pendente !== null && pendente === pendenteAntes && anterior?.convite?.enviadoEm !== m.convite?.enviadoEm
       if (pendenteAntes && pendenteAntes !== pendente) tx.delete(doc(db, 'convites', pendenteAntes))
-      if (pendente && (pendente !== pendenteAntes || anterior?.papel !== m.papel)) {
+      if (pendente && m.convite && (pendente !== pendenteAntes || anterior?.papel !== m.papel || renovado)) {
         const convite: DocumentoDeConvite = {
           email: pendente,
           papel: m.papel === 'professor' ? 'professor' : 'administrador',
           pessoaId: m.id,
           porId: sessao.membroId,
           criadoEm: instante,
+          expiraEm: vencimentoDoConvite(m.convite.enviadoEm, validadeDias),
         }
         tx.set(doc(db, 'convites', pendente), convite)
       }
