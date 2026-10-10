@@ -63,8 +63,11 @@ test.describe('Firebase (emuladores)', () => {
     await esperarFolhaParada(page)
     await folha(page).locator('.opcao-aula').first().click()
     const nome = `Visita ${info.project.name}`
+    // um telefone por motor: os dois registram na mesma aula do mesmo emulador, e a mesma pessoa
+    // (pelo telefone) não entra duas vezes na mesma aula
+    const telefone = info.project.name === 'webkit' ? '11900000092' : '11900000091'
     await folha(page).getByRole('textbox', { name: 'Nome' }).fill(nome)
-    await folha(page).getByRole('textbox', { name: 'WhatsApp' }).fill('11900000091')
+    await folha(page).getByRole('textbox', { name: 'WhatsApp' }).fill(telefone)
     await folha(page).getByRole('button', { name: /^Registrar / }).click()
     await expect(aviso(page, /vem experimentar/)).toBeVisible({ timeout: 15_000 })
     await expect(folha(page)).toHaveCount(0)
@@ -77,7 +80,7 @@ test.describe('Firebase (emuladores)', () => {
         body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'registros' }] } }),
       })
       const docs = ((await r.json()) as { document?: { fields: Record<string, unknown> } }[]).filter((d) => d.document)
-      return docs.some((d) => JSON.stringify(d.document?.fields?.experimentais ?? {}).includes(`"${nome}|5511900000091"`))
+      return docs.some((d) => JSON.stringify(d.document?.fields?.experimentais ?? {}).includes(`"${nome}|55${telefone}"`))
     }
     await expect.poll(registrada, { timeout: 15_000 }).toBe(true)
   })
