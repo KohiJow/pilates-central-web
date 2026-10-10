@@ -288,7 +288,7 @@ test.describe('celular', () => {
     for (let i = 1; i < saida.length; i++) expect(saida[i], `quadro ${i}: ${saida.join(', ')}`).toBeLessThanOrEqual((saida[i - 1] ?? 0) + 0.5)
   })
 
-  test('trocar de seção: o cabeçalho fica, a marca desliza até a seção nova e só o conteúdo entra', async ({ page }) => {
+  test('trocar de seção: o cabeçalho fica, a marca desliza até a seção nova e só o conteúdo entra', async ({ page, browserName }) => {
     await entrarComoAdministracao(page)
     await irParaAba(page, 'Alunos')
     const secoes = page.getByRole('navigation', { name: 'Seções' })
@@ -312,9 +312,11 @@ test.describe('celular', () => {
     await esperarParado(page, '.secao-quadro')
     const depois = await page.locator('.secoes-marca').evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)
     expect(depois).toBeGreaterThan(antes + 100)
-    // passou por posições do meio: deslizou, em vez de aparecer já no lugar
+    // passou por posições do meio: deslizou, em vez de aparecer já no lugar. Só no Chromium: no
+    // WebKit do contêiner (sem GPU) um quadro pode levar mais que a transição inteira, e a
+    // amostra só vê o começo e o fim (4, 4, 4, 237, 237 numa rodada)
     const x = await page.evaluate(() => (window as unknown as { __marca: number[] }).__marca)
-    expect(x.some((v) => v > antes + 10 && v < depois - 10), x.join(', ')).toBe(true)
+    if (browserName === 'chromium') expect(x.some((v) => v > antes + 10 && v < depois - 10), x.join(', ')).toBe(true)
     // o conteúdo da seção tem o quadro dele; a tela (com o cabeçalho) é a mesma
     await expect(page.locator('.tela-quadro .secao-quadro')).toHaveCount(1)
     await expect(page.getByRole('heading', { name: 'Para encaixar' })).toBeVisible()

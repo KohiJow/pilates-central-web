@@ -331,6 +331,7 @@ e o site vai para a raiz de `pilates-central.github.io`). O repositório antigo 
 - [x] Com a lista em partes, voltar da ficha para o fim da lista rolava até onde a página alcançava no primeiro quadro (1775 px em vez de 3143): a rolagem agora insiste por até 12 quadros
 - [x] O teste do caminho base passava `undefined` de propósito e caía no parâmetro padrão, que lê o ambiente: com `BASE_PATH=/` na suíte (como o workflow vai rodar depois da transferência) ele reprovava. O teste agora controla a variável de ambiente
 - [x] O teste do professor registrando a experimental pelo Hoje usava o mesmo telefone nos dois motores, que registram na mesma aula do mesmo emulador: o segundo era recusado como pessoa repetida. Um telefone por motor
+- [x] O teste da marca deslizando conferia posições do meio também no WebKit, onde um quadro pode levar mais que a transição inteira (a amostra via só 4 e 237, no CI e no contêiner): a conferência do meio do caminho ficou só no Chromium; no WebKit vale a nav que persiste e a posição final
 
 ### Ficou para depois
 - [ ] Conferir num iPhone de verdade a tela de abertura (a mídia exata por aparelho e o `prefers-color-scheme` nela), o teclado nas folhas, Trusted Types e a View Transition
