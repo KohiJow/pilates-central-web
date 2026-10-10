@@ -329,6 +329,8 @@ e o site vai para a raiz de `pilates-central.github.io`). O repositório antigo 
 - [x] O link "Abrir" do Instagram tinha 44 px de largura (alvo mínimo é 48): link curto no fim de uma linha de lista ganhou largura mínima
 - [x] O espaço reservado da tela de abertura ficava no DOM por cima do app (o Preact reaproveita o contêiner sem tirar o que já havia): a agenda descia 594 px no iPhone SE. `main.tsx` esvazia o contêiner antes de renderizar, com teste
 - [x] Com a lista em partes, voltar da ficha para o fim da lista rolava até onde a página alcançava no primeiro quadro (1775 px em vez de 3143): a rolagem agora insiste por até 12 quadros
+- [x] O teste do caminho base passava `undefined` de propósito e caía no parâmetro padrão, que lê o ambiente: com `BASE_PATH=/` na suíte (como o workflow vai rodar depois da transferência) ele reprovava. O teste agora controla a variável de ambiente
+- [x] O teste do professor registrando a experimental pelo Hoje usava o mesmo telefone nos dois motores, que registram na mesma aula do mesmo emulador: o segundo era recusado como pessoa repetida. Um telefone por motor
 
 ### Ficou para depois
 - [ ] Conferir num iPhone de verdade a tela de abertura (a mídia exata por aparelho e o `prefers-color-scheme` nela), o teclado nas folhas, Trusted Types e a View Transition
