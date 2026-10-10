@@ -127,8 +127,8 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [ ] Cancelar o dia inteiro de uma vez (feriado móvel)
 - [ ] Medir a View Transition num iPhone de verdade
 - [ ] Deixar o caminho aberto para Gympass (Wellhub) e TotalPass, sem integrar agora (as formas de pagamento já existem)
-- [ ] Aula experimental na agenda: a equipe confirma pelo WhatsApp, mas não tem onde pôr a pessoa na aula. Caminho sugerido: `RegistroAula.experimentais` (mapa de id para nome e telefone, só a equipe lê), participante com origem `experimental` em `montarAula` (ocupa vaga, entra na chamada, não gera crédito), "Marcar aula experimental" na folha da aula, vagas e página pública recalculadas com ela, esquema novo em `firestore.rules` com teste no emulador (professor e aluno não leem nome nem telefone) e "Virar aluno" levando nome e telefone para o cadastro
-- [ ] Textos da página pública configuráveis em Mais, Estúdio (frase de apresentação e focos), em vez de fixos em `src/experimental/PaginaExperimental.tsx`; pede campos novos em `Configuracao` e em `publico/estudio`, com o esquema das regras
+- [x] Aula experimental na agenda (feita nas pendências de produto, abaixo): `RegistroAula.experimentais`, participante com origem `experimental`, "Registrar aula experimental" na chamada e no Hoje, vagas e página pública recalculadas, esquema nas regras com teste, "Cadastrar como aluno" com o cadastro preenchido
+- [x] Textos da página pública configuráveis em Mais, Estúdio (idem): frase, focos, endereço, link do mapa e Instagram em `Configuracao` e em `publico/estudio`, com o esquema das regras
 
 ## Revisão de produto: o pedido do estúdio x o app (feita)
 
@@ -146,10 +146,10 @@ professor num iPhone SE (375 x 667, uma mão), e contando os toques (`e2e/toques
 - [x] Vários administradores, responsável pela conta e passagem da conta; textos sem pressupor uma pessoa só
 - [x] Nada de treino, vídeo de aula, cronômetro, evolução corporal, conquistas ou onboarding de marketing (conferido no código)
 
-### Parcial
-- [ ] Página de aula experimental: mostra a agenda com vagas e manda o pedido pelo WhatsApp, mas não há como **registrar a aula experimental na agenda** (ocupar a vaga e aparecer na chamada) sem cadastrar a pessoa como aluno. Ver "Ficou para depois".
-- [ ] Produto genérico de agendamento: a interface fala em estúdio, turma e aula, mas a página pública tem textos fixos deste estúdio (a frase "no centro de Campinas" e os três focos) e a marca d'água PILATES. Ver "Ficou para depois".
-- [ ] Duas portas no site publicado: o código está pronto; faltam as variáveis `FIREBASE_*` no GitHub (o commit da configuração foi negado como credencial). Ver etapa 3.
+### Parcial (resolvido depois)
+- [x] Página de aula experimental: a equipe passou a **registrar a aula experimental na agenda** (ocupa a vaga, entra na chamada, vira aluno com um toque). Ver "Pendências de produto e do celular".
+- [x] Produto genérico de agendamento: os textos da página pública (frase, focos, endereço, mapa, Instagram) vêm das configurações e a marca d'água é a primeira palavra do nome do estúdio; nada deste estúdio fica no código (idem).
+- [x] Duas portas no site publicado: as variáveis `FIREBASE_*` foram criadas no GitHub e o site publicado abre com Entrar e Ver demonstração.
 
 ### Corrigido nesta revisão
 - [x] "Ativos" na lista de alunos mostrava também os pausados (39), enquanto o Financeiro dizia 37 ativos; agora são o mesmo número, e a busca sem resultado diz em que lista achou a pessoa
@@ -239,9 +239,9 @@ a posição da peça quadro a quadro contra a do dedo (com toque de verdade no C
 ### Ficou para depois
 - [ ] Conferir num iPhone de verdade: o teclado nas folhas (aqui a `visualViewport` foi simulada nos dois motores), a barra de status com `apple-mobile-web-app-status-bar-style: default` no tema escuro, e a View Transition no Safari
 - [ ] No WebKit do contêiner (sem GPU) a primeira folha da sessão leva de 0,7 a 2 s para subir e há quadros de 1 a 2 s em seguida; a mesma folha animando sozinha mediu p95 de 20 ms ali. Não reproduz no Chromium; vale medir num iPhone antes de mexer
-- [ ] Tela de abertura do app instalado no iPhone (`apple-touch-startup-image`): sem ela o iOS mostra uma tela lisa até carregar
-- [ ] Tarefas longas de 80 a 130 ms ao montar Alunos, Financeiro e a ficha com a CPU 4x: dá para montar a lista em partes se aparecer em aparelho fraco
-- [ ] A marca das seções (Alunos, Turmas, Reposições) não desliza de uma para outra: a tela inteira é trocada e entra deslizando, com a marca já no lugar
+- [x] Tela de abertura do app instalado no iPhone (`apple-touch-startup-image`): feita nas pendências de produto e do celular, abaixo
+- [x] Tarefas longas ao montar Alunos, Financeiro e a ficha com a CPU 4x: listas e seções em partes (idem)
+- [x] A marca das seções (Alunos, Turmas, Reposições) desliza de uma para outra, com o cabeçalho parado (idem)
 
 ## Revisão de login e segurança (feita)
 
@@ -283,7 +283,67 @@ não foi tocado.
 - [ ] Trusted Types: o Chromium e o WebKit do Playwright 1.60 aplicam (testado nos dois); conferir num iPhone de verdade se o Safari instalado também aplica (um motor antigo ignora a diretiva e o teste pula lá). O resto da política vale igual
 - [ ] Depois de o dono ligar e impor o App Check: conferir no site publicado que o login e a página pública seguem funcionando e que o console do navegador não acusa a política de segurança
 
+## Pendências de produto e do celular, convites e caminho base (feita)
+
+O que a revisão de produto e a do celular tinham deixado para depois, mais os convites com prazo
+e a preparação para o site mudar de endereço (o repositório passa para a organização do estúdio
+e o site vai para a raiz de `pilates-central.github.io`). O repositório antigo em Expo
+(`KohiJow/Pilates-Central`) ganhou um aviso no topo do README apontando para este, e a descrição
+"Protótipo inicial em Expo; o app do estúdio virou o pilates-central-web".
+
+### Aula experimental na agenda
+- [x] `RegistroAula.experimentais` (código para nome e telefone; só a equipe lê o registro); participante com origem `experimental` em `montarAula`: ocupa lugar, entra na chamada, não gera crédito, não entra na frequência nem no financeiro, conta nos alunos esperados do dia (`src/dominio/aulaExperimental.ts`)
+- [x] "Registrar aula experimental" na folha da aula (com vaga, de pé, antes de terminar) e no Hoje (lista as aulas com vaga dos próximos 14 dias das unidades da pessoa; também no dia sem aula); nome e WhatsApp validados; a mesma pessoa não entra duas vezes na mesma aula; teto de 10 por aula
+- [x] Na chamada: presente ou faltou (nunca "avisou"), "Tirar" com desfazer, WhatsApp a um toque, pílula "experimental"; o card da aula mostra "1 experimental"; o Hoje lista "Aulas experimentais de hoje"
+- [x] "Cadastrar como aluno": o cadastro abre com nome, WhatsApp e unidade; ao salvar, o registro da aula aponta o aluno e a chamada passa a abrir a ficha
+- [x] Vagas, app do aluno e página pública contam o lugar sem o nome; no Firestore cada pessoa vai numa linha `'Nome|telefone[|alunoId]'` conferida de uma vez pelas regras; o aluno, que mexe no mesmo documento por mescla, não toca nesse mapa (testes em `testes-de-regras/experimentais.test.ts`)
+- [x] Demonstração versão 5: uma pessoa registrada na aula de sábado de manhã do Centro; aviso de privacidade diz o que fica guardado de quem vem experimentar
+- [x] Testes: domínio, desfazer, conversão e mescla, projeções, regras; `e2e/experimental.spec.ts` nos dois motores e, com os emuladores, o professor registrando pelo Hoje e o registro indo para o banco em texto
+
+### Textos do estúdio
+- [x] Mais, Estúdio: frase de apresentação (160), até três focos (40 cada), endereço livre (200), link do mapa (só `https://`, 300) e Instagram (30, só o nome); os tetos em `TAMANHOS` são os mesmos das regras; "Validade do convite" (ver abaixo)
+- [x] A página pública mostra a frase e os focos na capa, o endereço com o link do mapa (o configurado ou a busca pelo endereço) e o Instagram em "Onde fica" (com mais de uma unidade, cada unidade com endereço próprio ganha a linha dela; a que tem o mesmo endereço do estúdio não repete); sem frase escrita, a capa explica só o caminho
+- [x] Marca d'água com a primeira palavra do nome do estúdio (na entrada e na página pública); o nome padrão só em `CONFIGURACAO_PADRAO`
+- [x] Documento público com os textos (sanitizados ao gravar e ao ler); regras conferem cada texto; o professor segue só gravando os horários (`testes-de-regras/estudio.test.ts`, `e2e/estudio.spec.ts`)
+
+### Convites
+- [x] Todo convite (equipe e aluno) nasce com prazo: `expiraEm` no documento `convites/{e-mail}`, dentro de `validadeDoConviteDias` (7 por padrão, de 1 a 90, em Mais, Estúdio); as regras recusam o aceite depois do prazo e um convite sem prazo não vale (`testes-de-regras/convites.test.ts`)
+- [x] Equipe: seção "Convites pendentes" com a data do registro e "vale até" ou "venceu em"; na ficha, "Mandar o convite pelo WhatsApp", "Compartilhar o convite" (ou "Copiar o convite", sem o compartilhar do sistema), "Mandar o convite de novo" (venceu), "Revogar o convite" (a pessoa fica sem acesso e o convite do e-mail some; "Convidar de novo" devolve); nos convites para a administração, só o titular. Registro de alterações anota `convite-revogado` e `convite-reenviado`
+- [x] Aluno: a ficha diz até quando o convite vale, oferece compartilhar ou copiar e "Mandar o convite de novo" quando vence (o prazo recomeça)
+- [x] A mensagem do convite (`src/dominio/convites.ts`) leva o link de entrada `?entrar` (abre direto na porta de entrar; nada pessoal na URL) e o e-mail no texto; no app, um convite vencido ou revogado explica o motivo em vez da recusa genérica
+- [x] Testes: domínio (`convites.test.ts`, `equipe.test.ts`), regras, `e2e/equipe.spec.ts` (pendentes com data, copiar, revogar, mandar de novo, vencido) e o teste da administração com os emuladores confere o prazo gravado
+
+### Celular
+- [x] Tela de abertura do app instalado no iPhone: `apple-touch-startup-image` com uma imagem exata por tamanho de tela (11 iPhones, do SE ao Pro Max) e por tema, geradas por `npm run abertura` (`scripts/gerar-abertura.mjs`, lista em `scripts/abertura.ts`) e reduzidas a 64 cores por `scripts/comprimir-abertura.py` (de 1 MB para 350 kB); as `<link>` entram no `index.html` no build com o caminho base; a página mostra o mesmo logo no centro até o app montar (`.abertura` em `index.html`, tirado em `main.tsx` antes de renderizar: o Preact não tira o que já estava no contêiner). Fora do cache do service worker
+- [x] Listas grandes em partes (`useEmPartes` em `src/componentes/emPartes.ts`): a lista de alunos, as listas do financeiro depois de "Mostrar todos" e as seções da ficha montam em partes depois de pintar; a rolagem guardada ao voltar da ficha insiste por alguns quadros até a página crescer
+- [x] Marca das seções deslizando: as três seções da aba Alunos dividem a mesma chave de tela (`secaoDaAba` em `navegacao.ts`), o cabeçalho fica e só o conteúdo entra num quadro próprio (`secao-quadro`); a marca anda por transform de uma seção para a outra. `irParaSecao` nos testes espera a marca e o quadro
+- [x] Medições com a CPU 4x mais lenta no Chromium (`LENTO=1 e2e/movimento.spec.ts`, que agora também mede abrir a lista de alunos), antes e depois: lista de alunos de 117 para 83 ms de quadro de montar (tarefa longa de 119 para 87 ms), ficha de 83 para 33 ms, voltar da ficha de 67 para 50 ms sem tarefa longa; p95 de 33 ms nos dois passos em que a parte seguinte monta durante a entrada (limite 50); velocidade normal toda em 16,7 ms, CLS zero. Números na seção Movimento do README
+
+### Caminho base
+- [x] `BASE_PATH` numa fonte só (`scripts/caminho-base.ts`): build, manifesto (id, start_url, scope), service worker, telas de abertura, Playwright e testes de ponta a ponta leem o mesmo valor; o workflow deriva do nome do repositório (`/` quando termina em `.github.io`); suíte inteira rodada com `/pilates-central-web/` e com `/`
+- [x] README e docs com os dois endereços: o novo (`https://pilates-central.github.io/`) como principal, o antigo até a transferência
+
+### Achado e corrigido no trabalho que veio pela metade
+- [x] "Registrar aula experimental" no Hoje ficava dentro do bloco do dia com aulas: no sábado da professora (sem aula) o botão não existia e o teste com os emuladores esperava para sempre. Agora aparece também no dia sem aula
+- [x] A página pública repetia o endereço: o do estúdio e o da unidade Centro, iguais; a unidade com o mesmo endereço do estúdio não ganha linha
+- [x] O link "Abrir" do Instagram tinha 44 px de largura (alvo mínimo é 48): link curto no fim de uma linha de lista ganhou largura mínima
+- [x] O espaço reservado da tela de abertura ficava no DOM por cima do app (o Preact reaproveita o contêiner sem tirar o que já havia): a agenda descia 594 px no iPhone SE. `main.tsx` esvazia o contêiner antes de renderizar, com teste
+- [x] Com a lista em partes, voltar da ficha para o fim da lista rolava até onde a página alcançava no primeiro quadro (1775 px em vez de 3143): a rolagem agora insiste por até 12 quadros
+
+### Ficou para depois
+- [ ] Conferir num iPhone de verdade a tela de abertura (a mídia exata por aparelho e o `prefers-color-scheme` nela), o teclado nas folhas, Trusted Types e a View Transition
+- [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console)
+- [ ] Depois de o dono ligar e impor o App Check: conferir login e página pública no site publicado
+- [ ] Cancelar o dia inteiro de uma vez (feriado móvel); limite de reposições por mês nas regras
+
 ## Notas para quem continuar
+
+- **Seções da aba Alunos:** as três seções dividem a chave de tela (`chaveDaTelaDe` em `src/app/navegacao.ts`, `SECOES_DA_ABA`); `Alunos.tsx` renderiza o cabeçalho (`CabecaDeAlunos`) e o conteúdo num `QuadroDeTela` com a classe `secao-quadro`. Conteúdo de seção é um `div.tela` sem cabeçalho. Nos testes, `irParaSecao` espera a marca (`esperarSemAnimacao('.secoes-marca')`, cujo repouso não é transform zero) e o quadro.
+- **Listas em partes:** `useEmPartes(total, primeira, passo)` devolve quantos itens mostrar agora e vai crescendo a cada dois quadros depois de pintar; serve também para seções de uma tela (`useEmPartes(3, 1, 1)` na ficha). Tudo o que entra depois fica abaixo do que já estava (nada se move: CLS zero). A rolagem guardada (`rolarPara` em `navegacao.ts`) insiste por até 12 quadros.
+- **Tela de abertura do iPhone:** tamanhos em `scripts/abertura.ts` (um por `device-width`/`device-height`/densidade; aparelhos com a mesma tela lógica dividem a imagem); `npm run abertura` no contêiner do Playwright e depois `python3 scripts/comprimir-abertura.py`. O `index.html` mostra `.abertura` (logo por máscara, cor do tema) até `main.tsx` esvaziar o contêiner. As imagens ficam fora do precache (`PUBLICOS` em `plugin-offline.ts`).
+- **Convites:** o prazo mora em `convites/{e-mail}.expiraEm` (ms), calculado em `repositorioDaEquipe.ts` a partir de `convite.enviadoEm` (equipe) ou `acesso.convidadoEm` (aluno) mais `validadeDoConviteDias`; mandar de novo é gravar uma data nova (o adaptador reescreve o documento), revogar é `ativo: false` com o convite guardado (o adaptador apaga o documento). As regras conferem o prazo em `conviteValido` (ao criar, com um dia de folga) e em `conviteNoPrazo` (no aceite, equipe e aluno). O link do convite é `?entrar` (`src/app/modo.ts`), sem o e-mail.
+- **Aula experimental:** `registrarExperimental`, `tirarExperimental` e `vincularAluno` em `src/dominio/aulaExperimental.ts`; o participante leva `experimental` (nome e telefone) e `alunoId` é o código do registro; `nomeDoParticipante` em `estado.ts` resolve o nome. No Firestore o mapa vai em texto (`codificarExperimental`/`decodificarExperimental` em `conversao.ts`) e a mescla do registro aplica só a pessoa desta ação. O cadastro nascido de uma experimental passa por `cadastroDeExperimental` (`estadoDaLista.ts`) e `salvarAluno(..., origem)`.
+- **Textos do estúdio:** `TextosDoEstudio` em `tipos.ts`, tetos em `TAMANHOS`, limpeza em `limparTextosDoEstudio`; a página pública lê por `paginaPublicaDe` (só `https://` vira link) e mostra `FRASE_PADRAO` quando a frase está vazia. A marca d'água usa `palavraDaMarca(nomeEstudio)`.
 
 - **Coisas de celular em `e2e/celular.spec.ts`:** teclado (a `visualViewport` é trocada por uma falsa que encolhe como a do iPhone; espere `.folha[data-teclado]` antes de medir), fontes uma vez só, JS inicial e Firebase fora, campos de 16 px, servidor desligado (o teste sobe um servidor só dele em `dist/`, então rode depois do build), agenda no iPhone SE, folha descendo com o mesmo conteúdo, aviso trocando de lugar e a lista do dia saindo para a frente.
 - **Folhas:** o conteúdo mostrado enquanto a folha desce é o da última vez que ela estava aberta. Se precisar mudar algo na folha durante a saída, mude antes de fechar.

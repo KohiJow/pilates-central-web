@@ -156,16 +156,24 @@ Se algo der errado depois de impor (a página pública sem horários, o login re
 
 Em **Mais**:
 
-1. **Estúdio:** WhatsApp, e se o **app do aluno** e a **página de aula experimental** ficam ligados.
+1. **Estúdio:** WhatsApp, os textos da página pública (a frase de apresentação, até três focos,
+   o endereço, o link do mapa e o Instagram), se o **app do aluno** e a **página de aula
+   experimental** ficam ligados, e por quantos dias um convite vale.
 2. **Unidades** (com o endereço: é ele que aparece na página de aula experimental, por exemplo
    "Rua Exemplo, 100, sala 2, Centro"), depois **Alunos** (com e-mail para
    quem vai usar o app) e **Turmas**.
 3. **Equipe:** convide a administração e os professores pelo e-mail de cada um. O app não manda
-   e-mail de convite (isso pediria Cloud Functions): avise a pessoa pelo WhatsApp para entrar no
-   site, tocar em **Primeiro acesso? Criar conta** com aquele e-mail e confirmar o e-mail. O papel
-   só vale com o e-mail confirmado e igual ao do convite.
-4. **Alunos:** na ficha, **Liberar o app** e **Mandar o convite pelo WhatsApp** (a mensagem já vem
-   pronta, com o endereço e o e-mail).
+   e-mail de convite (isso pediria Cloud Functions): na ficha da pessoa, **Mandar o convite pelo
+   WhatsApp** ou **Compartilhar o convite** (copia o texto pronto, com o endereço do site e o
+   e-mail). A pessoa toca em **Primeiro acesso? Criar conta** com aquele e-mail e confirma o
+   e-mail. O papel só vale com o e-mail confirmado e igual ao do convite. O convite vale por 7
+   dias (Mais, Estúdio, "Validade do convite", de 1 a 90): a lista da equipe mostra os convites
+   pendentes com a data e o prazo; vencido, **Mandar o convite de novo**; se foi engano,
+   **Revogar o convite** (a pessoa não consegue mais entrar com aquele e-mail até ser convidada
+   de novo).
+4. **Alunos:** na ficha, **Liberar o app** e **Mandar o convite pelo WhatsApp** ou **Compartilhar o
+   convite** (a mensagem já vem pronta, com o endereço e o e-mail). Vale o mesmo prazo; passou,
+   **Mandar o convite de novo**.
 5. **Passar a conta:** Equipe, a pessoa, **Passar a conta**. Ela precisa ser da administração e já
    ter entrado com o e-mail confirmado.
 6. **Senha:** cada pessoa troca a própria em Mais, Conta, **Trocar a senha** (pede a atual). Quem

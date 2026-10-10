@@ -60,6 +60,12 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
   só o aviso de falta, e o card do Hoje diz "Ver quem vem"): ninguém marca de manhã, sem querer,
   a presença da turma da noite. Quem
   avisou no prazo ganha crédito e, ali mesmo, "Encaixar em outro horário" mostra as aulas com vaga.
+- **Aula experimental na agenda:** quem pediu pelo WhatsApp é registrado pela equipe numa aula
+  com vaga, com nome e WhatsApp ("Registrar aula experimental", na chamada ou no Hoje, que lista
+  as aulas com vaga dos próximos dias). A pessoa ocupa o lugar, aparece na chamada como
+  "experimental" (com o WhatsApp a um toque), recebe presente ou faltou, pode ser tirada enquanto
+  a aula não terminou e, se ficar, "Cadastrar como aluno" abre o cadastro já preenchido. A página
+  pública e o app do aluno veem só o lugar ocupado; o nome fica com a equipe.
 - **Alunos:** lista com busca (sem acento, ou pelo final do telefone), filtro por unidade e
   situação ("Ativos" é só quem está vindo, o mesmo número do Financeiro; quem está pausado ou
   arquivado tem a sua lista, e a busca sem resultado diz em qual lista achou a pessoa), e um
@@ -82,19 +88,25 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
   meses; planilha do mês em CSV.
 - **Mais:** perfil, tema, instalar no celular, o link da página de aula experimental (ver,
   compartilhar ou copiar, para pôr no Instagram) e, para a administração, o estúdio (nome,
-  WhatsApp, app do aluno e página pública ligados ou não), regras de reposição (antecedência do
-  aviso, validade, limite por mês, a partir de quantas ausências seguidas destacar), unidades,
-  equipe e o registro de alterações (quem lançou ou apagou pagamento, excluiu cadastro, mudou
-  acesso ou passou a conta, e quando). Com login de verdade, a conta: trocar a senha e sair.
+  WhatsApp, os textos da página pública: frase de apresentação, até três focos, endereço, link do
+  mapa e Instagram; app do aluno e página pública ligados ou não; por quantos dias um convite
+  vale), regras de reposição (antecedência do aviso, validade, limite por mês, a partir de quantas
+  ausências seguidas destacar), unidades, equipe (com os convites pendentes, cada um com a data e
+  o prazo: mandar pelo WhatsApp ou copiar o convite, mandar de novo quando vence, revogar) e o
+  registro de alterações (quem lançou ou apagou pagamento, excluiu cadastro, mudou acesso, mexeu
+  num convite ou passou a conta, e quando). Com login de verdade, a conta: trocar a senha e sair.
 - **App do aluno** (quando a administração liga e libera o aluno na ficha): as próximas aulas, a
   próxima em destaque; "Não vou poder ir" no prazo gera a reposição e libera o lugar; "Desfazer"
   devolve; a aba Reposição mostra só aulas da unidade dele, com vaga, dentro da validade e do
   prazo; desistir da reposição devolve o crédito. Em cima da hora, o app manda para o WhatsApp.
-- **Página de aula experimental** (sem login): o espaço em fotos, os horários com vaga dos
-  próximos 14 dias por dia (com a hora em que cada aula termina), um atalho para eles logo na
-  capa, o endereço com link para o mapa, "Primeira vez?" (não precisa de experiência, roupa
-  confortável, quanto dura a aula) e o pedido pelo WhatsApp do estúdio, sempre à vista, com a
-  mensagem pronta ("quero marcar uma aula experimental: sexta, 16 de outubro, às 18h"). Nada é gravado.
+- **Página de aula experimental** (sem login): a frase e os focos que o estúdio escreveu em
+  Mais, Estúdio (nada de um estúdio em particular fixo no código; a marca d'água repete a primeira
+  palavra do nome), o espaço em fotos, os horários com vaga dos próximos 14 dias por dia (com a
+  hora em que cada aula termina), um atalho para eles logo na capa, o endereço com link para o
+  mapa (o configurado ou a busca pelo endereço) e o Instagram, "Primeira vez?" (não precisa de
+  experiência, roupa confortável, quanto dura a aula) e o pedido pelo WhatsApp do estúdio, sempre
+  à vista, com a mensagem pronta ("quero marcar uma aula experimental: sexta, 16 de outubro, às
+  18h"). Nada é gravado.
 - **LGPD:** aviso de privacidade em português simples; na ficha do aluno, baixar os dados dele num
   arquivo e excluir o cadastro (com confirmação): fica só o código nas presenças antigas e nos
   pagamentos, sem observação, e a linha do registro de alterações que anota a exclusão.
@@ -222,9 +234,10 @@ Medições no Chromium (perfil Pixel 7), p95 dos intervalos entre quadros durant
 | Marcar presença e aviso flutuante | 16,8 ms | 16,7 a 16,8 ms | 33 a 50 ms |
 | Fechar a folha arrastando | 16,8 ms | 16,8 ms | 16,7 ms |
 | Troca de tema (View Transition) | 16,8 ms | 16,7 a 16,8 ms | 17 a 33 ms |
-| Abrir a ficha do aluno | 16,7 ms | 16,8 ms | 83 ms |
-| Voltar da ficha para a lista | 16,7 ms | 16,7 ms | 83 a 100 ms |
-| Troca de seção (Alunos, Turmas, Reposições) | 16,7 ms | 16,8 ms | 50 ms |
+| Abrir a lista de alunos (em partes) | 16,7 ms | 33,3 ms | 83 ms (antes 117 ms) |
+| Abrir a ficha do aluno (em partes) | 16,7 ms | 16,8 ms | 33 ms (antes 83 ms) |
+| Voltar da ficha para a lista | 16,7 ms | 33,3 ms | 50 ms (antes 67 a 100 ms) |
+| Troca de seção (marca deslizando, cabeçalho parado) | 16,7 ms | 16,7 ms | 67 ms |
 | Abrir a folha de encaixe | 16,8 ms | 16,8 ms | 16,7 ms |
 | Escolher a aula no encaixe | 16,7 ms | 16,8 ms | 16,7 ms |
 | Troca de mês no financeiro (colunas crescem) | 16,7 ms | 16,8 a 33,3 ms | 50 ms |
@@ -264,6 +277,23 @@ O que as medições mudaram:
   marca do horário escolhido e a entrada em cascata são as mesmas peças, medidas do mesmo jeito.
 - **Rolagem que não vaza.** Nos vídeos do WebKit, o app do aluno abria com a página ainda rolada
   da tela de entrada (que é comprida); agora cada troca de moldura (entrar, sair) volta ao topo.
+- **A marca das seções desliza.** Entre Alunos, Turmas e Reposições o cabeçalho fica no lugar e
+  só o conteúdo entra deslizando, num quadro próprio; a marca da seção escolhida anda por
+  transform de uma para a outra (antes a tela inteira era trocada, com a marca já no lugar).
+- **Listas grandes em partes.** A lista de alunos, as listas do financeiro depois de "Mostrar
+  todos" e as seções da ficha montam em partes: as primeiras linhas entram com a tela e o resto
+  vem nos quadros seguintes, depois de pintar (`useEmPartes`), e a rolagem que a lista guarda ao
+  voltar da ficha espera a página crescer. Medido com a CPU 4x mais lenta (`LENTO=1`, antes e
+  depois, mesma máquina): abrir a lista de alunos passou de um quadro de montar de 117 ms (tarefa
+  longa de 119 ms) para 83 ms (87 ms); abrir a ficha, de 83 ms (90 ms) para 33 ms; voltar da
+  ficha, de 67 ms (78 ms) para 50 ms, sem tarefa longa. O preço é um quadro de 33 ms durante a
+  entrada, quando a parte seguinte monta (p95 de 33 ms nesses dois passos, contra o limite de 50
+  ms da CPU lenta); na velocidade normal, tudo segue em 16,7 ms, sem tarefa longa e com
+  deslocamento zero.
+- **Tela de abertura no iPhone.** O app instalado abre com o logo no centro, sobre o creme ou o
+  fundo escuro (`apple-touch-startup-image`, uma imagem exata por tamanho de iPhone e por tema,
+  geradas por `npm run abertura`), e a página já mostra o mesmo logo até o app montar: sem a tela
+  lisa de antes.
 
 Uma revisão só de celular e movimento passou por 59 passos em quatro perfis (WebKit com iPhone 13
 e com o iPhone SE de 320 px, Chromium com Pixel 7, normal e com a CPU 4x), com vídeo de cada um olhado quadro a
@@ -323,6 +353,10 @@ npm run build      # tipos + empacotamento em dist/
 npm run preview    # serve dist/ na mesma porta
 ```
 
+`npm run icones` gera os ícones a partir do logo e `npm run abertura` as telas de abertura do
+iPhone (`public/abertura/`, uma por tamanho de tela e por tema; `scripts/comprimir-abertura.py`
+reduz cada uma a 64 cores, de 1 MB para 350 kB no total). Os dois precisam do Chromium do Playwright.
+
 O caminho base do site vem de uma fonte só, a variável `BASE_PATH` (`scripts/caminho-base.ts`):
 sem ela, `/pilates-central-web/`; `BASE_PATH=/` publica na raiz do domínio, que é onde o site
 fica no repositório `pilates-central.github.io`. O build, o manifesto do app (identidade, página
@@ -362,7 +396,11 @@ todos eles corta e reprova qualquer pedido para domínios do Google.
 
 `e2e/celular.spec.ts` junta o que é de celular: teclado sobre a folha, fontes baixadas uma vez,
 JS inicial abaixo de 170 kB comprimido sem o Firebase, campos de 16 px, abrir com o servidor
-desligado (nos dois motores), a agenda no tamanho do iPhone SE e os gestos soltando no embalo.
+desligado (nos dois motores), a agenda no tamanho do iPhone SE, os gestos soltando no embalo, a
+marca das seções deslizando com o cabeçalho parado e a lista de alunos montando em partes.
+`e2e/experimental.spec.ts` cobre a aula experimental registrada na agenda, `e2e/estudio.spec.ts`
+os textos do estúdio na página pública e `e2e/equipe.spec.ts` os convites (data e prazo, copiar,
+revogar, mandar de novo, vencido).
 
 `PORTA=8853` troca a porta (prévia e testes), `LENTO=1` liga a CPU 4x mais lenta no Chromium e
 `GRAVAR=1` grava vídeo das transições. No GitHub Actions: tipos, lint, Vitest e build; as regras
@@ -374,14 +412,17 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 
 - Sem servidor próprio: o site é estático (GitHub Pages) e os dados do estúdio ficam no Firestore,
   protegidos por [regras](firestore.rules) com menor privilégio, esquema e tamanho em tudo (as
-  listas conferidas item a item) e o resto negado. 225 testes no emulador cobrem cada papel em
+  listas conferidas item a item) e o resto negado. 266 testes no emulador cobrem cada papel em
   cada coleção e as tentativas de escalada (professor lendo pagamentos, aluno lendo outro aluno,
-  aluno em aula cheia, crédito usado duas vezes, convite forjado, e-mail não confirmado, mexer na
-  posse do estúdio, mexer no registro de alterações), e um teste prova a folga do teto de
-  expressões em cada caminho do aluno. Uma revisão de segurança tentou quebrar as regras como cada
+  aluno em aula cheia, crédito usado duas vezes, convite forjado, vencido ou revogado, e-mail não
+  confirmado, aluno mexendo em quem vem fazer a aula experimental, mexer na posse do estúdio,
+  mexer no registro de alterações), e um teste prova a folga do teto de expressões em cada
+  caminho do aluno. Uma revisão de segurança tentou quebrar as regras como cada
   papel e como anônimo; o que passou (desfazer o aviso ficando com a reposição, repor na própria
   turma, ler a posse sem ser da equipe) virou teste e correção.
-- O papel vem de convite para o e-mail confirmado; desativar alguém corta o acesso na hora.
+- O papel vem de convite para o e-mail confirmado; desativar alguém corta o acesso na hora. Todo
+  convite tem prazo (7 dias por padrão, configurável), conferido pelas regras no aceite; a
+  administração revoga ou manda de novo. O link do convite não leva nada pessoal.
 - Login com mensagens que não dizem se o e-mail tem conta; senha nova por e-mail; sessão só na aba
   quando a pessoa pede. O que depende do console do Firebase (Authentication iniciado, e-mail e
   senha ligado, domínio autorizado, proteção contra enumeração, política de senha, chave de API
@@ -416,8 +457,8 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 ```
 src/
   dominio/       regras puras e testadas (agenda, presença, reposição, frequência, alunos,
-                 turmas, pagamentos, equipe, unidades, permissões, cópias para o aluno e a página
-                 pública, app do aluno, aula experimental, LGPD)
+                 turmas, pagamentos, equipe, convites, unidades, permissões, cópias para o aluno
+                 e a página pública, app do aluno, aula experimental, LGPD)
   dados/         contrato do repositório, demonstração, estado em sinais, ações com desfazer,
                  consultas, exportação, estado do app do aluno
   dados/firebase SDK, login, acesso e convites, adaptador da equipe e do aluno (pedaço sob demanda)
@@ -432,10 +473,12 @@ src/
   privacidade/   aviso de privacidade
   estilos/       tokens, base, componentes, telas, gestão, conta, vitrine e movimento
   pwa/           modelo do service worker
+public/          ícones, fotos do espaço e as telas de abertura do iPhone
 firestore.rules  regras do banco (com a trava do primeiro acesso para trocar antes de publicar)
 testes-de-regras/ testes das regras no emulador
 e2e/             ponta a ponta, acessibilidade, fluidez e os testes com os emuladores
-scripts/         plugin do service worker e da política de segurança; geração de ícones
+scripts/         plugin do service worker e da política de segurança; caminho base; geração de
+                 ícones e das telas de abertura
 docs/            roteiro, modelo de dados, Firebase, segurança e capturas de tela
 ```
 
@@ -451,8 +494,11 @@ Android e corrigiu o que pulava, cortava ou ficava atrás do teclado, e uma revi
 segurança fez o login explicar o que aconteceu (o primeiro acesso real falhou com o
 Authentication ainda não iniciado no console) e fechou App Check, listas conferidas item a item,
 folga nas regras do aluno, Trusted Types, versão nova do service worker e o registro de
-alterações. Detalhes e o que falta (republicar as regras e fazer o primeiro acesso no projeto
-real) em [docs/roteiro.md](docs/roteiro.md).
+alterações. Depois, as pendências de produto e do celular: a aula experimental registrada na
+agenda, os textos do estúdio configuráveis, os convites com prazo, a tela de abertura do iPhone,
+as listas em partes, a marca das seções deslizando e o caminho base vindo do ambiente (para o
+site mudar de endereço sem mexer no código). Detalhes e o que falta (republicar as regras e fazer
+o primeiro acesso no projeto real) em [docs/roteiro.md](docs/roteiro.md).
 
 ## Créditos
 

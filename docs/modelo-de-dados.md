@@ -31,19 +31,21 @@ funções servem ao modo demonstração (dados no aparelho) e ao Firebase.
 | `Aluno` | `id`, `nome`, `unidadeId`, `telefone`, `email`, `vezesPorSemana`, `situacao` (`ativo`, `pausado`, `inativo` = arquivado), `observacao`, `desde`, `acesso?` (`convidadoEm`, `porId`) | As turmas fixas do aluno são derivadas de `Turma.alunosFixos` (`turmasDoAluno`), para não haver duas fontes. A observação é texto livre visível só à equipe; não há ficha de saúde estruturada. `acesso` presente = app do aluno liberado. |
 | `FinanceiroDoAluno` | `alunoId`, `unidadeId`, `valorMensal`, `formaPreferida`, `diaVencimento` | A parte do cadastro que o professor não lê. Fica separada porque no Firestore a regra libera ou nega o documento inteiro. |
 | `Turma` | `id`, `unidadeId`, `diaDaSemana` (0 = domingo), `inicio`, `duracaoMin`, `capacidade`, `professorId`, `alunosFixos[]`, `fixosDesde`, `ativa`, `desde` | Uma turma por dia da semana: "seg/qua/sex às 7h" são três turmas. `fixosDesde` guarda desde quando cada aluno está na turma: quem entra hoje não aparece nas aulas que já passaram. |
-| `RegistroAula` | `id`, `turmaId`, `unidadeId`, `data`, `marcacoes` (aluno para `presente`, `faltou` ou `avisou`), `reposicoes` (aluno para crédito usado), `cancelamento?` (`motivo`: `feriado` ou `estudio`, `observacao`), `atualizadoEm` | As exceções de uma aula. Sem registro, a aula é a turma pura. |
+| `RegistroAula` | `id`, `turmaId`, `unidadeId`, `data`, `marcacoes` (aluno para `presente`, `faltou` ou `avisou`), `reposicoes` (aluno para crédito usado), `experimentais?` (código para `Experimental`), `cancelamento?` (`motivo`: `feriado` ou `estudio`, `observacao`), `atualizadoEm` | As exceções de uma aula. Sem registro, a aula é a turma pura. |
+| `Experimental` | `nome`, `telefone`, `alunoId?` | Quem vem fazer a aula experimental, registrado pela equipe na própria aula (só a equipe lê o registro). Ocupa um lugar e entra na chamada pelo código do registro; não gera crédito. Quando a pessoa vira aluno, `alunoId` aponta o cadastro que nasceu dali. No Firestore vai numa linha de texto (`'Nome|telefone'` ou `'Nome|telefone|alunoId'`), conferida de uma vez pelas regras, até 10 por aula. |
 | `CreditoReposicao` | `id`, `alunoId`, `unidadeId`, `motivo` (`aviso`, `cancelamento`, `cortesia`), `origem` (turma e data da falta), `criadoEm`, `validoAte`, `usadoEm?` (turma e data da reposição) | Situação derivada: disponível, usado ou vencido (`situacaoDoCredito`). Só os de aviso contam para o limite do mês. |
 | `Pagamento` | `id`, `alunoId`, `unidadeId`, `competencia` (`'2026-10'`), `valor`, `forma`, `pagoEm`, `observacao`, `registradoPorId` | Lançado à mão pela administração. Formas: Pix, cartão de crédito, cartão de débito, dinheiro, transferência, Gympass, TotalPass, outro. |
-| `Configuracao` | `nomeEstudio`, `whatsapp`, `validadeCreditoDias`, `antecedenciaAvisoHoras`, `limiteReposicoesMes`, `alertaAusenciasSeguidas`, `capacidadePadrao`, `acessoDoAluno`, `paginaExperimental` | Padrão em `configuracao.ts`: 30 dias de validade, 3 horas de antecedência, sem limite por mês, destaque a partir de 3 ausências seguidas, 5 lugares, app do aluno e página pública desligados. |
+| `Configuracao` | `nomeEstudio`, `whatsapp`, `fraseCurta`, `focos[]` (até 3), `endereco`, `linkDoMapa`, `instagram`, `validadeCreditoDias`, `antecedenciaAvisoHoras`, `limiteReposicoesMes`, `alertaAusenciasSeguidas`, `capacidadePadrao`, `acessoDoAluno`, `paginaExperimental`, `validadeDoConviteDias` | Padrão em `configuracao.ts`: 30 dias de validade, 3 horas de antecedência, sem limite por mês, destaque a partir de 3 ausências seguidas, 5 lugares, app do aluno e página pública desligados, convite válido por 7 dias. Os textos do estúdio (frase, focos, endereço, mapa, Instagram) são o que a página pública mostra na capa e em "Onde fica"; nada de um estúdio em particular fica no código, e os tetos (`TAMANHOS`) são os mesmos das regras. |
 
 ## Visões derivadas (calculadas a cada leitura)
 
 - **`Aula`** (`montarAula`, `aulasDoDia` em `agenda.ts`): a turma numa data, com horário de fim,
-  participantes e lotação. Participantes: fixos ativos (na ordem da turma), depois reposições;
-  quem saiu da turma mas tem presença registrada naquela data continua aparecendo (histórico).
-  Aluno pausado ou inativo não ocupa lugar.
-- **Lugares ocupados** = fixos que não avisaram falta + reposições. **Vagas** = capacidade menos
-  ocupados (nunca negativo; aula cancelada não tem vaga).
+  participantes e lotação. Participantes: fixos ativos (na ordem da turma), depois reposições,
+  depois quem vem experimentar (`origem: 'experimental'`, com nome e telefone no próprio
+  participante); quem saiu da turma mas tem presença registrada naquela data continua aparecendo
+  (histórico). Aluno pausado ou inativo não ocupa lugar.
+- **Lugares ocupados** = fixos que não avisaram falta + reposições + experimentais. **Vagas** =
+  capacidade menos ocupados (nunca negativo; aula cancelada não tem vaga).
 - **Fase da aula** (`faseDaAula`): futura, agora ou encerrada, pelo relógio do estúdio.
 - **Resumo do dia** (`resumo.ts`): alunos esperados, presentes, avisos, reposições, próximas
   aulas e a que está acontecendo.
@@ -70,6 +72,18 @@ funções servem ao modo demonstração (dados no aparelho) e ao Firebase.
   usado: aí a regra recusa e pede para desfazer a reposição antes.
 - Quem está repondo não "avisa" (não gera crédito sobre crédito): desfaz-se o encaixe.
 - "Todos presentes" marca só quem está sem marcação; não mexe em quem avisou ou faltou.
+
+### Aula experimental (`aulaExperimental.ts`)
+
+- A equipe registra quem pediu a aula experimental (nome e WhatsApp) numa aula com vaga, de pé e
+  que ainda não terminou; a mesma pessoa (pelo telefone) não entra duas vezes na mesma aula, e há
+  um teto de 10 por aula. Pode ser pela folha da aula ou pelo Hoje (escolhendo a aula com vaga).
+- Na chamada recebe presente ou faltou, nunca "avisou" (não há plano nem reposição por trás).
+  "Tirar" sai da aula enquanto ela não terminou; depois disso fica no histórico. Não entra na
+  frequência (que é do plano) nem no financeiro; entra nos "alunos esperados" do dia.
+- As vagas, o app do aluno e a página pública contam o lugar ocupado, sem o nome.
+- "Cadastrar como aluno" abre o cadastro com nome, WhatsApp e unidade já preenchidos; ao salvar,
+  o registro da aula passa a apontar o aluno (`alunoId`), e a chamada leva para a ficha.
 
 ### Reposição (`reposicao.ts`)
 
@@ -118,6 +132,11 @@ depois.
   e desativa administrador. Ninguém rebaixa, desativa ou edita o titular, e ninguém se desativa.
 - A conta só passa para um administrador ativo que já entrou no app; quem era titular vira
   administrador. O professor edita o próprio contato, mas não as próprias unidades.
+- Convite pendente (`convite` no cadastro) vale por `validadeDoConviteDias` a partir de
+  `enviadoEm` (`convites.ts`): a lista da equipe mostra a data e o prazo. A administração revoga
+  (a pessoa fica sem acesso; no Firebase o convite do e-mail some) ou manda de novo (o prazo
+  recomeça); nos convites para a administração, só o titular. A mensagem pronta (WhatsApp ou
+  "copiar o convite") leva o link de entrada (`?entrar`, nada pessoal na URL) e o e-mail no texto.
 
 ### Permissões (`permissoes.ts`)
 
@@ -141,7 +160,7 @@ calculadas das mesmas regras da agenda e gravadas pela equipe na mesma transaç�
 |---|---|---|
 | `VagaDaAula` | turma, unidade, data, início, fim, capacidade, ocupadas, cancelada | equipe e aluno |
 | `PortalDoAluno` | primeiro nome, unidade e turmas fixas (dia, horário, desde quando) | o próprio aluno |
-| `PaginaPublica` | nome do estúdio, WhatsApp, unidades abertas, se a aula experimental está ligada e os horários com vaga dos próximos 14 dias | qualquer pessoa |
+| `PaginaPublica` | nome do estúdio, WhatsApp, os textos do estúdio (frase, focos, endereço, link do mapa, Instagram), unidades abertas, se a aula experimental está ligada e os horários com vaga dos próximos 14 dias | qualquer pessoa |
 
 A janela das vagas é de hoje a 14 dias (`DIAS_DA_JANELA`). Ao abrir o app, a equipe confere a
 janela com o banco e grava só o que falta ou mudou. Nas gravações, a contagem de lugares é
@@ -173,12 +192,12 @@ Um projeto Firebase é um estúdio. "Administração" = titular ou administrador
 | `configuracao` | `estudio` | equipe e aluno | administração |
 | `unidades` | id | equipe e aluno | administração |
 | `equipe` | id do membro (com `uid` depois do aceite) | equipe | administração para professores; titular para administradores; cada um o próprio contato; o convidado só grava o próprio `uid` ao aceitar |
-| `convites` | e-mail da pessoa | administração e o dono do e-mail | administração (professor e aluno), titular (administrador); o convidado apaga ao aceitar |
+| `convites` | e-mail da pessoa (`papel`, `pessoaId`, `porId`, `criadoEm`, `expiraEm` em ms) | administração e o dono do e-mail | administração (professor e aluno), titular (administrador); o convidado apaga ao aceitar. `expiraEm` nasce dentro da validade das configurações e o aceite depois dele é recusado; revogar apaga o documento, mandar de novo grava outro |
 | `acessos` | uid da conta | a própria conta; a administração acha os de aluno | a própria conta, a partir de um convite ou do primeiro acesso; a administração apaga o de aluno na exclusão |
 | `alunos` | id | equipe | administração |
 | `financeiroDosAlunos` | id do aluno | administração | administração |
 | `turmas` | id | equipe | administração |
-| `registros` | `${turmaId}_${data}` | equipe | equipe (cancelamento só a administração; professor só nas unidades dele); aluno só a própria marcação ou reposição |
+| `registros` | `${turmaId}_${data}` (com `experimentais`: código para `'Nome|telefone[|alunoId]'`) | equipe | equipe (cancelamento só a administração; professor só nas unidades dele); aluno só a própria marcação ou reposição, nunca o mapa de experimentais |
 | `creditos` | id determinístico | equipe; o aluno os dele | equipe; aluno o do próprio aviso e o uso na própria reposição |
 | `pagamentos` | id | administração | administração |
 | `vagas` | `${turmaId}_${data}` | equipe e aluno | equipe; aluno só um lugar a mais ou a menos, junto com o registro |

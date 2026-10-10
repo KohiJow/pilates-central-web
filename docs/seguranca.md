@@ -11,6 +11,7 @@ cada leitura e gravação. A tela só esconde o que o banco já nega.
 |---|---|---|
 | Alguém lê ou grava o que não é do papel dele | regras do Firestore com menor privilégio, esquema e tamanho em tudo, o resto negado | `firestore.rules`, `testes-de-regras/` |
 | Conta sem convite entra no estúdio | o papel vem de `acessos/{uid}` criado a partir de um convite para o e-mail confirmado | regras de `acessos` e `convites` |
+| Convite esquecido vira porta aberta | todo convite nasce com prazo (`expiraEm`, 7 dias por padrão, configurável de 1 a 90) e o aceite depois dele é recusado; a administração revoga ou manda de novo | `conviteValido`, `conviteNoPrazo`, Mais, Equipe |
 | Ninguém sabe o que aconteceu no login | cada resposta do Firebase vira uma frase em português; o código bruto fica atrás de "Detalhes" | `src/dados/firebase/erros.ts` |
 | Descobrir quem é aluno tentando e-mails | mensagens iguais com ou sem conta; proteção contra enumeração do Firebase (console) | `erros.ts`, `docs/firebase.md` |
 | Senha fraca | mínimo 8 no app e na política do projeto (console); força da senha enquanto digita | `src/dominio/senha.ts` |
@@ -39,7 +40,9 @@ Para cada pedido, as regras calculam uma vez quem está pedindo (`quemSou`):
 
 1. A conta precisa ter o **e-mail confirmado** (`email_verified`).
 2. O documento `acessos/{uid}` liga a conta a uma pessoa. Só a própria conta cria o seu, e só a
-   partir de um convite em `convites/{e-mail}` para o e-mail dela (ou no primeiro acesso).
+   partir de um convite em `convites/{e-mail}` para o e-mail dela (ou no primeiro acesso), dentro
+   do prazo do convite (`expiraEm`): vencido ou revogado (apagado), a conta fica sem papel até a
+   administração mandar o convite de novo.
 3. O papel vem do cadastro dessa pessoa: na equipe, o cadastro precisa ter o mesmo `uid`, estar
    ativo e ter o mesmo e-mail do login; o aluno precisa ter o acesso liberado, não estar arquivado,
    o e-mail igual e o app do aluno ligado nas configurações.
@@ -91,14 +94,20 @@ documento:
 - `financeiroDosAlunos` e `pagamentos`: só a administração. O app do professor nem pede esses dados.
 - `alunos` (com a observação da equipe): só a equipe. O aluno lê `portal/{id}`, uma cópia com o
   primeiro nome, a unidade e as turmas fixas, sem colegas.
+- `registros/{aula}` leva também quem vem fazer a aula experimental (nome e telefone, em texto):
+  só a equipe lê; o aluno, que mexe no mesmo documento por mescla, não cria nem muda esse mapa
+  (as regras recusam), e as cópias sem nome (vagas, página pública) só contam o lugar.
 - `vagas/{aula}`: a aula de uma data só com lugares (capacidade, ocupados, cancelada) e o início
   da aula em milissegundos (`comecaEm`, conferido pelas regras contra a data e a hora), sem nomes.
 - `publico/estudio`: o único documento sem login, só com o que a página mostra: nome do estúdio,
-  WhatsApp, unidades (mapa `id -> 'nome|endereco'`), se a aula experimental está aberta e os
-  horários com vaga (um texto por horário, `'2026-10-13 18:00-18:50 u-centro 2'`). As regras
-  conferem cada horário e cada unidade quando a equipe grava; a página confere tudo de novo ao
-  ler (`paginaPublicaDe` em `src/experimental/rest.ts`), para um documento de antes das regras não
-  derrubar a página de quem nunca viu o estúdio.
+  WhatsApp, os textos do estúdio (frase até 160, até três focos de 40, endereço até 200, link do
+  mapa só `https://` até 300, usuário do Instagram até 30 letras, números, ponto e sublinhado),
+  unidades (mapa `id -> 'nome|endereco'`), se a aula experimental está aberta e os horários com
+  vaga (um texto por horário, `'2026-10-13 18:00-18:50 u-centro 2'`). As regras conferem cada
+  texto, cada horário e cada unidade quando a equipe grava (o professor só grava os horários); a
+  página confere tudo de novo ao ler (`paginaPublicaDe` em `src/experimental/rest.ts`): só um link
+  `https://` vira link, e um documento de antes das regras não derruba a página de quem nunca viu
+  o estúdio.
 - `auditoria`: o registro de alterações, só códigos (quem, o quê, com quem, quando). A
   administração grava a própria linha junto com a mudança e lê; ninguém edita nem apaga.
 
@@ -214,9 +223,11 @@ O app não consegue conferir nem mudar nada disto; a lista de verificação com 
 
 ## Tentativas de escalada testadas
 
-`npm run regras` roda 225 testes no emulador, cada papel contra cada coleção, permitindo e negando
+`npm run regras` roda 266 testes no emulador, cada papel contra cada coleção, permitindo e negando
 (`testes-de-regras/regras.test.ts`), as tentativas das revisões de segurança
-(`testes-de-regras/ataques.test.ts`) e a folga do teto de expressões (`folga.test.ts`). Entre eles:
+(`testes-de-regras/ataques.test.ts`), a folga do teto de expressões (`folga.test.ts`), as aulas
+experimentais no registro (`experimentais.test.ts`), os textos do estúdio (`estudio.test.ts`) e o
+prazo dos convites (`convites.test.ts`). Entre eles:
 
 - professor lendo `pagamentos`, `financeiroDosAlunos` ou `auditoria`; professor marcando presença
   em outra unidade, cancelando aula ou dando crédito de cortesia;
@@ -238,7 +249,15 @@ O app não consegue conferir nem mudar nada disto; a lista de verificação com 
 - convite forjado: professor, aluno ou pessoa de fora criando convite ou cadastro; convite que não
   bate com o cadastro (outro e-mail, outro papel); cadastro já nascendo com `uid`;
 - aceitar convite com e-mail não confirmado, com outro e-mail, ou mudando o próprio papel no aceite;
-  trocar o próprio acesso para apontar para o titular;
+  trocar o próprio acesso para apontar para o titular; aceitar um convite vencido, sem prazo ou
+  revogado (equipe e aluno); criar convite sem prazo, com prazo no passado ou além da validade
+  combinada; validade da configuração fora de 1 a 90 dias;
+- aluno registrando, tirando ou mudando quem vem fazer a aula experimental (ou marcando a presença
+  dessa pessoa), ou criando o registro já com alguém para experimentar; item torto no mapa (sem a
+  barra, telefone com letra, nome vazio ou de 81 letras, código com espaço, valor que não é texto,
+  quebra de linha), a 11a pessoa na mesma aula; professor de outra unidade registrando;
+- textos do estúdio fora dos tetos ou com o separador, link do mapa sem `https://` ou com script,
+  Instagram com espaço ou arroba, professor mexendo nos textos da página pública;
 - administrador convidando, promovendo ou desativando administrador; mexendo no cadastro do
   titular; titular se desativando;
 - mudar o e-mail de quem já entrou (é ele que liga a conta ao papel);
@@ -290,9 +309,9 @@ O app não consegue conferir nem mudar nada disto; a lista de verificação com 
   As regras confiam na equipe para esses números (só o aluno é limitado a mais ou menos um).
 - **Aviso fora do prazo marcado pela equipe** (sem crédito) não aparece para o aluno como "você
   avisou": o aluno só vê os próprios créditos, não o registro da aula.
-- **Convites não mandam e-mail:** sem Cloud Functions, a pessoa é avisada pelo WhatsApp e cria a
-  conta com o e-mail do convite. O link do WhatsApp leva o e-mail da pessoa no texto da mensagem,
-  de propósito (é o convite).
+- **Convites não mandam e-mail:** sem Cloud Functions, a pessoa é avisada pelo WhatsApp (ou pelo
+  convite copiado) e cria a conta com o e-mail do convite. A mensagem leva o e-mail da pessoa no
+  texto, de propósito (é o convite); o link em si (`?entrar`) não leva nada pessoal.
 - **Exclusão de aluno:** apaga cadastro, mensalidade, portal, convite, créditos, as marcações
   futuras, a observação dos pagamentos e o documento que liga a conta de login ao cadastro
   (`acessos/{uid}`, com o e-mail); presenças antigas, pagamentos e a linha do registro de

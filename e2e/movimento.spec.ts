@@ -250,13 +250,20 @@ test.describe('fluidez das transições', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
 
-  test('telas de gestão: ficha, voltar, seção, folha de encaixe e troca de mês', async ({ page }, info) => {
+  test('telas de gestão: lista de alunos, ficha, voltar, seção, folha de encaixe e troca de mês', async ({ page }, info) => {
     test.setTimeout(90_000)
     await entrarComoAdministracao(page)
-    await irParaAba(page, 'Alunos')
     await page.waitForTimeout(500)
     const referencia = await medirReferencia(page)
     console.log(JSON.stringify({ regua: info.project.name, cpuLenta: LENTO, p95: referencia, teste: 'gestao' }))
+
+    // a lista de alunos (a tela mais pesada de montar) entra em partes
+    await medir(page, info, referencia, 'abrir-alunos', async () => {
+      await page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Alunos' }).click()
+    })
+    await esperarTransicao(page)
+    await esperarParado(page, '.tela-quadro')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Alunos')
 
     await medir(page, info, referencia, 'abrir-ficha', async () => {
       await page.locator('[data-aluno]').first().click()
