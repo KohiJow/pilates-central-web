@@ -8,12 +8,15 @@ import '../estilos/gestao.css'
 import '../estilos/conta.css'
 import '../estilos/vitrine.css'
 import { render } from 'preact'
+import { instalarPoliticaDeConfianca } from '../app/confianca'
 import { fixarAgora, iniciarRelogio, lerAgoraDaUrl } from '../app/relogio'
 import { acompanharTemaDoSistema } from '../app/tema'
+import { CHAVE_DO_APP_CHECK } from '../config/firebase'
 import { ativarRetornoDeToque } from '../movimento/toque'
 import { origemDaPagina } from './dados'
 import { PaginaExperimental } from './PaginaExperimental'
 
+instalarPoliticaDeConfianca(CHAVE_DO_APP_CHECK !== null)
 // ?agora= só na demonstração (fotos e testes num dia conhecido)
 if (origemDaPagina() === 'demonstracao') fixarAgora(lerAgoraDaUrl(location.search))
 iniciarRelogio()

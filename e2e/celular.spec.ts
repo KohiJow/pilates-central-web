@@ -1,10 +1,6 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
-import { createServer } from 'node:http'
-import type { AddressInfo } from 'node:net'
-import { extname, join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { expect, test } from './base'
-import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irPara, irParaAba } from './apoio'
+import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irPara, irParaAba, servidorDoDist } from './apoio'
 
 // Coisas de celular que o resto da suíte não pega, cada uma achada na revisão no iPhone e no
 // Android (vídeo quadro a quadro, medição na tela) e conferida aqui nos dois motores.
@@ -131,33 +127,9 @@ test.describe('celular', () => {
   test('com o servidor fora do ar, o app instalado abre do service worker', async ({ page }) => {
     // um servidor só deste teste, para poder desligá-lo de verdade (o modo sem rede do
     // Playwright não passa pelo service worker no WebKit)
-    const pasta = resolve('dist')
-    const TIPOS: Record<string, string> = {
-      '.html': 'text/html; charset=utf-8',
-      '.js': 'text/javascript',
-      '.css': 'text/css',
-      '.svg': 'image/svg+xml',
-      '.png': 'image/png',
-      '.webp': 'image/webp',
-      '.woff2': 'font/woff2',
-      '.webmanifest': 'application/manifest+json',
-      '.json': 'application/json',
-    }
-    const servidor = createServer((pedido, resposta) => {
-      const caminho = decodeURIComponent(new URL(pedido.url ?? '/', 'http://x').pathname)
-      if (!caminho.startsWith('/pilates-central-web/')) return void resposta.writeHead(404).end()
-      let arquivo = join(pasta, caminho.slice('/pilates-central-web/'.length))
-      if (!arquivo.startsWith(pasta)) return void resposta.writeHead(403).end()
-      if (existsSync(arquivo) && statSync(arquivo).isDirectory()) arquivo = join(arquivo, 'index.html')
-      if (!existsSync(arquivo)) return void resposta.writeHead(404).end()
-      resposta.writeHead(200, { 'content-type': TIPOS[extname(arquivo)] ?? 'application/octet-stream' })
-      createReadStream(arquivo).pipe(resposta)
-    })
-    await new Promise<void>((r) => servidor.listen(0, '127.0.0.1', r))
-    const { port } = servidor.address() as AddressInfo
-    const endereco = `http://127.0.0.1:${port}/pilates-central-web/`
+    const servidor = await servidorDoDist()
     try {
-      await page.goto(`${endereco}?demo&agora=2026-10-09T10:00`)
+      await page.goto(`${servidor.endereco}?demo&agora=2026-10-09T10:00`)
       await page.getByRole('button', { name: 'Explorar como administração' }).click()
       await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
       await page.evaluate(async () => {
@@ -166,8 +138,7 @@ test.describe('celular', () => {
       await page.reload()
       await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
     } finally {
-      servidor.closeAllConnections()
-      await new Promise((r) => servidor.close(r))
+      await servidor.fechar()
     }
     // sem servidor nenhum: a página, os scripts, os estilos e as fontes vêm da cópia guardada
     await page.reload()

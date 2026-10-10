@@ -1,5 +1,5 @@
 import { expect, test } from './base'
-import { abrirApp, entrarComoAdministracao } from './apoio'
+import { abrirApp, AGORA_PADRAO, aviso, entrarComoAdministracao, servidorDoDist } from './apoio'
 
 test.describe('app instalável', () => {
   test('manifesto com nome, tela cheia, cores e ícones (inclusive maskable)', async ({ page, request }) => {
@@ -38,8 +38,80 @@ test.describe('app instalável', () => {
     })
     page.on('pageerror', (e) => erros.push(e.message))
     await entrarComoAdministracao(page)
-    await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1)
+    const politica = (await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')) ?? ''
+    expect(politica).toMatch(/script-src 'self' 'sha256-/)
+    expect(politica).not.toMatch(/unsafe-inline|unsafe-eval/)
+    expect(politica).toContain("require-trusted-types-for 'script'")
+    await expect(page.locator('meta[name="referrer"]')).toHaveAttribute('content', 'strict-origin-when-cross-origin')
     expect(erros).toEqual([])
+  })
+
+  test('com Trusted Types, HTML por texto é recusado e só o service worker carrega por endereço', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    const resultado = await page.evaluate(() => {
+      const tt = (window as Window & { trustedTypes?: { defaultPolicy: { name: string } | null } }).trustedTypes
+      if (!tt) return { suportado: false, politica: '', innerHtml: 'n/a', script: 'n/a' }
+      const div = document.createElement('div')
+      let innerHtml = 'passou'
+      try {
+        div.innerHTML = '<img src=x onerror=alert(1)>'
+      } catch (e) {
+        innerHtml = e instanceof TypeError ? 'recusado' : String(e)
+      }
+      let script = 'passou'
+      try {
+        const el = document.createElement('script')
+        el.src = 'https://evil.example.com/x.js'
+      } catch (e) {
+        script = e instanceof TypeError ? 'recusado' : String(e)
+      }
+      return { suportado: true, politica: tt.defaultPolicy?.name ?? '', innerHtml, script }
+    })
+    // o motor do Safari pode não ter Trusted Types; aí a diretiva é ignorada e nada muda
+    test.skip(!resultado.suportado, 'este motor não tem Trusted Types')
+    expect(resultado.politica).toBe('default')
+    expect(resultado.innerHtml).toBe('recusado')
+    expect(resultado.script).toBe('recusado')
+    // o app continua inteiro depois das recusas
+    await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
+  })
+
+  test('versão nova do service worker: avisa, e só troca quando a pessoa toca em Atualizar', async ({ page }) => {
+    // um servidor só do teste: é ele que passa a entregar um sw.js de outra versão
+    const servidor = await servidorDoDist()
+    try {
+      await page.goto(`${servidor.endereco}?demo&agora=${AGORA_PADRAO}`)
+      await page.getByRole('button', { name: 'Explorar como administração' }).click()
+      await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
+      await page.evaluate(() => navigator.serviceWorker.ready)
+      // a primeira versão assume sem recarregar nada; a página passa a ser controlada no recarregar
+      await page.reload()
+      await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+      const versaoAntes = await page.evaluate(async () => (await caches.keys()).find((c) => c.startsWith('pilates-central-')) ?? '')
+      expect(versaoAntes).not.toBe('')
+
+      // o servidor passa a entregar outra versão: o app só avisa, e a versão nova fica esperando
+      servidor.versaoDoSw('teste-versao-nova')
+      await page.evaluate(async () => {
+        const r = await navigator.serviceWorker.getRegistration()
+        await r?.update()
+      })
+      const avisoNovo = aviso(page, 'Tem uma versão nova do app.')
+      await expect(avisoNovo).toBeVisible({ timeout: 15_000 })
+      // enquanto a pessoa não toca, quem manda é a versão antiga; a nova já guardou os arquivos dela
+      expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+      expect((await page.evaluate(() => caches.keys())).sort()).toEqual([versaoAntes, 'pilates-central-teste-versao-nova'].sort())
+      await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
+
+      await avisoNovo.getByRole('button', { name: 'Atualizar' }).click()
+      // a versão nova assume e a página recarrega sozinha, já com o cache antigo fora
+      await expect(page.getByRole('heading', { name: /Helena/ })).toBeVisible()
+      await expect
+        .poll(async () => page.evaluate(async () => (await caches.keys()).filter((c) => c.startsWith('pilates-central-'))), { timeout: 15_000 })
+        .toEqual(['pilates-central-teste-versao-nova'])
+    } finally {
+      await servidor.fechar()
+    }
   })
 
   test('o service worker guarda tudo o que o app precisa para abrir', async ({ page }) => {

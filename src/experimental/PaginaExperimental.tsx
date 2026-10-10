@@ -4,6 +4,7 @@
 import type { JSX } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
 import { agoraDoApp, momento } from '../app/relogio'
+import { AvisoDoRecaptcha } from '../componentes/AvisoDoRecaptcha'
 import { EsqueletoDeLista } from '../componentes/Esqueleto'
 import { EstadoVazio } from '../componentes/EstadoVazio'
 import { FaixaDias } from '../componentes/FaixaDias'
@@ -266,6 +267,7 @@ export function PaginaExperimental() {
           <a class="link" href={BASE}>
             Já é aluno? Abrir o app
           </a>
+          <AvisoDoRecaptcha />
         </footer>
       </main>
 

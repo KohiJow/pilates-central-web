@@ -7,9 +7,11 @@ import '../estilos/telas.css'
 import '../estilos/conta.css'
 import '../estilos/vitrine.css'
 import { render } from 'preact'
+import { instalarPoliticaDeConfianca } from '../app/confianca'
 import { acompanharTemaDoSistema } from '../app/tema'
 import { AvisoDePrivacidade } from './AvisoDePrivacidade'
 
+instalarPoliticaDeConfianca(false)
 acompanharTemaDoSistema()
 
 const raiz = document.getElementById('app')

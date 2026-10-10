@@ -111,18 +111,62 @@ export function servicoOffline(): Plugin {
 }
 
 // Política de segurança de conteúdo para o site publicado. O GitHub Pages não deixa mandar
-// cabeçalhos, então ela vai numa <meta>. O único script embutido (o que aplica o tema antes
-// da primeira pintura) entra pelo hash; qualquer outro script embutido fica bloqueado.
-// Com projeto Firebase configurado no build, o app conversa com o login e com o Firestore
-// (por REST, no SDK "lite"); sem projeto, nem isso é liberado.
+// cabeçalhos, então ela vai numa <meta>. Os scripts embutidos (o do tema e o da pré-carga das
+// fontes) entram pelo hash; qualquer outro script embutido fica bloqueado. Com projeto Firebase
+// configurado no build, o app conversa com o login e com o Firestore (por REST, no SDK "lite");
+// sem projeto, nem isso é liberado. Com o App Check, entram só os endereços do reCAPTCHA v3 e
+// da troca de token. Trusted Types: HTML e endereços de script por texto só passam pela
+// política padrão do app (src/app/confianca.ts); quem não suporta ignora a diretiva.
 const DO_FIREBASE = [
   'https://identitytoolkit.googleapis.com',
   'https://securetoken.googleapis.com',
   'https://firestore.googleapis.com',
 ]
 
+const DO_APP_CHECK = {
+  script: ['https://www.google.com/recaptcha/', 'https://www.gstatic.com/recaptcha/'],
+  frame: ['https://www.google.com/recaptcha/', 'https://recaptcha.google.com/recaptcha/'],
+  connect: ['https://content-firebaseappcheck.googleapis.com'],
+}
+
+export interface OpcoesDaPolitica {
+  comFirebase: boolean
+  comAppCheck: boolean
+  /** hashes dos scripts embutidos, já no formato 'sha256-...' */
+  hashes: readonly string[]
+}
+
+/** As diretivas da política, uma por item. */
+export function regrasDaPolitica({ comFirebase, comAppCheck, hashes }: OpcoesDaPolitica): string[] {
+  const script = ["'self'", ...hashes, ...(comAppCheck ? DO_APP_CHECK.script : [])]
+  const connect = ["'self'", ...(comFirebase ? DO_FIREBASE : []), ...(comAppCheck ? DO_APP_CHECK.connect : [])]
+  return [
+    "default-src 'self'",
+    `script-src ${script.join(' ')}`,
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    `connect-src ${connect.join(' ')}`,
+    `frame-src ${comAppCheck ? DO_APP_CHECK.frame.join(' ') : "'none'"}`,
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "require-trusted-types-for 'script'",
+    'trusted-types default',
+  ]
+}
+
+export function hashesDosScriptsEmbutidos(html: string): string[] {
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
+    (m) => `'sha256-${createHash('sha256').update(m[1] ?? '').digest('base64')}'`,
+  )
+}
+
 export function politicaDeSeguranca(): Plugin {
   let comFirebase = false
+  let comAppCheck = false
   return {
     name: 'politica-de-seguranca',
     apply: 'build',
@@ -131,26 +175,12 @@ export function politicaDeSeguranca(): Plugin {
     enforce: 'post',
     configResolved(config) {
       comFirebase = Boolean(config.env.VITE_FIREBASE_PROJECT_ID)
+      comAppCheck = comFirebase && Boolean(String(config.env.VITE_FIREBASE_APPCHECK_SITE_KEY ?? '').trim())
     },
     transformIndexHtml: {
       order: 'post',
       handler(html) {
-        const hashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-          (m) => `'sha256-${createHash('sha256').update(m[1] ?? '').digest('base64')}'`,
-        )
-        const regras = [
-          "default-src 'self'",
-          `script-src 'self' ${hashes.join(' ')}`.trim(),
-          "style-src 'self'",
-          "img-src 'self' data: blob:",
-          "font-src 'self'",
-          `connect-src 'self'${comFirebase ? ` ${DO_FIREBASE.join(' ')}` : ''}`,
-          "manifest-src 'self'",
-          "worker-src 'self'",
-          "base-uri 'self'",
-          "form-action 'self'",
-          "object-src 'none'",
-        ]
+        const regras = regrasDaPolitica({ comFirebase, comAppCheck, hashes: hashesDosScriptsEmbutidos(html) })
         const meta = `<meta http-equiv="Content-Security-Policy" content="${regras.join('; ')}" />`
         // logo depois do charset: a política vale antes de qualquer script
         return html.replace(/(<meta charset="utf-8" \/>)/, `$1\n    ${meta}`)

@@ -2,7 +2,9 @@
 /// <reference lib="webworker" />
 
 // Modelo do service worker. No build, o plugin em scripts/plugin-offline.ts troca os dois
-// marcadores abaixo pela versão e pela lista de arquivos do app.
+// marcadores abaixo pela versão (um resumo do conteúdo do app) e pela lista de arquivos.
+// Só arquivos do próprio site entram no cache: pedidos a outra origem (login, Firestore,
+// emuladores) nem passam por aqui.
 const VERSAO = /*VERSAO*/ 'dev'
 const ARQUIVOS = /** @type {string[]} */ (/*ARQUIVOS*/ [])
 
@@ -19,9 +21,15 @@ sw.addEventListener('install', (evento) => {
     (async () => {
       const cache = await caches.open(CACHE)
       await cache.addAll(ARQUIVOS.map(noEscopo))
-      await sw.skipWaiting()
+      // a primeira versão assume na hora; uma versão nova espera a pessoa tocar em "Atualizar"
+      // (ver src/app/atualizacao.ts), para não trocar o código com o app aberto
+      if (!sw.registration.active) await sw.skipWaiting()
     })(),
   )
+})
+
+sw.addEventListener('message', (evento) => {
+  if (evento.data && evento.data.tipo === 'ativar') void sw.skipWaiting()
 })
 
 sw.addEventListener('activate', (evento) => {
@@ -39,7 +47,7 @@ sw.addEventListener('fetch', (evento) => {
   const pedido = evento.request
   if (pedido.method !== 'GET') return
   const url = new URL(pedido.url)
-  // Firebase, fontes de terceiros e afins seguem direto para a rede
+  // Firebase, emuladores, fontes de terceiros e afins seguem direto para a rede, sem cache
   if (url.origin !== sw.location.origin || !pedido.url.startsWith(sw.registration.scope)) return
   if (pedido.mode === 'navigate') {
     evento.respondWith(navegar(pedido))

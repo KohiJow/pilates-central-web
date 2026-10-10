@@ -33,14 +33,26 @@ function lerDoAmbiente(): ConfiguracaoDoFirebase | null {
 export const CONFIGURACAO_DO_FIREBASE: ConfiguracaoDoFirebase | null = lerDoAmbiente()
 
 /**
+ * Chave do site do reCAPTCHA v3 para o App Check (VITE_FIREBASE_APPCHECK_SITE_KEY). Sem ela o
+ * App Check fica desligado; com ela, cada pedido ao Firebase leva um token que diz "veio do site
+ * de verdade", e o dono do projeto pode impor isso no console (ver docs/firebase.md).
+ */
+export const CHAVE_DO_APP_CHECK: string | null = (import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY ?? '').trim() || null
+
+/** Em localhost o App Check usa um token de depuração (o SDK escreve o token no console). */
+export function ehLocal(hostname = location.hostname): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
+/**
  * Emuladores locais (testes e desenvolvimento): só valem em localhost e só com `?emulador=1`
- * no endereço (ver app/modo.ts). No site publicado isto nunca liga. As portas são as de
- * firebase.json.
+ * no endereço (ver app/modo.ts). No site publicado isto nunca liga. As portas vêm de
+ * firebase.json, lidas no build (vite.config.ts).
  */
 export const EMULADOR = {
   projectId: 'demo-pilates',
   // chave falsa: o emulador aceita qualquer uma
   apiKey: 'chave-do-emulador',
-  auth: 'http://127.0.0.1:8844',
-  firestore: { host: '127.0.0.1', porta: 8824 },
+  auth: `http://127.0.0.1:${__EMULADOR__.auth}`,
+  firestore: { host: '127.0.0.1', porta: __EMULADOR__.firestore },
 } as const

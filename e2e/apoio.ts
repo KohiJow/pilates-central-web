@@ -1,8 +1,68 @@
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { extname, join, resolve } from 'node:path'
 import { expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
 /** Sexta-feira, 9 de outubro de 2026, 10h em Campinas: um dia com aulas antes e depois. */
 export const AGORA_PADRAO = '2026-10-09T10:00'
+
+const TIPOS: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
+}
+
+export interface ServidorDoDist {
+  /** o app, com o mesmo caminho base da publicação */
+  endereco: string
+  /** passa a servir o service worker com esta versão (null: o arquivo como está) */
+  versaoDoSw(versao: string | null): void
+  fechar(): Promise<void>
+}
+
+/**
+ * Um servidor só do teste, servindo `dist/` (rode o build antes). Serve para o que a prévia
+ * compartilhada não deixa: desligar o servidor de verdade e entregar um service worker de outra
+ * versão (a rota do Playwright não alcança a busca do script do service worker).
+ */
+export async function servidorDoDist(): Promise<ServidorDoDist> {
+  const pasta = resolve('dist')
+  let versaoDoSw: string | null = null
+  const servidor = createServer((pedido, resposta) => {
+    const caminho = decodeURIComponent(new URL(pedido.url ?? '/', 'http://x').pathname)
+    if (!caminho.startsWith('/pilates-central-web/')) return void resposta.writeHead(404).end()
+    let arquivo = join(pasta, caminho.slice('/pilates-central-web/'.length))
+    if (!arquivo.startsWith(pasta)) return void resposta.writeHead(403).end()
+    if (existsSync(arquivo) && statSync(arquivo).isDirectory()) arquivo = join(arquivo, 'index.html')
+    if (!existsSync(arquivo)) return void resposta.writeHead(404).end()
+    resposta.writeHead(200, { 'content-type': TIPOS[extname(arquivo)] ?? 'application/octet-stream' })
+    if (versaoDoSw !== null && caminho === '/pilates-central-web/sw.js') {
+      resposta.end(readFileSync(arquivo, 'utf8').replace(/const VERSAO = "[^"]+"/, `const VERSAO = ${JSON.stringify(versaoDoSw)}`))
+      return
+    }
+    createReadStream(arquivo).pipe(resposta)
+  })
+  await new Promise<void>((r) => servidor.listen(0, '127.0.0.1', r))
+  const { port } = servidor.address() as AddressInfo
+  return {
+    endereco: `http://127.0.0.1:${port}/pilates-central-web/`,
+    versaoDoSw: (versao) => {
+      versaoDoSw = versao
+    },
+    fechar: async () => {
+      servidor.closeAllConnections()
+      await new Promise((r) => servidor.close(r))
+    },
+  }
+}
 
 /**
  * Abre a demonstração com o relógio fixo. `demo` escolhe a porta da demonstração: vale com ou sem

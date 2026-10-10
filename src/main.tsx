@@ -8,6 +8,8 @@ import './estilos/gestao.css'
 import './estilos/conta.css'
 import { render } from 'preact'
 import { App } from './app/App'
+import { registrarServiceWorker } from './app/atualizacao'
+import { instalarPoliticaDeConfianca } from './app/confianca'
 import { iniciar } from './app/conta'
 import { acompanharInstalacao } from './app/instalacao'
 import { modo } from './app/modo'
@@ -15,9 +17,11 @@ import { acompanharHistorico } from './app/navegacao'
 import { acompanharSessao } from './app/perfil'
 import { iniciarRelogio } from './app/relogio'
 import { acompanharTemaDoSistema } from './app/tema'
+import { CHAVE_DO_APP_CHECK } from './config/firebase'
 import { deveUsarTransicaoDeVista, movimentoReduzido, transicaoDeVista } from './movimento/preferencias'
 import { ativarRetornoDeToque } from './movimento/toque'
 
+instalarPoliticaDeConfianca(CHAVE_DO_APP_CHECK !== null)
 iniciarRelogio()
 acompanharTemaDoSistema()
 acompanharInstalacao()
@@ -33,8 +37,4 @@ if (escolhido) iniciar(escolhido)
 const raiz = document.getElementById('app')
 if (raiz) render(<App />, raiz)
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
-  })
-}
+if (import.meta.env.PROD) registrarServiceWorker()

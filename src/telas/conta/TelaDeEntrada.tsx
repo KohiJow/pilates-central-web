@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact'
+import { AvisoDoRecaptcha } from '../../componentes/AvisoDoRecaptcha'
 import { Logo, MarcaDagua } from '../../componentes/Marca'
 
 const BASE = import.meta.env.BASE_URL
@@ -35,6 +36,7 @@ export function TelaDeEntrada({
             Aviso de privacidade
           </a>
         </p>
+        <AvisoDoRecaptcha />
       </div>
     </main>
   )
