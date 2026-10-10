@@ -64,7 +64,33 @@ describe('documento público pela API REST', () => {
       horarios: { 0: 'a' },
       atualizadoEm: 7,
     })
-    expect(pagina).toEqual({ nomeEstudio: 'Pilates Central', whatsapp: '', unidades: [], experimental: false, horarios: [], atualizadoEm: '' })
+    expect(pagina).toEqual({
+      nomeEstudio: 'Pilates Central',
+      whatsapp: '',
+      fraseCurta: '',
+      focos: [],
+      endereco: '',
+      linkDoMapa: '',
+      instagram: '',
+      unidades: [],
+      experimental: false,
+      horarios: [],
+      atualizadoEm: '',
+    })
+  })
+
+  it('os textos do estúdio chegam com os tetos e só o link https vira link', () => {
+    const pagina = paginaPublicaDe({
+      fraseCurta: 'Um estúdio pequeno.',
+      // só os três primeiros contam, e só os que são texto no tamanho
+      focos: ['Fortalecimento', 7, 'Postura', 'Mobilidade'],
+      endereco: 'Rua Exemplo, 100',
+      linkDoMapa: 'javascript:alert(1)',
+      instagram: 'estudio.exemplo',
+    })
+    expect(pagina).toMatchObject({ fraseCurta: 'Um estúdio pequeno.', focos: ['Fortalecimento', 'Postura'], endereco: 'Rua Exemplo, 100', linkDoMapa: '', instagram: 'estudio.exemplo' })
+    expect(paginaPublicaDe({ focos: ['x'.repeat(41), ''] }).focos).toEqual([])
+    expect(paginaPublicaDe({ linkDoMapa: 'https://maps.app.goo.gl/abc', instagram: 'nome com espaço' })).toMatchObject({ linkDoMapa: 'https://maps.app.goo.gl/abc', instagram: '' })
   })
 
   it('respeita os mesmos tetos das regras (100 horários, 10 unidades)', () => {

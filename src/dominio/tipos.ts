@@ -207,7 +207,24 @@ export interface RegistroDeAuditoria {
   em: Instante
 }
 
-export interface Configuracao {
+/**
+ * O que o estúdio diz de si na página pública: tudo configurável em Mais, Estúdio, para nada
+ * de um estúdio em particular ficar escrito no código.
+ */
+export interface TextosDoEstudio {
+  /** uma frase de apresentação na capa da página pública */
+  fraseCurta: string
+  /** até três focos do trabalho (pílulas na capa) */
+  focos: string[]
+  /** endereço em texto livre (rua, número, bairro, cidade); as unidades têm o delas */
+  endereco: string
+  /** link do mapa (opcional); sem ele a página procura o endereço no mapa */
+  linkDoMapa: string
+  /** usuário do Instagram, sem o @ */
+  instagram: string
+}
+
+export interface Configuracao extends TextosDoEstudio {
   nomeEstudio: string
   /** só dígitos, com DDI: 55 + DDD + número */
   whatsapp: string
@@ -271,7 +288,7 @@ export interface HorarioPublico {
 }
 
 /** Documento público (sem login): a página de aula experimental lê só isto. */
-export interface PaginaPublica {
+export interface PaginaPublica extends TextosDoEstudio {
   nomeEstudio: string
   whatsapp: string
   unidades: Pick<Unidade, 'id' | 'nome' | 'endereco'>[]

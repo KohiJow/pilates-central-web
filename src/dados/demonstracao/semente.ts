@@ -61,9 +61,15 @@ export interface BancoDeDemonstracao {
   auditoria?: Record<Id, RegistroDeAuditoria>
 }
 
+// os textos da página pública são fictícios, como o resto (nada do estúdio de verdade)
 const CONFIGURACAO: Configuracao = {
   ...CONFIGURACAO_PADRAO,
   whatsapp: '5511900000000',
+  fraseCurta: 'Um estúdio pequeno, com turmas de até seis pessoas e atenção a cada uma.',
+  focos: ['Fortalecimento', 'Postura', 'Mobilidade'],
+  endereco: 'Rua Exemplo, 100, sala 2, Centro',
+  linkDoMapa: '',
+  instagram: 'estudio.exemplo',
   acessoDoAluno: true,
   paginaExperimental: true,
 }

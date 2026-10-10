@@ -60,6 +60,11 @@ const instante = '2026-10-01T12:00:00.000Z'
 export const CONFIG = {
   nomeEstudio: 'Estúdio de Teste',
   whatsapp: '5511900000000',
+  fraseCurta: 'Um estúdio pequeno, de teste.',
+  focos: ['Fortalecimento', 'Postura'],
+  endereco: 'Rua Exemplo, 100, Centro',
+  linkDoMapa: '',
+  instagram: 'estudio.teste',
   validadeCreditoDias: 30,
   antecedenciaAvisoHoras: 3,
   limiteReposicoesMes: 0,
@@ -215,6 +220,11 @@ export async function semear(ambiente: RulesTestEnvironment): Promise<void> {
     await gravar('publico/estudio', {
       nomeEstudio: 'Estúdio de Teste',
       whatsapp: '5511900000000',
+      fraseCurta: CONFIG.fraseCurta,
+      focos: CONFIG.focos,
+      endereco: CONFIG.endereco,
+      linkDoMapa: '',
+      instagram: CONFIG.instagram,
       unidades: { 'u-centro': 'Centro|Rua Exemplo, 100' },
       experimental: true,
       horarios: [],

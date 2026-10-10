@@ -236,6 +236,13 @@
   padding: 0 16px;
 }
 
+/* link curto no fim de uma linha de lista (Mapa, Abrir): alvo de 48 px mesmo com a palavra curta */
+.lista-item > .link {
+  flex: none;
+  min-width: var(--toque);
+  justify-content: center;
+}
+
 .nota-alerta,
 .nota-ok {
   display: flex;

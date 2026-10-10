@@ -167,9 +167,16 @@ export function documentoDaPaginaPublica(p: PaginaPublica): DocumentoPublico {
 
 export function paginaPublica(e: EstadoParaProjetar, agora: Momento, instante: Instante): PaginaPublica {
   const ligada = e.configuracao.paginaExperimental
+  const c = e.configuracao
   return {
-    nomeEstudio: e.configuracao.nomeEstudio,
-    whatsapp: e.configuracao.whatsapp,
+    nomeEstudio: c.nomeEstudio,
+    whatsapp: c.whatsapp,
+    // os textos que o estúdio escreveu sobre si, já aparados (configuração antiga pode não ter)
+    fraseCurta: c.fraseCurta ?? '',
+    focos: [...(c.focos ?? [])],
+    endereco: c.endereco ?? '',
+    linkDoMapa: c.linkDoMapa ?? '',
+    instagram: c.instagram ?? '',
     unidades: e.unidades.filter((u) => u.ativa).map((u) => ({ id: u.id, nome: u.nome, endereco: u.endereco })),
     experimental: ligada,
     // o documento público tem teto de horários nas regras; os mais próximos primeiro

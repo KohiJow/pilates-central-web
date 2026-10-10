@@ -42,7 +42,7 @@ export function Entrar() {
 
   return (
     <main class="entrar">
-      <MarcaDagua linhas={6} />
+      <MarcaDagua linhas={6} nome={base.value?.configuracao.nomeEstudio} />
       <div class="entrar-miolo">
         <div class="entrar-logo">
           <Logo tamanho={168} />

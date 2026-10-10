@@ -1,7 +1,7 @@
 // Leitura do documento público pela API REST do Firestore: uma requisição GET, sem SDK (a
 // página pública fica leve e não carrega nada de login). A API devolve cada valor com o tipo
 // junto ({ stringValue: 'x' }); aqui vira objeto simples.
-import { CONFIGURACAO_PADRAO } from '../dominio/configuracao'
+import { CONFIGURACAO_PADRAO, ehInstagramValido, ehLinkDoMapaValido, TAMANHOS } from '../dominio/configuracao'
 import { decodificarHorario, decodificarUnidade, MAXIMO_DE_HORARIOS } from '../dominio/projecoes'
 import type { PaginaPublica } from '../dominio/tipos'
 
@@ -55,11 +55,19 @@ function unidadesDe(v: unknown): PaginaPublica['unidades'] {
  */
 export function paginaPublicaDe(campos: Record<string, unknown>): PaginaPublica {
   const lista = (v: unknown, max: number): unknown[] => (Array.isArray(v) ? v.slice(0, max) : [])
-  const nome = texto(campos.nomeEstudio, 80)
+  const nome = texto(campos.nomeEstudio, TAMANHOS.nomeEstudio)
   const whatsapp = typeof campos.whatsapp === 'string' && RE_WHATSAPP.test(campos.whatsapp) ? campos.whatsapp : ''
+  const linkDoMapa = texto(campos.linkDoMapa, TAMANHOS.linkDoMapa) ?? ''
+  const instagram = texto(campos.instagram, TAMANHOS.instagram) ?? ''
   return {
     nomeEstudio: nome && nome.trim().length >= 2 ? nome : CONFIGURACAO_PADRAO.nomeEstudio,
     whatsapp,
+    fraseCurta: texto(campos.fraseCurta, TAMANHOS.fraseCurta) ?? '',
+    focos: lista(campos.focos, TAMANHOS.focos).filter((f): f is string => typeof f === 'string' && f.length > 0 && f.length <= TAMANHOS.foco),
+    endereco: texto(campos.endereco, TAMANHOS.endereco) ?? '',
+    // só um link https vira link na página; qualquer outra coisa é ignorada
+    linkDoMapa: ehLinkDoMapaValido(linkDoMapa) ? linkDoMapa : '',
+    instagram: ehInstagramValido(instagram) ? instagram : '',
     unidades: unidadesDe(campos.unidades),
     experimental: campos.experimental === true,
     horarios: lista(campos.horarios, MAXIMO_DE_HORARIOS)

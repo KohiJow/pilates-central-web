@@ -254,13 +254,31 @@ service cloud.firestore {
 
     // ---------- configuração e unidades ----------
 
+    // Os textos que o estúdio escreve sobre si (capa da página pública): frase, até três focos,
+    // endereço livre, link do mapa (só https) e usuário do Instagram. Os mesmos tetos de
+    // TAMANHOS em src/dominio/configuracao.ts. Os focos, uma lista de textos, são conferidos de
+    // uma vez, como as outras listas.
+    function textosDoEstudioValidos(c) {
+      return texto(c.fraseCurta, 0, 160)
+        && c.focos is list && c.focos.size() <= 3
+        && c.focos.join('|').matches('^([^|\n]{1,40}([|][^|\n]{1,40}){0,2})?$')
+        && listaDeTextos(c.focos, c.focos.join('|'), '[|]')
+        && texto(c.endereco, 0, 200)
+        && c.linkDoMapa is string && c.linkDoMapa.size() <= 300
+        && (c.linkDoMapa == '' || c.linkDoMapa.matches('^https://[^ ]+$'))
+        && c.instagram is string && c.instagram.matches('^[A-Za-z0-9._]{0,30}$');
+    }
+
     function configuracaoValida(c) {
-      return c.keys().hasAll(['nomeEstudio', 'whatsapp', 'validadeCreditoDias', 'antecedenciaAvisoHoras',
-          'limiteReposicoesMes', 'alertaAusenciasSeguidas', 'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
-        && c.keys().hasOnly(['nomeEstudio', 'whatsapp', 'validadeCreditoDias', 'antecedenciaAvisoHoras',
-          'limiteReposicoesMes', 'alertaAusenciasSeguidas', 'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+      return c.keys().hasAll(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
+          'validadeCreditoDias', 'antecedenciaAvisoHoras', 'limiteReposicoesMes', 'alertaAusenciasSeguidas',
+          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
+        && c.keys().hasOnly(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
+          'validadeCreditoDias', 'antecedenciaAvisoHoras', 'limiteReposicoesMes', 'alertaAusenciasSeguidas',
+          'capacidadePadrao', 'acessoDoAluno', 'paginaExperimental'])
         && texto(c.nomeEstudio, 2, 80)
         && ehTelefone(c.whatsapp)
+        && textosDoEstudioValidos(c)
         && inteiro(c.validadeCreditoDias, 1, 180)
         && inteiro(c.antecedenciaAvisoHoras, 0, 72)
         && inteiro(c.limiteReposicoesMes, 0, 20)
@@ -1014,13 +1032,17 @@ service cloud.firestore {
         && listaDeTextos(u.values(), u.values().join('\n'), '\n');
     }
 
-    // Só o que a página mostra: nome, WhatsApp, unidades (nome e endereço), se a aula
-    // experimental está aberta e os horários com vaga (um texto por horário, sem nomes).
+    // Só o que a página mostra: nome, WhatsApp, os textos do estúdio (frase, focos, endereço,
+    // mapa, Instagram), unidades (nome e endereço), se a aula experimental está aberta e os
+    // horários com vaga (um texto por horário, sem nomes).
     function publicoValido(p) {
-      return p.keys().hasAll(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
-        && p.keys().hasOnly(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
+      return p.keys().hasAll(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
+          'unidades', 'experimental', 'horarios', 'atualizadoEm'])
+        && p.keys().hasOnly(['nomeEstudio', 'whatsapp', 'fraseCurta', 'focos', 'endereco', 'linkDoMapa', 'instagram',
+          'unidades', 'experimental', 'horarios', 'atualizadoEm'])
         && texto(p.nomeEstudio, 2, 80)
         && ehTelefone(p.whatsapp)
+        && textosDoEstudioValidos(p)
         && unidadesPublicasValidas(p.unidades)
         && p.experimental is bool
         && horariosPublicos(p.horarios)

@@ -11,6 +11,7 @@ import { FaixaDias } from '../componentes/FaixaDias'
 import { Icone } from '../componentes/Icone'
 import { Logo, MarcaDagua } from '../componentes/Marca'
 import { Pilula } from '../componentes/Pilula'
+import { CONFIGURACAO_PADRAO, linkDoInstagram, linkDoMapaDe } from '../dominio/configuracao'
 import { dataPorExtenso, diaRelativo, horaFalada, minutosDe } from '../dominio/datas'
 import { horariosAindaAbertos, mensagemDaExperimental } from '../dominio/experimental'
 import { linkDoWhatsApp, plural } from '../dominio/texto'
@@ -29,13 +30,10 @@ const FOTOS = [
   { nome: 'espaco-planta', alt: 'Planta num vaso amarelo, na janela do estúdio' },
 ]
 
-const FOCOS = ['Fortalecimento', 'Reeducação postural', 'Flexibilidade e mobilidade']
+/** Enquanto o estúdio não escreve a frase dele (Mais, Estúdio), a capa explica só o caminho. */
+const FRASE_PADRAO = 'Escolha um horário com vaga e mande pelo WhatsApp: a gente confirma por lá.'
 
 const idDoHorario = (h: HorarioPublico) => `${h.data}_${h.inicio}_${h.unidadeId}`
-
-function linkDoMapa(endereco: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`
-}
 
 /** "A aula dura 50 minutos." ou, quando as turmas variam, "As aulas duram de 50 a 60 minutos." */
 function textoDaDuracao(horarios: readonly HorarioPublico[]): string | null {
@@ -81,15 +79,24 @@ export function PaginaExperimental() {
   const nomeDaUnidade = (id: string) => unidades.find((u) => u.id === id)?.nome ?? ''
   const variasUnidades = unidades.length > 1
   const whatsapp = pagina?.whatsapp ?? ''
+  const nomeEstudio = pagina?.nomeEstudio ?? CONFIGURACAO_PADRAO.nomeEstudio
+  const fraseCurta = pagina?.fraseCurta || FRASE_PADRAO
+  const focos = pagina?.focos ?? []
+  const endereco = pagina?.endereco ?? ''
+  const instagram = pagina?.instagram ?? ''
+  // onde fica: o endereço do estúdio e, com mais de uma unidade (ou sem o endereço geral), cada
+  // unidade com endereço próprio (a que tem o mesmo endereço do estúdio não repete a linha)
+  const mesmoEndereco = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase()
+  const unidadesComEndereco = unidades.filter((u) => u.endereco && (variasUnidades || !endereco) && !mesmoEndereco(u.endereco, endereco))
   const duracao = textoDaDuracao(horarios)
   const mensagem = mensagemDaExperimental(horario ? { ...horario, unidade: variasUnidades ? nomeDaUnidade(horario.unidadeId) : '' } : null)
 
   return (
     <div class="vitrine">
       <header class="vitrine-topo">
-        <a class="vitrine-marca tocavel" href={BASE} aria-label="Pilates Central, abrir o app">
-          <Logo tamanho={40} monograma />
-          <span class="topo-nome">{pagina?.nomeEstudio ?? 'Pilates Central'}</span>
+        <a class="vitrine-marca tocavel" href={BASE} aria-label={`${nomeEstudio}, abrir o app`}>
+          <Logo tamanho={40} monograma nome={nomeEstudio} />
+          <span class="topo-nome">{nomeEstudio}</span>
         </a>
         {origem === 'demonstracao' && (
           <span class="selo-demo selo-demo--fixo">
@@ -100,7 +107,7 @@ export function PaginaExperimental() {
 
       <main class="vitrine-conteudo" id="conteudo">
         <section class="vitrine-capa cascata" aria-labelledby="titulo-experimental">
-          <MarcaDagua linhas={3} />
+          <MarcaDagua linhas={3} nome={nomeEstudio} />
           <span
             class="vitrine-figura"
             aria-hidden="true"
@@ -113,13 +120,15 @@ export function PaginaExperimental() {
             Venha conhecer o estúdio <em>por dentro</em>.
           </h1>
           <p class="vitrine-texto" style={{ '--i': 2 } as JSX.CSSProperties}>
-            Um estúdio pequeno no centro de Campinas. Escolha um horário com vaga e mande pelo WhatsApp: a gente confirma por lá.
+            {fraseCurta}
           </p>
-          <div class="vitrine-focos" style={{ '--i': 3 } as JSX.CSSProperties}>
-            {FOCOS.map((f) => (
-              <Pilula key={f}>{f}</Pilula>
-            ))}
-          </div>
+          {focos.length > 0 && (
+            <div class="vitrine-focos" style={{ '--i': 3 } as JSX.CSSProperties}>
+              {focos.map((f) => (
+                <Pilula key={f}>{f}</Pilula>
+              ))}
+            </div>
+          )}
           {/* no celular pequeno os horários ficam abaixo das fotos: um toque leva até eles */}
           <a class="link vitrine-atalho tocavel" href="#horarios" style={{ '--i': 4 } as JSX.CSSProperties} onClick={irParaOsHorarios}>
             Ver os horários com vaga
@@ -202,28 +211,54 @@ export function PaginaExperimental() {
           )}
         </section>
 
-        {unidades.length > 0 && (
+        {(endereco || unidadesComEndereco.length > 0 || instagram) && (
           <section class="secao" aria-labelledby="titulo-onde">
             <h2 id="titulo-onde" class="micro">
               Onde fica
             </h2>
             <ul class="lista">
-              {unidades.map((u) => (
+              {endereco && (
+                <li class="lista-item">
+                  <span class="item-icone" aria-hidden="true">
+                    <Icone nome="local" tamanho={22} />
+                  </span>
+                  <span class="lista-item-texto">
+                    <span class="lista-item-titulo">{nomeEstudio}</span>
+                    <span class="lista-item-sub quebra-livre">{endereco}</span>
+                  </span>
+                  <a class="link" href={linkDoMapaDe(endereco, pagina?.linkDoMapa)} target="_blank" rel="noopener noreferrer">
+                    Mapa
+                  </a>
+                </li>
+              )}
+              {unidadesComEndereco.map((u) => (
                 <li key={u.id} class="lista-item">
                   <span class="item-icone" aria-hidden="true">
                     <Icone nome="local" tamanho={22} />
                   </span>
                   <span class="lista-item-texto">
                     <span class="lista-item-titulo">{u.nome}</span>
-                    {u.endereco && <span class="lista-item-sub quebra-livre">{u.endereco}</span>}
+                    <span class="lista-item-sub quebra-livre">{u.endereco}</span>
                   </span>
-                  {u.endereco && (
-                    <a class="link" href={linkDoMapa(u.endereco)} target="_blank" rel="noopener noreferrer">
-                      Mapa
-                    </a>
-                  )}
+                  <a class="link" href={linkDoMapaDe(u.endereco)} target="_blank" rel="noopener noreferrer">
+                    Mapa
+                  </a>
                 </li>
               ))}
+              {instagram && (
+                <li class="lista-item">
+                  <span class="item-icone" aria-hidden="true">
+                    <Icone nome="compartilhar" tamanho={22} />
+                  </span>
+                  <span class="lista-item-texto">
+                    <span class="lista-item-titulo">Instagram</span>
+                    <span class="lista-item-sub quebra-livre">@{instagram}</span>
+                  </span>
+                  <a class="link" href={linkDoInstagram(instagram)} target="_blank" rel="noopener noreferrer">
+                    Abrir
+                  </a>
+                </li>
+              )}
             </ul>
           </section>
         )}

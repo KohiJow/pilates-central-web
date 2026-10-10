@@ -2,6 +2,7 @@ import { avisar } from '../componentes/Avisos'
 import { BarraAbas } from '../componentes/BarraAbas'
 import { Logo } from '../componentes/Marca'
 import { base, repositorio, situacao } from '../dados/estado'
+import { CONFIGURACAO_PADRAO } from '../dominio/configuracao'
 import { Agenda } from '../telas/Agenda'
 import { Alunos } from '../telas/alunos/Alunos'
 import { FolhaDaAula } from '../telas/chamada/FolhaDaAula'
@@ -28,13 +29,14 @@ export function Estrutura({ aoRecarregar }: { aoRecarregar: () => void }) {
   const atual = permitida ? rota.value.aba : 'hoje'
   const Tela = TELAS[atual]
   const demo = repositorio.value?.modo === 'demonstracao'
+  const nomeEstudio = base.value?.configuracao.nomeEstudio ?? CONFIGURACAO_PADRAO.nomeEstudio
 
   return (
     <div class="app">
       <header class="topo">
         <div class="topo-marca">
-          <Logo tamanho={34} monograma />
-          <span class="topo-nome">{base.value?.configuracao.nomeEstudio ?? 'Pilates Central'}</span>
+          <Logo tamanho={34} monograma nome={nomeEstudio} />
+          <span class="topo-nome">{nomeEstudio}</span>
         </div>
         {demo && (
           <button

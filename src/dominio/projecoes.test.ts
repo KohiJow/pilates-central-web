@@ -194,6 +194,11 @@ describe('o documento público com os horários em texto', () => {
     const pagina = {
       nomeEstudio: 'E',
       whatsapp: '',
+      fraseCurta: '',
+      focos: [],
+      endereco: '',
+      linkDoMapa: '',
+      instagram: '',
       unidades: [{ id: 'u-centro', nome: 'Centro', endereco: 'Rua A|B, 1\nsala 2' }],
       experimental: true,
       horarios: [h],

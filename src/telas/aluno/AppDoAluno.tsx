@@ -3,6 +3,7 @@
 import { signal } from '@preact/signals'
 import { useLayoutEffect } from 'preact/hooks'
 import { QuadroDeTela } from '../../app/Estrutura'
+import { CONFIGURACAO_PADRAO } from '../../dominio/configuracao'
 import { avisar } from '../../componentes/Avisos'
 import { BarraAbas } from '../../componentes/BarraAbas'
 import type { ItemDeAba } from '../../componentes/BarraAbas'
@@ -50,7 +51,7 @@ export function AppDoAluno() {
       <header class="topo">
         <div class="topo-marca">
           <Logo tamanho={34} monograma />
-          <span class="topo-nome">{dadosDoAluno.value?.configuracao.nomeEstudio ?? 'Pilates Central'}</span>
+          <span class="topo-nome">{dadosDoAluno.value?.configuracao.nomeEstudio ?? CONFIGURACAO_PADRAO.nomeEstudio}</span>
         </div>
         {demo && (
           <button

@@ -327,6 +327,11 @@ describe('equipe: tipos, tamanhos e campos a mais', () => {
     const p = {
       nomeEstudio: 'Estúdio de Teste',
       whatsapp: '5511900000000',
+      fraseCurta: '',
+      focos: [],
+      endereco: '',
+      linkDoMapa: '',
+      instagram: '',
       unidades: {},
       experimental: true,
       horarios: [],

@@ -7,6 +7,7 @@ import { voltarAsPortas } from '../../app/modo'
 import { Botao } from '../../componentes/Botao'
 import { Campo } from '../../componentes/Campo'
 import { EsqueletoDeLista } from '../../componentes/Esqueleto'
+import { CONFIGURACAO_PADRAO } from '../../dominio/configuracao'
 import { normalizarTelefone } from '../../dominio/texto'
 import { ErroDaConta } from './ErroDaConta'
 import { TelaDeEntrada } from './TelaDeEntrada'
@@ -101,7 +102,7 @@ export function ConfirmarEmail({ email, enviadoEm, falhaNoEnvio }: { email: stri
 export function PrimeiroAcesso({ email }: { email: string }) {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
-  const [nomeEstudio, setNomeEstudio] = useState('Pilates Central')
+  const [nomeEstudio, setNomeEstudio] = useState(CONFIGURACAO_PADRAO.nomeEstudio)
   const [erros, setErros] = useState<{ nome?: string; telefone?: string }>({})
   const [geral, setGeral] = useState<ErroNaTela | null>(null)
   const [ocupado, setOcupado] = useState(false)

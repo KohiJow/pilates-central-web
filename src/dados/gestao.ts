@@ -5,7 +5,7 @@ import { agoraDoApp, hoje } from '../app/relogio'
 import { montarAluno, montarFinanceiro, mudarSituacao, validarAluno, validarPlano } from '../dominio/alunos'
 import { detalheDoPagamento, detalheDoPapel, registroDeAuditoria } from '../dominio/auditoria'
 import type { RascunhoAluno, RascunhoPlano } from '../dominio/alunos'
-import { validarConfiguracao } from '../dominio/configuracao'
+import { limparTextosDoEstudio, validarConfiguracao } from '../dominio/configuracao'
 import {
   convidar,
   desativarMembro,
@@ -279,7 +279,12 @@ export async function salvarConfiguracao(c: Configuracao): Promise<Resultado<Com
   const erros = validarConfiguracao(c)
   if (!semErros(erros)) return recusado('dados-invalidos', primeiroErro(erros))
   return gravarComDesfazer({
-    configuracao: { ...c, nomeEstudio: c.nomeEstudio.trim(), whatsapp: c.whatsapp ? (normalizarTelefone(c.whatsapp) ?? '') : '' },
+    configuracao: {
+      ...c,
+      ...limparTextosDoEstudio(c),
+      nomeEstudio: c.nomeEstudio.trim().replace(/\s+/g, ' '),
+      whatsapp: c.whatsapp ? (normalizarTelefone(c.whatsapp) ?? '') : '',
+    },
   })
 }
 
