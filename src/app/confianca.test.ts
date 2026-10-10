@@ -25,6 +25,13 @@ describe('política de confiança (Trusted Types)', () => {
     expect(enderecoDeScriptPermitido('/pilates-central-web/sw.js', permitidos, 'https://evil.example.com/')).toBe(false)
   })
 
+  it('com o site na raiz do domínio, o service worker fica na raiz', () => {
+    const permitidos = enderecosDeScriptPermitidos('https://pilates-central.github.io', '/', false)
+    expect(permitidos).toEqual(['https://pilates-central.github.io/sw.js'])
+    expect(enderecoDeScriptPermitido('/sw.js', permitidos, 'https://pilates-central.github.io/#/hoje')).toBe(true)
+    expect(enderecoDeScriptPermitido('/outro/sw.js', permitidos, 'https://pilates-central.github.io/')).toBe(false)
+  })
+
   it('com App Check, o reCAPTCHA entra e nada mais', () => {
     const permitidos = enderecosDeScriptPermitidos(origem, base, true)
     expect(enderecoDeScriptPermitido('https://www.google.com/recaptcha/api.js?render=chave', permitidos, pagina)).toBe(true)

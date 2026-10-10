@@ -175,9 +175,10 @@ Em **Mais**:
    console, Authentication, Usuários, procure o e-mail e exclua. Em Mais, **Registro de
    alterações**, fica anotado quem excluiu e quando (só com o código do aluno).
 
-A página pública fica em `https://kohijow.github.io/pilates-central-web/experimental/`. Ela só
-lê um documento com horários e vagas (sem nomes), que o app da equipe atualiza sozinho a cada
-abertura e a cada mudança na agenda.
+A página pública fica em `https://pilates-central.github.io/experimental/` (até a transferência
+do repositório, em `https://kohijow.github.io/pilates-central-web/experimental/`). Ela só lê um
+documento com horários e vagas (sem nomes), que o app da equipe atualiza sozinho a cada abertura
+e a cada mudança na agenda.
 
 ## 9. Limites do plano gratuito
 
@@ -243,4 +244,7 @@ e-mail. O caso "Authentication não iniciado" é testado sem emulador, com a res
 Para rodar dois conjuntos de emuladores na mesma máquina, copie `firebase.json` para
 `firebase.local.json` com outras portas e aponte `FIREBASE_JSON=firebase.local.json` no build,
 no `firebase emulators:exec --config firebase.local.json` e nos testes: o app, os testes de regras
-e os de ponta a ponta leem as portas desse arquivo.
+e os de ponta a ponta leem as portas desse arquivo. Se a cópia ficar em outra pasta, escreva o
+caminho das regras por inteiro (`"rules": "/caminho/do/clone/firestore.rules"`): o firebase-tools
+resolve o caminho a partir da pasta do arquivo de configuração e, sem achar as regras, sobe o
+emulador aberto a tudo, sem avisar os testes.

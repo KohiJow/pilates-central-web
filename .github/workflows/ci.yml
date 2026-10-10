@@ -13,6 +13,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Caminho base do site no GitHub Pages, derivado do nome do repositório: um repositório
+  # chamado <alguem>.github.io é publicado na raiz ('/'); qualquer outro, em '/<nome>/'.
+  # O build (vite.config.ts), o manifesto e os testes de ponta a ponta leem daqui.
+  BASE_PATH: ${{ endsWith(github.event.repository.name, '.github.io') && '/' || format('/{0}/', github.event.repository.name) }}
+
 jobs:
   verificar:
     name: tipos, lint, testes e build

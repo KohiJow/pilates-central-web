@@ -1,10 +1,11 @@
 // Passos comuns dos testes que abrem o app com projeto configurado (emuladores ou respostas
 // simuladas): abrir o login, entrar com uma conta e deixar o WebKit falar com o endereço local.
 import type { BrowserContext, Page } from '@playwright/test'
+import { BASE } from '../apoio'
 import { expect } from '../base'
 import { SENHA } from './contas'
 
-const ehPaginaDoSite = (url: URL) => url.pathname.startsWith('/pilates-central-web/') && url.pathname.endsWith('/')
+const ehPaginaDoSite = (url: URL) => url.pathname.startsWith(BASE) && url.pathname.endsWith('/')
 
 /**
  * A política de segurança do site publicado só libera o Firebase de verdade, e o emulador é

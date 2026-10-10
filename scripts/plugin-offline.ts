@@ -5,7 +5,20 @@ import type { Plugin } from 'vite'
 
 // Do que vai em public/, só o essencial para abrir o app sem internet.
 // As fotos do espaço ficam de fora: são da página pública e entram no cache quando usadas.
-const PUBLICOS = /^(manifest\.webmanifest|favicon\.svg|icones\/[^/]+\.png)$/
+const PUBLICOS = /^(favicon\.svg|icones\/[^/]+\.png)$/
+
+const MANIFESTO = 'manifest.webmanifest'
+
+/**
+ * O manifesto do app com a identidade, a página inicial e o escopo no caminho base do site
+ * (src/pwa/manifest.webmanifest é o modelo). O caminho base muda conforme o repositório em que
+ * o site é publicado (ver scripts/caminho-base.ts), então ele entra aqui, no build, em vez de
+ * ficar escrito no arquivo.
+ */
+export function manifestoDoSite(modelo: string, base: string): string {
+  const manifesto = JSON.parse(modelo) as Record<string, unknown>
+  return JSON.stringify({ ...manifesto, id: base, start_url: base, scope: base }, null, 2)
+}
 
 // Fontes: só o subconjunto latino (português). Os outros só baixam se a página pedir.
 const FONTE_DE_OUTRO_ALFABETO = /(latin-ext|cyrillic|vietnamese|greek)/
@@ -61,14 +74,22 @@ export function servicoOffline(): Plugin {
   let pastaPublica = ''
   let raiz = ''
   let base = '/'
+  const manifesto = () => manifestoDoSite(readFileSync(join(raiz, 'src/pwa', MANIFESTO), 'utf8'), base)
   return {
     name: 'servico-offline',
-    apply: 'build',
     enforce: 'post',
     configResolved(config) {
       pastaPublica = config.publicDir
       raiz = config.root
       base = config.base
+    },
+    // em desenvolvimento o manifesto não existe como arquivo: sai daqui, já com o caminho base
+    configureServer(servidor) {
+      servidor.middlewares.use((pedido, resposta, proximo) => {
+        if (new URL(pedido.url ?? '/', 'http://x').pathname !== `${base}${MANIFESTO}`) return proximo()
+        resposta.setHeader('content-type', 'application/manifest+json')
+        resposta.end(manifesto())
+      })
     },
     transformIndexHtml: {
       order: 'post',
@@ -90,7 +111,8 @@ export function servicoOffline(): Plugin {
       const publicos = listar(pastaPublica).filter((nome) => PUBLICOS.test(nome))
       // páginas pelo endereço que a pessoa abre: experimental/index.html vira experimental/
       const paginas = doBundle.map((n) => (n === 'index.html' ? './' : n.endsWith('/index.html') ? n.slice(0, -'index.html'.length) : n))
-      const arquivos = [...new Set([...paginas, ...publicos])].sort()
+      const conteudoDoManifesto = manifesto()
+      const arquivos = [...new Set([...paginas, ...publicos, MANIFESTO])].sort()
       const hash = createHash('sha256')
       for (const nome of doBundle) {
         const item = bundle[nome]
@@ -99,6 +121,8 @@ export function servicoOffline(): Plugin {
         hash.update(item.type === 'chunk' ? item.code : item.source)
       }
       for (const nome of publicos) hash.update(readFileSync(join(pastaPublica, nome)))
+      hash.update(conteudoDoManifesto)
+      this.emitFile({ type: 'asset', fileName: MANIFESTO, source: conteudoDoManifesto })
       const versao = hash.digest('hex').slice(0, 12)
       const modelo = readFileSync(join(raiz, 'src/pwa/sw.js'), 'utf8')
       const fonte = modelo

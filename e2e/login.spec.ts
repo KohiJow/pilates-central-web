@@ -3,7 +3,7 @@
 // Authentication nunca iniciado no console. A segunda parte usa os emuladores (EMULADOR=1):
 // confirmação do e-mail com reenvio, senha nova pelo link, troca de senha e a sessão que não
 // fica no aparelho.
-import { aviso, esperarFolhaParada, folha, irParaAba } from './apoio'
+import { aviso, BASE, esperarFolhaParada, folha, irParaAba } from './apoio'
 import { expect, test } from './base'
 import { AUTH, CONTAS, contaDeSenhaDoMotor, definirSenhaPeloEmail, emailsEnviados, linkDeConfirmacao, SENHA } from './firebase/contas'
 import { abrirLogin, entrarComo, liberarEnderecoLocal, preencherLogin } from './firebase/navegar'
@@ -252,7 +252,7 @@ test.describe('login com os emuladores', () => {
         for (const nome of await caches.keys()) urls.push(...(await (await caches.open(nome)).keys()).map((r) => r.url))
         return urls
       })
-      const site = `${new URL(page.url()).origin}/pilates-central-web/`
+      const site = `${new URL(page.url()).origin}${BASE}`
       expect(guardados.length).toBeGreaterThan(0)
       expect(guardados.filter((u) => !u.startsWith(site))).toEqual([])
       expect(guardados.filter((u) => /googleapis|identitytoolkit|firestore|:88[0-9][0-9]\/v1\//.test(u))).toEqual([])

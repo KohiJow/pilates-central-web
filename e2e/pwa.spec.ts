@@ -1,5 +1,5 @@
 import { expect, test } from './base'
-import { abrirApp, AGORA_PADRAO, aviso, entrarComoAdministracao, servidorDoDist } from './apoio'
+import { abrirApp, AGORA_PADRAO, aviso, BASE, entrarComoAdministracao, servidorDoDist } from './apoio'
 
 test.describe('app instalável', () => {
   test('manifesto com nome, tela cheia, cores e ícones (inclusive maskable)', async ({ page, request }) => {
@@ -127,8 +127,8 @@ test.describe('app instalável', () => {
       return { ativo: Boolean(registro.active), guardados, faltando: scripts.filter((s) => !guardados.includes(s)) }
     })
     expect(resultado.ativo).toBe(true)
-    expect(resultado.guardados).toContain('/pilates-central-web/')
-    expect(resultado.guardados).toContain('/pilates-central-web/manifest.webmanifest')
+    expect(resultado.guardados).toContain(BASE)
+    expect(resultado.guardados).toContain(`${BASE}manifest.webmanifest`)
     expect(resultado.faltando).toEqual([])
   })
 

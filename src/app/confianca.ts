@@ -23,7 +23,7 @@ export function enderecosDeScriptPermitidos(origem: string, base: string, comRec
 
 /**
  * O endereço chega como foi escrito no código (o service worker é registrado por um caminho
- * relativo, "/pilates-central-web/sw.js"): resolve contra a página antes de comparar.
+ * relativo, o caminho base mais "sw.js"): resolve contra a página antes de comparar.
  */
 export function enderecoDeScriptPermitido(url: string, permitidos: readonly string[], pagina: string): boolean {
   let absoluto: string

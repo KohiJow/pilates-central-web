@@ -3,11 +3,13 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import preact from '@preact/preset-vite'
+import { caminhoBase } from './scripts/caminho-base.ts'
 import { politicaDeSeguranca, servicoOffline } from './scripts/plugin-offline.ts'
 
-// O site vive em https://kohijow.github.io/pilates-central-web/, então o caminho base é o
-// mesmo em desenvolvimento, na prévia e na publicação: menos surpresa com links e com o SW.
-const BASE = '/pilates-central-web/'
+// O caminho base é o mesmo em desenvolvimento, na prévia e na publicação (menos surpresa com
+// links e com o service worker) e vem de uma fonte só: BASE_PATH, que o workflow deriva do nome
+// do repositório ('/' na raiz de <alguem>.github.io). Sem a variável, o padrão de hoje.
+const BASE = caminhoBase()
 const PORTA = Number(process.env.PORTA ?? 8887)
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 // portas dos emuladores, lidas do mesmo arquivo que o firebase-tools usa (FIREBASE_JSON troca

@@ -5,9 +5,13 @@ e financeiro, feito para a administração e os professores usarem no celular, c
 uma aula e outra. O aluno pode avisar que não vem e escolher onde repor, e quem ainda não conhece
 o estúdio vê os horários com vaga para uma aula experimental.
 
-- **Demonstração (sem conta, dados fictícios):** https://kohijow.github.io/pilates-central-web/
-- **Página de aula experimental:** https://kohijow.github.io/pilates-central-web/experimental/
-- **Aviso de privacidade:** https://kohijow.github.io/pilates-central-web/privacidade/
+- **Demonstração (sem conta, dados fictícios):** https://pilates-central.github.io/
+- **Página de aula experimental:** https://pilates-central.github.io/experimental/
+- **Aviso de privacidade:** https://pilates-central.github.io/privacidade/
+
+Até o repositório passar para a organização do estúdio, o site vive em
+https://kohijow.github.io/pilates-central-web/ (com `experimental/` e `privacidade/` no mesmo
+caminho); depois da transferência esse endereço some.
 
 <p>
   <img src="docs/telas/entrar.webp" alt="Entrada da demonstração: administração, professor ou aluno" width="200">
@@ -142,7 +146,7 @@ as regras do Firestore negam o que a tela não oferece (ver [docs/seguranca.md](
 4. Bons caminhos: **Alunos > Reposições > Encaixar**; **Financeiro > Lançar** num aluno em aberto;
    **Agenda > 18h > Avisou > Encaixar em outro horário**; **Mais > Equipe > Passar a conta**;
    como aluno, **Não vou poder ir** numa aula e depois **Reposição**; e a
-   [página de aula experimental](https://kohijow.github.io/pilates-central-web/experimental/)
+   [página de aula experimental](https://pilates-central.github.io/experimental/)
    (também pela entrada da demonstração e em **Mais**), que mostra a vaga que o aviso abriu.
 
 Com o projeto Firebase do estúdio configurado, a tela inicial vira duas portas: **Entrar** (o
@@ -319,6 +323,12 @@ npm run build      # tipos + empacotamento em dist/
 npm run preview    # serve dist/ na mesma porta
 ```
 
+O caminho base do site vem de uma fonte só, a variável `BASE_PATH` (`scripts/caminho-base.ts`):
+sem ela, `/pilates-central-web/`; `BASE_PATH=/` publica na raiz do domínio, que é onde o site
+fica no repositório `pilates-central.github.io`. O build, o manifesto do app (identidade, página
+inicial e escopo), o service worker e os testes de ponta a ponta leem o mesmo valor; no GitHub
+Actions o workflow deriva a variável do nome do repositório.
+
 ## Como testar
 
 ```bash
@@ -396,7 +406,7 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 - Observação do aluno é texto livre que só a equipe vê; não há ficha de saúde estruturada.
 - A planilha exportada não deixa nome de aluno virar fórmula no Excel (`=`, `+`, `-` e `@` no
   começo ganham um apóstrofo).
-- LGPD: [aviso de privacidade](https://kohijow.github.io/pilates-central-web/privacidade/),
+- LGPD: [aviso de privacidade](https://pilates-central.github.io/privacidade/),
   exportação dos dados de um aluno e exclusão com confirmação (o cadastro, o acesso ao app, os
   créditos e a observação dos pagamentos saem; fica só o código; a conta de login é apagada no
   console).

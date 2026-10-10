@@ -9,7 +9,7 @@ trabalho precisa saber. Atualizar a cada entrega.
 - [x] Vite + TypeScript estrito + Preact + @preact/signals, sem biblioteca de componentes
 - [x] ESLint enxuto (recomendados do TypeScript, regras de hooks)
 - [x] Scripts: `dev`, `build`, `preview`, `typecheck`, `lint`, `test`, `e2e`, `icones`
-- [x] Caminho base do GitHub Pages (`/pilates-central-web/`) igual em desenvolvimento e publicação
+- [x] Caminho base do GitHub Pages igual em desenvolvimento e publicação; desde a preparação da transferência, vem de `BASE_PATH` (`scripts/caminho-base.ts`), que o workflow deriva do nome do repositório (`/` em `pilates-central.github.io`)
 - [x] Política de segurança de conteúdo numa `<meta>` (o Pages não manda cabeçalho), com hash do único script embutido
 
 ### App instalável (PWA)

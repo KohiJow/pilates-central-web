@@ -4,9 +4,13 @@ import type { AddressInfo } from 'node:net'
 import { extname, join, resolve } from 'node:path'
 import { expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
+import { caminhoBase } from '../scripts/caminho-base.ts'
 
 /** Sexta-feira, 9 de outubro de 2026, 10h em Campinas: um dia com aulas antes e depois. */
 export const AGORA_PADRAO = '2026-10-09T10:00'
+
+/** O caminho base do site publicado (BASE_PATH, o mesmo do build e da configuração do Playwright). */
+export const BASE = caminhoBase()
 
 const TIPOS: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -38,13 +42,13 @@ export async function servidorDoDist(): Promise<ServidorDoDist> {
   let versaoDoSw: string | null = null
   const servidor = createServer((pedido, resposta) => {
     const caminho = decodeURIComponent(new URL(pedido.url ?? '/', 'http://x').pathname)
-    if (!caminho.startsWith('/pilates-central-web/')) return void resposta.writeHead(404).end()
-    let arquivo = join(pasta, caminho.slice('/pilates-central-web/'.length))
+    if (!caminho.startsWith(BASE)) return void resposta.writeHead(404).end()
+    let arquivo = join(pasta, caminho.slice(BASE.length))
     if (!arquivo.startsWith(pasta)) return void resposta.writeHead(403).end()
     if (existsSync(arquivo) && statSync(arquivo).isDirectory()) arquivo = join(arquivo, 'index.html')
     if (!existsSync(arquivo)) return void resposta.writeHead(404).end()
     resposta.writeHead(200, { 'content-type': TIPOS[extname(arquivo)] ?? 'application/octet-stream' })
-    if (versaoDoSw !== null && caminho === '/pilates-central-web/sw.js') {
+    if (versaoDoSw !== null && caminho === `${BASE}sw.js`) {
       resposta.end(readFileSync(arquivo, 'utf8').replace(/const VERSAO = "[^"]+"/, `const VERSAO = ${JSON.stringify(versaoDoSw)}`))
       return
     }
@@ -53,7 +57,7 @@ export async function servidorDoDist(): Promise<ServidorDoDist> {
   await new Promise<void>((r) => servidor.listen(0, '127.0.0.1', r))
   const { port } = servidor.address() as AddressInfo
   return {
-    endereco: `http://127.0.0.1:${port}/pilates-central-web/`,
+    endereco: `http://127.0.0.1:${port}${BASE}`,
     versaoDoSw: (versao) => {
       versaoDoSw = versao
     },

@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
+import { caminhoBase } from './scripts/caminho-base.ts'
 
 const PORTA = Number(process.env.PORTA ?? 8887)
-const ENDERECO = `http://127.0.0.1:${PORTA}/pilates-central-web/`
+// o mesmo caminho base do build (BASE_PATH): os testes abrem o site onde ele foi publicado
+const ENDERECO = `http://127.0.0.1:${PORTA}${caminhoBase()}`
 const CI = Boolean(process.env.CI)
 // EMULADOR=1: prepara os emuladores do Firebase e roda também e2e/firebase.spec.ts
 const EMULADOR = Boolean(process.env.EMULADOR)

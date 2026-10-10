@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { abrirApp, AGORA_PADRAO, aviso, entrarComoAdministracao, esperarFolhaParada, folha, irPara } from './apoio'
+import { abrirApp, AGORA_PADRAO, aviso, BASE, entrarComoAdministracao, esperarFolhaParada, folha, irPara } from './apoio'
 import { expect, test } from './base'
 
 async function abrirExperimental(page: Page, agora = AGORA_PADRAO) {
@@ -63,7 +63,7 @@ test.describe('página pública de aula experimental', () => {
     await entrarComoAdministracao(page)
     await irPara(page, '#/mais')
     const secao = page.locator('section.secao', { has: page.getByRole('heading', { name: 'Página de aula experimental' }) })
-    await expect(secao).toContainText('/pilates-central-web/experimental/')
+    await expect(secao).toContainText(`${BASE}experimental/`)
     await expect(secao.getByRole('link', { name: 'Ver a página' })).toHaveAttribute('href', /\/experimental\/$/)
     const botao = secao.getByRole('button', { name: /^(Compartilhar|Copiar link)$/ })
     await expect(botao).toBeVisible()
@@ -71,7 +71,7 @@ test.describe('página pública de aula experimental', () => {
       await context.grantPermissions(['clipboard-read', 'clipboard-write'])
       await botao.click()
       await expect(aviso(page, /Link copiado/)).toBeVisible()
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/pilates-central-web\/experimental\/$/)
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${new URL(page.url()).origin}${BASE}experimental/`)
     }
   })
 

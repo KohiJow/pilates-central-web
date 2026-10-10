@@ -1,5 +1,28 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { hashesDosScriptsEmbutidos, precachear, regrasDaPolitica } from './plugin-offline.ts'
+import { hashesDosScriptsEmbutidos, manifestoDoSite, precachear, regrasDaPolitica } from './plugin-offline.ts'
+
+describe('manifesto do app', () => {
+  const modelo = readFileSync(new URL('../src/pwa/manifest.webmanifest', import.meta.url), 'utf8')
+
+  it('identidade, página inicial e escopo seguem o caminho base do site', () => {
+    const publicado = JSON.parse(manifestoDoSite(modelo, '/pilates-central-web/')) as Record<string, unknown>
+    expect(publicado.id).toBe('/pilates-central-web/')
+    expect(publicado.start_url).toBe('/pilates-central-web/')
+    expect(publicado.scope).toBe('/pilates-central-web/')
+    const naRaiz = JSON.parse(manifestoDoSite(modelo, '/')) as Record<string, unknown>
+    expect(naRaiz.id).toBe('/')
+    expect(naRaiz.start_url).toBe('/')
+    expect(naRaiz.scope).toBe('/')
+  })
+
+  it('o resto do modelo fica como está', () => {
+    const publicado = JSON.parse(manifestoDoSite(modelo, '/')) as Record<string, unknown>
+    expect(publicado.name).toBe('Pilates Central')
+    expect(publicado.display).toBe('standalone')
+    expect(Array.isArray(publicado.icons)).toBe(true)
+  })
+})
 
 describe('política de segurança do site', () => {
   it('sem projeto: tudo do próprio site, nada de inline em script, Trusted Types exigido', () => {
