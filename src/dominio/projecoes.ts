@@ -4,7 +4,7 @@
 // agenda: a cópia nunca diz algo diferente do que a equipe vê.
 import { aulasDoDia, faseDaAula } from './agenda'
 import { antecedenciaEmMinutos } from './presenca'
-import { horaDe, minutosDe, somarDias } from './datas'
+import { ehDataValida, ehHoraValida, horaDe, inicioDaAulaEmMs, minutosDe, somarDias } from './datas'
 import type { Momento } from './datas'
 import { primeiroNome } from './texto'
 import type {
@@ -27,8 +27,8 @@ import type {
 /** Quantos dias à frente o aluno e a página pública enxergam. */
 export const DIAS_DA_JANELA = 14
 
-/** Teto de horários no documento público (o mesmo das regras do Firestore). */
-export const MAXIMO_DE_HORARIOS = 120
+/** Teto de horários no documento público (o mesmo das regras do Firestore, horarios100). */
+export const MAXIMO_DE_HORARIOS = 100
 
 /** Quem quer conhecer o estúdio pede com pelo menos este tempo antes da aula. */
 export const ANTECEDENCIA_EXPERIMENTAL_HORAS = 2
@@ -51,6 +51,7 @@ export function vagaDaAula(aula: Aula, instante: Instante): VagaDaAula {
     capacidade: aula.capacidade,
     ocupadas: aula.ocupadas,
     cancelada: aula.cancelamento !== undefined,
+    comecaEm: inicioDaAulaEmMs(aula.data, aula.inicio),
     atualizadoEm: instante,
   }
 }
@@ -112,6 +113,56 @@ export function horariosParaExperimental(aulas: readonly Aula[], unidades: reado
     )
     .map((a) => ({ data: a.data, inicio: a.inicio, fim: a.fim, unidadeId: a.unidadeId, vagas: a.vagas }))
     .sort((a, b) => a.data.localeCompare(b.data) || a.inicio.localeCompare(b.inicio) || a.unidadeId.localeCompare(b.unidadeId))
+}
+
+// ---------- o documento público ----------
+// No banco, cada horário vai numa linha de texto ('2026-10-12 18:00-18:50 u-centro 2'): as
+// regras conferem a lista item a item com uma expressão por horário, o que cabe no teto mesmo
+// com a lista cheia; um mapa por horário custaria dez vezes mais.
+
+const RE_HORARIO = /^(\d{4}-\d{2}-\d{2}) ([0-2]\d:[0-5]\d)-([0-2]\d:[0-5]\d) ([A-Za-z0-9_-]{1,120}) (\d{1,2})$/
+
+/**
+ * O documento como fica no Firestore: igual à página, com os horários em texto e as unidades
+ * num mapa id -> 'nome|endereco' (as regras conferem chaves e valores de uma vez).
+ */
+export type DocumentoPublico = Omit<PaginaPublica, 'horarios' | 'unidades'> & { horarios: string[]; unidades: Record<string, string> }
+
+const semBarra = (texto: string) => texto.replace(/[|\n\r]/g, ' ')
+
+export function codificarUnidade(u: PaginaPublica['unidades'][number]): string {
+  return `${semBarra(u.nome).slice(0, 60)}|${semBarra(u.endereco).slice(0, 160)}`
+}
+
+export function decodificarUnidade(id: unknown, v: unknown): PaginaPublica['unidades'][number] | null {
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(id) || typeof v !== 'string') return null
+  const corte = v.indexOf('|')
+  if (corte < 1) return null
+  const nome = v.slice(0, corte)
+  const endereco = v.slice(corte + 1)
+  if (nome.length > 60 || endereco.length > 160 || endereco.includes('|')) return null
+  return { id, nome, endereco }
+}
+
+export function codificarHorario(h: HorarioPublico): string {
+  return `${h.data} ${h.inicio}-${h.fim} ${h.unidadeId} ${h.vagas}`
+}
+
+/** O horário de volta, ou null se o texto não tem a forma esperada (fica de fora da página). */
+export function decodificarHorario(v: unknown): HorarioPublico | null {
+  if (typeof v !== 'string') return null
+  const m = RE_HORARIO.exec(v)
+  if (!m) return null
+  const [, data, inicio, fim, unidadeId, vagas] = m
+  if (!data || !inicio || !fim || !unidadeId || vagas === undefined) return null
+  if (!ehDataValida(data) || !ehHoraValida(inicio) || !ehHoraValida(fim)) return null
+  const n = Number(vagas)
+  if (n < 0 || n > 30) return null
+  return { data, inicio, fim, unidadeId, vagas: n }
+}
+
+export function documentoDaPaginaPublica(p: PaginaPublica): DocumentoPublico {
+  return { ...p, horarios: p.horarios.map(codificarHorario), unidades: Object.fromEntries(p.unidades.map((u) => [u.id, codificarUnidade(u)])) }
 }
 
 export function paginaPublica(e: EstadoParaProjetar, agora: Momento, instante: Instante): PaginaPublica {

@@ -2,9 +2,8 @@
 // página pública fica leve e não carrega nada de login). A API devolve cada valor com o tipo
 // junto ({ stringValue: 'x' }); aqui vira objeto simples.
 import { CONFIGURACAO_PADRAO } from '../dominio/configuracao'
-import { ehDataValida, ehHoraValida } from '../dominio/datas'
-import { MAXIMO_DE_HORARIOS } from '../dominio/projecoes'
-import type { HorarioPublico, PaginaPublica } from '../dominio/tipos'
+import { decodificarHorario, decodificarUnidade, MAXIMO_DE_HORARIOS } from '../dominio/projecoes'
+import type { PaginaPublica } from '../dominio/tipos'
 
 export interface ValorDoFirestore {
   stringValue?: string
@@ -34,36 +33,25 @@ export function decodificarCampos(campos: Record<string, ValorDoFirestore>): Rec
   return saida
 }
 
-const RE_ID = /^[A-Za-z0-9_-]{1,120}$/
 const RE_WHATSAPP = /^[0-9]{10,15}$/
 
 const texto = (v: unknown, max: number): string | null => (typeof v === 'string' && v.length <= max ? v : null)
 
-function horarioDe(v: unknown): HorarioPublico | null {
-  if (typeof v !== 'object' || v === null) return null
-  const h = v as Record<string, unknown>
-  const { data, inicio, fim, unidadeId, vagas } = h
-  if (typeof data !== 'string' || !ehDataValida(data)) return null
-  if (typeof inicio !== 'string' || !ehHoraValida(inicio) || typeof fim !== 'string' || !ehHoraValida(fim)) return null
-  if (typeof unidadeId !== 'string' || !RE_ID.test(unidadeId)) return null
-  if (typeof vagas !== 'number' || !Number.isInteger(vagas) || vagas < 0 || vagas > 30) return null
-  return { data, inicio, fim, unidadeId, vagas }
-}
-
-function unidadeDe(v: unknown): PaginaPublica['unidades'][number] | null {
-  if (typeof v !== 'object' || v === null) return null
-  const u = v as Record<string, unknown>
-  const nome = texto(u.nome, 60)
-  const endereco = texto(u.endereco ?? '', 160)
-  if (typeof u.id !== 'string' || !RE_ID.test(u.id) || !nome || endereco === null) return null
-  return { id: u.id, nome, endereco }
+/** As unidades do documento (mapa id -> 'nome|endereco'), em ordem de nome; o que não tem a forma fica de fora. */
+function unidadesDe(v: unknown): PaginaPublica['unidades'] {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return []
+  return Object.entries(v as Record<string, unknown>)
+    .slice(0, 10)
+    .map(([id, texto]) => decodificarUnidade(id, texto))
+    .filter((u) => u !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 }
 
 /**
- * O documento público como a página usa, conferido campo a campo. Quem grava é a equipe (o
- * professor inclusive, só os horários), e as regras do banco não conseguem olhar cada item de
- * uma lista: um horário torto derrubaria a página inteira de quem nunca viu o estúdio. O que não
- * tem a forma esperada fica de fora, com os mesmos tetos das regras.
+ * O documento público como a página usa, conferido campo a campo. As regras do banco já conferem
+ * cada horário e cada unidade quando a equipe grava, mas a página confere de novo: um documento
+ * de antes das regras (ou um emulador sem elas) não pode derrubar a página de quem nunca viu o
+ * estúdio. O que não tem a forma esperada fica de fora, com os mesmos tetos das regras.
  */
 export function paginaPublicaDe(campos: Record<string, unknown>): PaginaPublica {
   const lista = (v: unknown, max: number): unknown[] => (Array.isArray(v) ? v.slice(0, max) : [])
@@ -72,15 +60,40 @@ export function paginaPublicaDe(campos: Record<string, unknown>): PaginaPublica 
   return {
     nomeEstudio: nome && nome.trim().length >= 2 ? nome : CONFIGURACAO_PADRAO.nomeEstudio,
     whatsapp,
-    unidades: lista(campos.unidades, 10)
-      .map(unidadeDe)
-      .filter((u) => u !== null),
+    unidades: unidadesDe(campos.unidades),
     experimental: campos.experimental === true,
     horarios: lista(campos.horarios, MAXIMO_DE_HORARIOS)
-      .map(horarioDe)
+      .map(decodificarHorario)
       .filter((h) => h !== null),
     atualizadoEm: texto(campos.atualizadoEm, 40) ?? '',
   }
+}
+
+/** Quanto tempo a leitura do documento público vale na sessão do navegador. */
+export const VALIDADE_DO_CACHE_MS = 10 * 60_000
+
+interface CacheDaPagina {
+  projeto: string
+  lidoEm: number
+  campos: Record<string, unknown>
+}
+
+/** Os campos guardados na sessão, se forem deste projeto e ainda valerem; senão null. */
+export function lerCacheDaPagina(texto: string | null, projeto: string, agora: number, validade = VALIDADE_DO_CACHE_MS): Record<string, unknown> | null {
+  if (!texto) return null
+  try {
+    const c = JSON.parse(texto) as Partial<CacheDaPagina>
+    if (c.projeto !== projeto || typeof c.lidoEm !== 'number' || typeof c.campos !== 'object' || c.campos === null) return null
+    if (agora < c.lidoEm || agora - c.lidoEm > validade) return null
+    return c.campos as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+export function guardarCacheDaPagina(projeto: string, agora: number, campos: Record<string, unknown>): string {
+  const c: CacheDaPagina = { projeto, lidoEm: agora, campos }
+  return JSON.stringify(c)
 }
 
 /** Endereço REST de um documento (no emulador, http local; no projeto, a API do Google). */

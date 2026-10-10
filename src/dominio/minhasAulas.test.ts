@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { inicioDaAulaEmMs } from './datas'
 import { credito } from './apoio-de-teste'
 import { CONFIGURACAO_PADRAO } from './configuracao'
 import { aulasParaRepor, avisarFalta, conferirReposicao, desfazerAviso, desistirDaReposicao, minhasAulas } from './minhasAulas'
@@ -14,7 +15,19 @@ function vaga(turmaId: string, data: string, inicio: string, parcial: Partial<Va
   const [h, m] = inicio.split(':').map(Number)
   const fimMin = (h ?? 0) * 60 + (m ?? 0) + 50
   const fim = `${String(Math.floor(fimMin / 60)).padStart(2, '0')}:${String(fimMin % 60).padStart(2, '0')}`
-  return { turmaId, unidadeId: 'u-centro', data, inicio, fim, capacidade: 5, ocupadas: 4, cancelada: false, atualizadoEm: instante, ...parcial }
+  return {
+    turmaId,
+    unidadeId: 'u-centro',
+    data,
+    inicio,
+    fim,
+    capacidade: 5,
+    ocupadas: 4,
+    cancelada: false,
+    comecaEm: inicioDaAulaEmMs(data, inicio),
+    atualizadoEm: instante,
+    ...parcial,
+  }
 }
 
 function dados(parcial: Partial<DadosDoAluno> = {}): DadosDoAluno {

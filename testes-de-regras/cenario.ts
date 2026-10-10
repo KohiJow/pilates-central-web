@@ -2,23 +2,30 @@
 // regras desligadas. As datas das aulas saem do relógio de verdade, porque as regras comparam
 // com request.time (o prazo de aviso é medido no servidor).
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
-import { horaDe, momentoDe } from '../src/dominio/datas'
+import { horaDe, inicioDaAulaEmMs, momentoDe } from '../src/dominio/datas'
 
-const configuracaoDoEmulador = JSON.parse(readFileSync(new URL('../firebase.json', import.meta.url), 'utf8')) as {
+// FIREBASE_JSON aponta para outro firebase.json (outras portas), como no firebase-tools
+const configuracaoDoEmulador = JSON.parse(readFileSync(resolve(process.env.FIREBASE_JSON ?? 'firebase.json'), 'utf8')) as {
   emulators: { firestore: { host: string; port: number } }
 }
 
 export const PROJETO = 'demo-pilates'
 
-export async function criarAmbiente(): Promise<RulesTestEnvironment> {
+export function regrasDoArquivo(): string {
+  return readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8')
+}
+
+/** Ambiente de teste com as regras do arquivo (ou outras, para medir a folga do teto de expressões). */
+export async function criarAmbiente(regras = regrasDoArquivo()): Promise<RulesTestEnvironment> {
   const { host, port } = configuracaoDoEmulador.emulators.firestore
   return initializeTestEnvironment({
     projectId: PROJETO,
-    firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'), host, port },
+    firestore: { rules: regras, host, port },
   })
 }
 
@@ -91,6 +98,7 @@ export function vagaDe(turmaId: string, quando: { data: string; inicio: string; 
     capacidade,
     ocupadas,
     cancelada: false,
+    comecaEm: inicioDaAulaEmMs(quando.data, quando.inicio),
     atualizadoEm: instante,
   }
 }
@@ -207,7 +215,7 @@ export async function semear(ambiente: RulesTestEnvironment): Promise<void> {
     await gravar('publico/estudio', {
       nomeEstudio: 'Estúdio de Teste',
       whatsapp: '5511900000000',
-      unidades: [{ id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100' }],
+      unidades: { 'u-centro': 'Centro|Rua Exemplo, 100' },
       experimental: true,
       horarios: [],
       atualizadoEm: instante,

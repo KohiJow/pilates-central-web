@@ -26,13 +26,14 @@ import { momentoDe, somarDias } from '../../dominio/datas'
 import { ehAdministracao } from '../../dominio/permissoes'
 import {
   DIAS_DA_JANELA,
+  documentoDaPaginaPublica,
   mesmaProjecao,
   mudancasDeVagas,
   paginaPublica,
   portaisDosAlunos,
   vagasDaJanela,
 } from '../../dominio/projecoes'
-import type { EstadoParaProjetar } from '../../dominio/projecoes'
+import type { DocumentoPublico, EstadoParaProjetar } from '../../dominio/projecoes'
 import type {
   Aluno,
   Competencia,
@@ -41,7 +42,6 @@ import type {
   Id,
   MembroEquipe,
   Pagamento,
-  PaginaPublica,
   PortalDoAluno,
   RegistroAula,
   Turma,
@@ -100,7 +100,7 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
   const uidPorMembro = new Map<Id, string>()
   const registros = new Map<string, RegistroAula>()
   const creditos = new Map<Id, CreditoReposicao>()
-  let publicoGravado: PaginaPublica | null = null
+  let publicoGravado: DocumentoPublico | null = null
 
   const eu = (): MembroEquipe | undefined => base?.equipe.find((m) => m.id === sessao.membroId)
   const souAdministracao = () => ehAdministracao(eu()?.papel)
@@ -352,10 +352,10 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
   async function atualizarPaginaPublica(): Promise<void> {
     if (!base) return
     const { momento, instante } = relogio()
-    const nova = paginaPublica(estadoDe(base, registros), momento, instante)
+    const nova = documentoDaPaginaPublica(paginaPublica(estadoDe(base, registros), momento, instante))
     if (publicoGravado === null) {
       const s = await getDoc(doc(db, 'publico', 'estudio'))
-      publicoGravado = s.exists() ? (s.data() as PaginaPublica) : null
+      publicoGravado = s.exists() ? (s.data() as DocumentoPublico) : null
     }
     const gravado = publicoGravado
     if (mesmaProjecao(gravado ?? undefined, nova)) return

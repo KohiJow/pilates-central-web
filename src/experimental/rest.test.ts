@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { momentoDe } from '../dominio/datas'
 import { horariosAindaAbertos } from '../dominio/experimental'
+import { codificarHorario } from '../dominio/projecoes'
 import { decodificarCampos, enderecoDoDocumento, paginaPublicaDe } from './rest'
 
 describe('documento público pela API REST', () => {
@@ -8,29 +9,17 @@ describe('documento público pela API REST', () => {
     const campos = {
       nomeEstudio: { stringValue: 'Pilates Central' },
       experimental: { booleanValue: true },
-      horarios: {
-        arrayValue: {
-          values: [
-            {
-              mapValue: {
-                fields: {
-                  data: { stringValue: '2026-10-09' },
-                  inicio: { stringValue: '18:00' },
-                  vagas: { integerValue: '2' },
-                },
-              },
-            },
-          ],
-        },
-      },
-      unidades: { arrayValue: {} },
+      horarios: { arrayValue: { values: [{ stringValue: '2026-10-09 18:00-18:50 u-centro 2' }] } },
+      unidades: { arrayValue: { values: [{ mapValue: { fields: { id: { stringValue: 'u-centro' }, nome: { stringValue: 'Centro' } } } }] } },
+      vagas: { integerValue: '2' },
       nada: { nullValue: null },
     }
     expect(decodificarCampos(campos)).toEqual({
       nomeEstudio: 'Pilates Central',
       experimental: true,
-      horarios: [{ data: '2026-10-09', inicio: '18:00', vagas: 2 }],
-      unidades: [],
+      horarios: ['2026-10-09 18:00-18:50 u-centro 2'],
+      unidades: [{ id: 'u-centro', nome: 'Centro' }],
+      vagas: 2,
       nada: null,
     })
   })
@@ -40,14 +29,14 @@ describe('documento público pela API REST', () => {
     const tortos = [
       'texto solto',
       null,
-      { ...bom, data: 20261013 },
-      { ...bom, data: '2026-02-30' },
-      { ...bom, inicio: '18h' },
-      { ...bom, fim: undefined },
-      { ...bom, unidadeId: '../alunos' },
-      { ...bom, vagas: '2' },
-      { ...bom, vagas: 2.5 },
-      { ...bom, vagas: 999 },
+      { ...bom },
+      '20261013 18:00-18:50 u-centro 2',
+      '2026-02-30 18:00-18:50 u-centro 2',
+      '2026-10-13 18h-18h50 u-centro 2',
+      '2026-10-13 18:00-18:50 ../alunos 2',
+      '2026-10-13 18:00-18:50 u-centro dois',
+      '2026-10-13 18:00-18:50 u-centro 2.5',
+      '2026-10-13 18:00-18:50 u-centro 999',
     ]
     const agora = momentoDe(new Date('2026-10-09T13:00:00Z'))
     // antes, o documento passava direto para a tela: o filtro dos horários quebrava no primeiro torto
@@ -56,9 +45,9 @@ describe('documento público pela API REST', () => {
     const pagina = paginaPublicaDe({
       nomeEstudio: 'Estúdio',
       whatsapp: '5511900000000',
-      unidades: [{ id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100' }, { id: 'x y', nome: 'Torta' }, 'lixo'],
+      unidades: { 'u-centro': 'Centro|Rua Exemplo, 100', 'x y': 'Torta|', 'u-lixo': 'lixo', 'u-vazio': '|Rua' },
       experimental: true,
-      horarios: [...tortos, bom],
+      horarios: [...tortos, codificarHorario(bom)],
       atualizadoEm: '2026-10-09T12:00:00.000Z',
     })
     expect(pagina.horarios).toEqual([bom])
@@ -78,11 +67,11 @@ describe('documento público pela API REST', () => {
     expect(pagina).toEqual({ nomeEstudio: 'Pilates Central', whatsapp: '', unidades: [], experimental: false, horarios: [], atualizadoEm: '' })
   })
 
-  it('respeita os mesmos tetos das regras (120 horários, 10 unidades)', () => {
-    const h = { data: '2026-10-13', inicio: '18:00', fim: '18:50', unidadeId: 'u-centro', vagas: 1 }
-    const u = { id: 'u-centro', nome: 'Centro', endereco: '' }
-    const pagina = paginaPublicaDe({ horarios: Array(500).fill(h), unidades: Array(50).fill(u), experimental: true })
-    expect(pagina.horarios).toHaveLength(120)
+  it('respeita os mesmos tetos das regras (100 horários, 10 unidades)', () => {
+    const h = '2026-10-13 18:00-18:50 u-centro 1'
+    const unidades = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`u-${i}`, `Unidade ${i}|`]))
+    const pagina = paginaPublicaDe({ horarios: Array(500).fill(h), unidades, experimental: true })
+    expect(pagina.horarios).toHaveLength(100)
     expect(pagina.unidades).toHaveLength(10)
   })
 
@@ -91,5 +80,22 @@ describe('documento público pela API REST', () => {
       'http://127.0.0.1:8824/v1/projects/demo-pilates/databases/(default)/documents/publico/estudio?key=k',
     )
     expect(enderecoDoDocumento({ projeto: 'p', caminho: 'publico/estudio', chave: 'k' })).toMatch(/^https:\/\/firestore\.googleapis\.com\/v1\//)
+  })
+})
+
+describe('uma leitura por sessão do documento público', () => {
+  it('guarda os campos com a hora, e devolve enquanto valem e forem do mesmo projeto', async () => {
+    const { guardarCacheDaPagina, lerCacheDaPagina, VALIDADE_DO_CACHE_MS } = await import('./rest')
+    const campos = { nomeEstudio: 'E', horarios: ['2026-10-13 18:00-18:50 u-centro 2'] }
+    const texto = guardarCacheDaPagina('pilates-x', 1_000_000, campos)
+    expect(lerCacheDaPagina(texto, 'pilates-x', 1_000_000 + VALIDADE_DO_CACHE_MS - 1)).toEqual(campos)
+    expect(lerCacheDaPagina(texto, 'pilates-x', 1_000_000 + VALIDADE_DO_CACHE_MS + 1)).toBeNull()
+    expect(lerCacheDaPagina(texto, 'outro-projeto', 1_000_000)).toBeNull()
+    // relógio que voltou (outro aparelho, hora trocada): não confia
+    expect(lerCacheDaPagina(texto, 'pilates-x', 999_999)).toBeNull()
+    expect(lerCacheDaPagina(null, 'pilates-x', 1_000_000)).toBeNull()
+    expect(lerCacheDaPagina('{lixo', 'pilates-x', 1_000_000)).toBeNull()
+    expect(lerCacheDaPagina('{"projeto":"pilates-x","lidoEm":"x","campos":{}}', 'pilates-x', 1_000_000)).toBeNull()
+    expect(VALIDADE_DO_CACHE_MS).toBe(10 * 60_000)
   })
 })

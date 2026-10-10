@@ -197,6 +197,8 @@ export interface VagaDaAula {
   capacidade: number
   ocupadas: number
   cancelada: boolean
+  /** início da aula em milissegundos desde 1970 (UTC): as regras conferem o prazo do aluno com ele */
+  comecaEm: number
   atualizadoEm: Instante
 }
 

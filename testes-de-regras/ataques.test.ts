@@ -315,8 +315,8 @@ describe('equipe: tipos, tamanhos e campos a mais', () => {
   })
 
   it('página pública: horários demais, campo a mais ou WhatsApp com letras são recusados', async () => {
-    const horario = { data: DEPOIS.data, inicio: DEPOIS.inicio, fim: DEPOIS.fim, unidadeId: 'u-centro', vagas: 1 }
-    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: Array(121).fill(horario), atualizadoEm: instante }))
+    const horario = `${DEPOIS.data} ${DEPOIS.inicio}-${DEPOIS.fim} u-centro 1`
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: Array(101).fill(horario), atualizadoEm: instante }))
     await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { nomeEstudio: 'Outro', atualizadoEm: instante }))
     await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { whatsapp: 'https://exemplo' }))
     await assertFails(setDoc(doc(como('prof'), 'publico/outro'), { a: 1 }))
@@ -327,7 +327,7 @@ describe('equipe: tipos, tamanhos e campos a mais', () => {
     const p = {
       nomeEstudio: 'Estúdio de Teste',
       whatsapp: '5511900000000',
-      unidades: [],
+      unidades: {},
       experimental: true,
       horarios: [],
       atualizadoEm: instante,
@@ -493,6 +493,21 @@ describe('o que o aluno faz de verdade continua passando', () => {
     await assertSucceeds(avisar(como('aluno')))
   })
 
+  it('um crédito que já aponta para a aula não serve de novo sem ser tocado no lote', async () => {
+    // o crédito ficou gasto nesta aula (estado torto: a reposição sumiu do registro); a regra do
+    // registro só lê o crédito depois do lote, então a vaga confere que ele estava livre antes
+    await semRegras((db) => updateDoc(doc(db, 'creditos/cr-a1'), { usadoEm: { turmaId: 't-livre', data: DEPOIS.data } }))
+    const db = como('aluno')
+    const b = writeBatch(db)
+    b.set(
+      doc(db, `registros/${AULA_LIVRE}`),
+      { id: AULA_LIVRE, turmaId: 't-livre', unidadeId: 'u-centro', data: DEPOIS.data, reposicoes: { 'a-1': 'cr-a1' }, atualizadoEm: instante },
+      { merge: true },
+    )
+    b.update(doc(db, `vagas/${AULA_LIVRE}`), { ocupadas: increment(1), atualizadoEm: instante })
+    await assertFails(b.commit())
+  })
+
   it('desiste da reposição e encaixa o mesmo crédito em outra aula', async () => {
     await assertSucceeds(encaixar(como('aluno'), 'cr-a1', AULA_LIVRE, 't-livre', DEPOIS.data))
     const db = como('aluno')
@@ -504,5 +519,93 @@ describe('o que o aluno faz de verdade continua passando', () => {
     const outra = aulaId('t-cheia', DEPOIS.data)
     await semRegras((d) => updateDoc(doc(d, `vagas/${outra}`), { ocupadas: 2 }))
     await assertSucceeds(encaixar(como('aluno'), 'cr-a1', outra, 't-cheia', DEPOIS.data))
+  })
+})
+
+describe('listas gravadas pela equipe: cada item conferido', () => {
+  const horario = (dia: string, n = 1) => `${dia} ${DEPOIS.inicio}-${DEPOIS.fim} u-centro ${n}`
+
+  it('página pública: cem horários passam; o centésimo primeiro, um torto ou um mapa não', async () => {
+    const cem = Array.from({ length: 100 }, (_, i) => horario(DEPOIS.data, i % 31))
+    await assertSucceeds(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: cem, atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [...cem, horario(DEPOIS.data)], atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [...cem.slice(0, 99), 'x'], atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [{ data: DEPOIS.data, inicio: '18:00', fim: '18:50', unidadeId: 'u-centro', vagas: 1 }], atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [`${DEPOIS.data} 18:00-18:50 u-centro 31`], atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [`${DEPOIS.data} 18:00-18:50 ${'u'.repeat(121)} 1`], atualizadoEm: instante }))
+    await assertFails(updateDoc(doc(como('prof'), 'publico/estudio'), { horarios: [`${DEPOIS.data} 18:00-18:50 u-centro 1 <script>`], atualizadoEm: instante }))
+  })
+
+  it('página pública: dez unidades passam; a décima primeira, sem nome, com nome enorme, id torto ou como mapa não', async () => {
+    const dez = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`u-${i}`, `Unidade ${i}|Rua Exemplo, ${i}`]))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: dez }))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-centro': 'Centro|' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { ...dez, 'u-10': 'Mais uma|' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-centro': '|Rua sem nome' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-centro': `${'x'.repeat(61)}|Rua` } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-centro': `Centro|${'x'.repeat(161)}` } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u centro': 'Centro|Rua' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-centro': { nome: 'Centro', endereco: 'Rua' } } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: [{ id: 'u-centro', nome: 'Centro', endereco: 'Rua' }] }))
+  })
+
+  it('turma: trinta fixos com data passam; um id torto, uma data torta ou o trigésimo primeiro não', async () => {
+    const fixos = Array.from({ length: 30 }, (_, i) => `a-${i}`)
+    const desde = Object.fromEntries(fixos.map((id) => [id, '2026-01-01']))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: fixos, fixosDesde: desde }))
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: [...fixos.slice(0, 29), 'a 29'] }))
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: [...fixos.slice(0, 29), 7] }))
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: [...fixos, 'a-30'] }))
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { fixosDesde: { ...desde, 'a-1': '01/01/2026' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { fixosDesde: { ...desde, 'a 1': '2026-01-01' } }))
+  })
+
+  it('lista conferida pelo texto: item com o separador dentro, número, booleano, nulo ou vazio não passam por itens válidos', async () => {
+    // a lista vira "a-1,a,2" e a expressão regular veria três ids; o número vira "7" no join
+    for (const torto of ['a,2', 7, true, null, '', 'a-1,a-2']) {
+      await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: ['a-1', torto] }))
+    }
+    await assertFails(updateDoc(doc(como('adm'), 'turmas/t-1'), { fixosDesde: { 'a-1': '2026-01-01,2026-01-02' } }))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'turmas/t-1'), { alunosFixos: [], fixosDesde: {} }))
+    const h = `${DEPOIS.data} ${DEPOIS.inicio}-${DEPOIS.fim} u-centro 2`
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { horarios: [`${h}|${h}`] }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { horarios: [7] }))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'publico/estudio'), { horarios: [] }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u,x': 'Centro|Rua' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-a': 'A|Rua 1\nB|Rua 2' } }))
+    await assertFails(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: { 'u-a': 7 } }))
+    await assertSucceeds(updateDoc(doc(como('adm'), 'publico/estudio'), { unidades: {} }))
+  })
+
+  it('equipe: unidades do professor conferidas uma a uma', async () => {
+    await assertSucceeds(updateDoc(doc(como('adm'), 'equipe/e-prof'), { unidades: ['u-centro', 'u-jardim'] }))
+    await assertFails(updateDoc(doc(como('adm'), 'equipe/e-prof'), { unidades: ['u-centro', ''] }))
+    await assertFails(updateDoc(doc(como('adm'), 'equipe/e-prof'), { unidades: ['u-centro', { id: 'u-jardim' }] }))
+    await assertFails(updateDoc(doc(como('adm'), 'equipe/e-prof'), { unidades: Array.from({ length: 21 }, (_, i) => `u-${i}`) }))
+  })
+
+  it('registro da aula: a chamada cheia (40 marcações e 30 reposições) passa; chave ou crédito torto não', async () => {
+    const aula = aulaId('t-1', AMANHA.data)
+    const marcacoes = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`a-${i}`, i % 2 ? 'presente' : 'faltou']))
+    const reposicoes = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`r-${i}`, `cr_r-${i}_t-1_${AMANHA.data}`]))
+    const base = { id: aula, turmaId: 't-1', unidadeId: 'u-centro', data: AMANHA.data, atualizadoEm: instante }
+    await assertSucceeds(setDoc(doc(como('prof'), `registros/${aula}`), { ...base, marcacoes, reposicoes }))
+    await assertFails(setDoc(doc(como('prof'), `registros/${aula}`), { ...base, marcacoes: { ...marcacoes, 'a 1': 'presente' }, reposicoes }))
+    await assertFails(setDoc(doc(como('prof'), `registros/${aula}`), { ...base, marcacoes, reposicoes: { ...reposicoes, 'r-1': 'cr x' } }))
+    await assertFails(setDoc(doc(como('prof'), `registros/${aula}`), { ...base, marcacoes, reposicoes: { ...reposicoes, 'r-1': 7 } }))
+  })
+
+
+  it('vaga: o início em milissegundos tem que bater com a data e a hora', async () => {
+    const certa = vagaDe('t-1', DEPOIS, 4, 1)
+    const id = `vagas/${aulaId('t-1', DEPOIS.data)}`
+    await assertSucceeds(setDoc(doc(como('adm'), id), certa))
+    await assertFails(setDoc(doc(como('adm'), id), { ...certa, comecaEm: certa.comecaEm + 60_000 }))
+    await assertFails(setDoc(doc(como('adm'), id), { ...certa, comecaEm: String(certa.comecaEm) }))
+    const { comecaEm: _fora, ...sem } = certa
+    void _fora
+    await assertFails(setDoc(doc(como('adm'), id), sem))
+    // o aluno não mexe nele
+    await assertFails(updateDoc(doc(como('aluno'), `vagas/${aulaId('t-1', AMANHA.data)}`), { comecaEm: 0, atualizadoEm: instante }))
   })
 })

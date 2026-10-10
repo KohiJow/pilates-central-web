@@ -109,6 +109,17 @@ export function momentoDaAula(data: DataISO, hora: Hora): Momento {
   return { data, minutos: minutosDe(hora) }
 }
 
+/**
+ * Início da aula em milissegundos desde 1970 (UTC). Campinas está em UTC-3 o ano todo desde
+ * 2019, e as regras do Firestore fazem a mesma conta (inicioDaAula), então os dois lados batem.
+ */
+export function inicioDaAulaEmMs(data: DataISO, hora: Hora): number {
+  const ano = Number(data.slice(0, 4))
+  const mes = Number(data.slice(5, 7))
+  const dia = Number(data.slice(8, 10))
+  return Date.UTC(ano, mes - 1, dia) + (minutosDe(hora) + 180) * 60_000
+}
+
 /** Manhã até 11h59, tarde até 17h59, noite a partir das 18h. */
 export function periodoDe(hora: Hora): Periodo {
   const m = minutosDe(hora)

@@ -19,7 +19,10 @@ rules_version = '2';
 //
 // Quem está pedindo é calculado uma vez por pedido (quemSou) e passado adiante: as regras têm
 // um teto de expressões avaliadas por pedido, e repetir a busca do papel em cada função estoura.
-// Os testes ficam em testes-de-regras/ e rodam no emulador (projeto demo-pilates).
+// As listas que a equipe grava são conferidas item a item até o teto de cada uma (as regras não
+// têm laço: a lista vira um texto e uma expressão regular confere tudo de uma vez, ver `ids`).
+// Os testes ficam em testes-de-regras/ e rodam no emulador (projeto demo-pilates);
+// folga.test.ts mede a folga do teto de expressões nos caminhos do aluno.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -41,10 +44,6 @@ service cloud.firestore {
 
     function texto(v, min, max) {
       return v is string && v.size() >= min && v.size() <= max;
-    }
-
-    function ehId(v) {
-      return v is string && v.matches('^[A-Za-z0-9_-]{1,120}$');
     }
 
     function ehData(v) {
@@ -83,6 +82,47 @@ service cloud.firestore {
     // Início da aula como instante: Campinas está em UTC-3 o ano todo desde 2019.
     function inicioDaAula(v) {
       return dia(v.data) + duration.value(int(v.inicio[0:2]) * 60 + int(v.inicio[3:5]) + 180, 'm');
+    }
+
+    // ---------- listas conferidas item a item ----------
+    // As regras não têm laço, e conferir posição por posição custa dezenas de expressões por
+    // item (o teto é de 1000 por pedido). Uma lista de textos vira um texto só (join) e uma
+    // expressão regular confere todos os itens de uma vez; item que não é texto faz o join
+    // falhar, e a recusa é o lado seguro. Listas de mapas (poucas e curtas) vão posição a posição.
+
+    function ehId(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,120}$');
+    }
+
+    // A lista vira um texto com um separador que o item não pode ter, e uma expressão regular
+    // confere todos os itens de uma vez. Só isso não basta: um item com o separador dentro
+    // ("a,2") viraria dois itens válidos, e um número (7) vira o texto "7" no join. Por isso o
+    // texto, partido de novo no separador, tem que dar exatamente a lista: [7] != ["7"], e um
+    // item com o separador vira dois.
+    function listaDeTextos(l, texto, separador) {
+      return l.size() == 0 || texto.split(separador) == l;
+    }
+
+    // até `n` ids
+    function ids(l, n) {
+      return l is list && l.size() <= n
+        && l.join(',').matches('^([A-Za-z0-9_-]{1,120}(,[A-Za-z0-9_-]{1,120})*)?$')
+        && listaDeTextos(l, l.join(','), ',');
+    }
+
+    // até `n` datas 'AAAA-MM-DD'
+    function datas(l, n) {
+      return l is list && l.size() <= n
+        && l.join(',').matches('^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(,[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]))*)?$')
+        && listaDeTextos(l, l.join(','), ',');
+    }
+
+    // Um horário da página pública numa linha só: 'AAAA-MM-DD HH:MM-HH:MM unidade vagas'.
+    // Teto de 100 (o mesmo de MAXIMO_DE_HORARIOS em projecoes.ts).
+    function horariosPublicos(l) {
+      return l is list && l.size() <= 100
+        && l.join('|').matches('^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9] [A-Za-z0-9_-]{1,120} ([0-9]|[12][0-9]|30)([|][0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9] [A-Za-z0-9_-]{1,120} ([0-9]|[12][0-9]|30))*)?$')
+        && listaDeTextos(l, l.join('|'), '[|]');
     }
 
     // documento como mapa, ou o padrão quando não existe (get devolve null): uma leitura só,
@@ -261,7 +301,7 @@ service cloud.firestore {
         && m.papel in ['administrador', 'professor']
         && ehEmail(m.email)
         && ehTelefone(m.telefone)
-        && m.unidades is list && m.unidades.size() <= 20
+        && ids(m.unidades, 20)
         && m.ativo is bool
         && (!('convite' in m) || (m.convite is map
               && m.convite.keys().hasOnly(['enviadoEm', 'porId'])
@@ -498,8 +538,8 @@ service cloud.firestore {
         && inteiro(t.duracaoMin, 10, 240)
         && inteiro(t.capacidade, 1, 30)
         && ehId(t.professorId)
-        && t.alunosFixos is list && t.alunosFixos.size() <= 30
-        && (!('fixosDesde' in t) || (t.fixosDesde is map && t.fixosDesde.size() <= 60))
+        && ids(t.alunosFixos, 30)
+        && (!('fixosDesde' in t) || (t.fixosDesde is map && ids(t.fixosDesde.keys(), 30) && datas(t.fixosDesde.values(), 30)))
         && t.ativa is bool
         && ehData(t.desde);
     }
@@ -521,6 +561,7 @@ service cloud.firestore {
       return r.get('reposicoes', {});
     }
 
+    // o registro como a equipe grava, com cada marcação e reposição conferida
     function registroValido(id, r) {
       return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'atualizadoEm'])
         && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'cancelamento', 'atualizadoEm'])
@@ -529,9 +570,9 @@ service cloud.firestore {
         && ehId(r.turmaId)
         && ehId(r.unidadeId)
         && ehData(r.data)
-        && marcacoes(r) is map && marcacoes(r).size() <= 40
+        && marcacoes(r) is map && ids(marcacoes(r).keys(), 40)
         && marcacoes(r).values().hasOnly(['presente', 'faltou', 'avisou'])
-        && reposicoes(r) is map && reposicoes(r).size() <= 30
+        && reposicoes(r) is map && ids(reposicoes(r).keys(), 30) && ids(reposicoes(r).values(), 30)
         && (!('cancelamento' in r) || (r.cancelamento is map
               && r.cancelamento.keys().hasOnly(['motivo', 'observacao'])
               && r.cancelamento.motivo in ['feriado', 'estudio']
@@ -567,9 +608,11 @@ service cloud.firestore {
 
     // ---------- vagas: a aula sem nomes, para o aluno ----------
 
+    // comecaEm: o início da aula em milissegundos (UTC), gravado pela equipe e conferido aqui
+    // contra a data e a hora; nas regras do aluno ele poupa recalcular o instante a cada pedido
     function vagaValida(id, v) {
-      return v.keys().hasAll(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'atualizadoEm'])
-        && v.keys().hasOnly(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'atualizadoEm'])
+      return v.keys().hasAll(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'comecaEm', 'atualizadoEm'])
+        && v.keys().hasOnly(['turmaId', 'unidadeId', 'data', 'inicio', 'fim', 'capacidade', 'ocupadas', 'cancelada', 'comecaEm', 'atualizadoEm'])
         && id == v.turmaId + '_' + v.data
         && ehId(v.turmaId)
         && ehId(v.unidadeId)
@@ -579,6 +622,7 @@ service cloud.firestore {
         && inteiro(v.capacidade, 1, 30)
         && inteiro(v.ocupadas, -30, 60)
         && v.cancelada is bool
+        && v.comecaEm is int && v.comecaEm == inicioDaAula(v).toMillis()
         && ehInstante(v.atualizadoEm);
     }
 
@@ -607,10 +651,8 @@ service cloud.firestore {
     // Três documentos mudam juntos (registro da aula, crédito e vaga); cada regra confere as
     // outras pelo estado depois do lote, então nenhum muda sozinho.
 
-    // a aula como estava e como fica (registro e vaga), do ponto de vista de um aluno
-    function situacaoNaAula(q, aulaId) {
-      let rAntes = dados(caminho('registros', aulaId), {});
-      let rDepois = dadosDepois(caminho('registros', aulaId), {});
+    // a aula como estava e como fica (registro antes e depois), do ponto de vista de um aluno
+    function situacaoDoRegistro(q, rAntes, rDepois) {
       return {
         'avisouAntes': marcacoes(rAntes).get(q.id, '') == 'avisou',
         'avisouDepois': marcacoes(rDepois).get(q.id, '') == 'avisou',
@@ -623,9 +665,15 @@ service cloud.firestore {
       };
     }
 
-    // ainda dá tempo: a aula começa daqui a pelo menos a antecedência combinada
+    // a mesma situação vista de outro documento (crédito ou vaga): lê o registro antes e depois
+    function situacaoNaAula(q, aulaId) {
+      return situacaoDoRegistro(q, dados(caminho('registros', aulaId), {}), dadosDepois(caminho('registros', aulaId), {}));
+    }
+
+    // ainda dá tempo: a aula começa daqui a pelo menos a antecedência combinada (comecaEm é o
+    // início da aula em milissegundos, conferido quando a equipe grava a vaga)
     function noPrazo(q, v) {
-      return request.time + duration.value(q.cfg.antecedenciaAvisoHoras, 'h') <= inicioDaAula(v);
+      return request.time.toMillis() + q.cfg.antecedenciaAvisoHoras * 3600000 <= v.comecaEm;
     }
 
     function vagaDaAula(aulaId) {
@@ -640,13 +688,20 @@ service cloud.firestore {
       return dados(caminho('turmas', v.turmaId), {'ativa': false, 'alunosFixos': []});
     }
 
-    // registro escrito pelo aluno: mesma aula da vaga, sem cancelamento
+    // O registro escrito pelo aluno: a mesma aula da vaga (turma, unidade e data já conferidas
+    // quando a equipe gravou a vaga), sem cancelamento, só com os campos de sempre. É a versão
+    // enxuta de registroValido: o que o aluno pode mudar nas marcações e reposições é conferido
+    // chave a chave em avisoValido, encaixeValido e companhia.
     function registroDoAluno(aulaId, v, r) {
-      return registroValido(aulaId, r)
-        && !('cancelamento' in r)
+      return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'atualizadoEm'])
+        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'atualizadoEm'])
+        && r.id == aulaId
         && v.get('turmaId', '') == r.turmaId
         && v.get('unidadeId', '') == r.unidadeId
-        && v.get('data', '') == r.data;
+        && v.get('data', '') == r.data
+        && marcacoes(r) is map && marcacoes(r).size() <= 40
+        && reposicoes(r) is map && reposicoes(r).size() <= 31
+        && ehInstante(r.atualizadoEm);
     }
 
     // avisar a própria falta: aluno fixo da turma, aula de pé, no prazo, e a vaga abre
@@ -667,20 +722,23 @@ service cloud.firestore {
     // desfazer o aviso: no prazo, só se ainda houver lugar (o crédito do aviso sai junto: ver a
     // regra da vaga)
     function desfazerAvisoValido(q, aulaId, v, s) {
+      let ocupadas = ocupadasDepois(aulaId);
       return q.ativo
         && v.cancelada == false
         && noPrazo(q, v)
         && s.avisouAntes
         && !s.marcadoDepois
-        && ocupadasDepois(aulaId) == v.ocupadas + 1
-        && ocupadasDepois(aulaId) <= v.capacidade;
+        && ocupadas == v.ocupadas + 1
+        && ocupadas <= v.capacidade;
     }
 
-    // encaixar a reposição: crédito dele, livre, da mesma unidade e na validade; aula com vaga
+    // Encaixar a reposição: crédito dele, da mesma unidade e na validade, gasto nesta aula no
+    // mesmo lote; aula com vaga. O crédito é lido como fica depois do lote: dono, unidade,
+    // validade e origem não mudam (a regra do crédito não deixa), e o "usadoEm" apontando para
+    // esta aula só passa pela regra do crédito se ele estava livre antes.
     function encaixeValido(q, aulaId, v, s) {
-      let creditoId = s.creditoDepois;
-      let c = dados(caminho('creditos', creditoId), {});
-      let cDepois = dadosDepois(caminho('creditos', creditoId), {});
+      let c = dadosDepois(caminho('creditos', s.creditoDepois), {});
+      let ocupadas = ocupadasDepois(aulaId);
       return q.ativo
         && v.cancelada == false
         && noPrazo(q, v)
@@ -688,13 +746,12 @@ service cloud.firestore {
         && !s.repondoAntes
         && s.repondoDepois
         && c.get('alunoId', '') == q.id
-        && !('usadoEm' in c)
         && c.get('unidadeId', '') == v.unidadeId
         && v.data <= c.get('validoAte', '')
-        && !(c.get('origem', {}).get('turmaId', '') == v.turmaId && c.get('origem', {}).get('data', '') == v.data)
-        && cDepois.get('usadoEm', null) == {'turmaId': v.turmaId, 'data': v.data}
-        && ocupadasDepois(aulaId) == v.ocupadas + 1
-        && ocupadasDepois(aulaId) <= v.capacidade;
+        && c.get('origem', {}).get('turmaId', '') + '_' + c.get('origem', {}).get('data', '') != aulaId
+        && c.get('usadoEm', null) == {'turmaId': v.turmaId, 'data': v.data}
+        && ocupadas == v.ocupadas + 1
+        && ocupadas <= v.capacidade;
     }
 
     // desistir da reposição: no prazo e antes de ter presença marcada
@@ -707,25 +764,27 @@ service cloud.firestore {
         && ocupadasDepois(aulaId) == v.ocupadas - 1;
     }
 
+    // o registro nasce com o aluno: antes não havia nada (o documento não existia)
     function alunoCriaRegistro(q, aulaId) {
       let r = request.resource.data;
       let v = vagaDaAula(aulaId);
-      let s = situacaoNaAula(q, aulaId);
+      let s = situacaoDoRegistro(q, {}, r);
       return registroDoAluno(aulaId, v, r)
-        && ((marcacoes(r).keys().hasOnly([q.id]) && marcacoes(r).size() == 1 && reposicoes(r).size() == 0
-              && avisoValido(q, aulaId, v, s))
-          || (reposicoes(r).keys().hasOnly([q.id]) && reposicoes(r).size() == 1 && marcacoes(r).size() == 0
-              && encaixeValido(q, aulaId, v, s)));
+        && (('reposicoes' in r)
+          ? (reposicoes(r).keys().hasOnly([q.id]) && reposicoes(r).size() == 1 && marcacoes(r).size() == 0
+              && encaixeValido(q, aulaId, v, s))
+          : (marcacoes(r).keys().hasOnly([q.id]) && marcacoes(r).size() == 1
+              && avisoValido(q, aulaId, v, s)));
     }
 
     function alunoAlteraRegistro(q, aulaId) {
       let r = request.resource.data;
       let v = vagaDaAula(aulaId);
-      let s = situacaoNaAula(q, aulaId);
+      let s = situacaoDoRegistro(q, resource.data, r);
       let marcacoesMudaram = marcacoes(r).diff(marcacoes(resource.data)).affectedKeys();
       let reposicoesMudaram = reposicoes(r).diff(reposicoes(resource.data)).affectedKeys();
       return registroDoAluno(aulaId, v, r)
-        && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data', 'cancelamento'])
+        && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data'])
         && (
           // avisar ou desfazer o aviso: só a marcação dele muda (quem já avisou só pode desfazer;
           // escolher um caminho só, em vez de tentar os dois, poupa o teto de expressões)
@@ -750,14 +809,21 @@ service cloud.firestore {
           // encaixou ou desfez o aviso: ocupa um lugar, sem passar da capacidade
           || (novo == antes + 1
             && novo <= resource.data.capacidade
-            && ((!s.repondoAntes && s.repondoDepois && !fixoNaAula(q, resource.data))
+            && ((!s.repondoAntes && s.repondoDepois && !fixoNaAula(q, resource.data) && creditoLivreAntes(s))
               || (s.avisouAntes && !s.avisouDepois && semCreditoDoAviso(q, resource.data))))
         );
     }
 
-    // As duas conferências abaixo moram na regra da vaga, que vai em todo aviso e todo encaixe,
-    // porque as regras do registro do aluno já chegam perto do teto de 1000 expressões por
-    // pedido (medido no emulador: poucas comparações a mais e o encaixe legítimo é recusado).
+    // As três conferências abaixo moram na regra da vaga, que vai em todo aviso e todo encaixe:
+    // é o documento com mais folga no teto de 1000 expressões por pedido (a folga de cada
+    // caminho do aluno é medida em testes-de-regras/folga.test.ts).
+
+    // O crédito gasto neste encaixe estava livre antes do lote. A regra do registro só lê o
+    // crédito como fica depois (poupa uma leitura e expressões); sem esta conferência, um crédito
+    // que já apontasse para esta aula serviria de novo sem ser tocado no lote.
+    function creditoLivreAntes(s) {
+      return !('usadoEm' in dados(caminho('creditos', s.creditoDepois), {}));
+    }
 
     // Desfazer o aviso devolve o crédito que ele gerou, no mesmo lote: sem isso o aluno voltava
     // para a aula e ficava com a reposição. O crédito já usado não pode ser apagado, então o
@@ -895,14 +961,25 @@ service cloud.firestore {
 
     // ---------- página pública ----------
 
+    // As unidades vão num mapa id -> 'nome|endereco' (nome até 60, endereço até 160, sem barra
+    // vertical nem quebra de linha): chaves e valores conferidos de uma vez, como os horários.
+    function unidadesPublicasValidas(u) {
+      return u is map && u.size() <= 10
+        && ids(u.keys(), 10)
+        && u.values().join('\n').matches('^([^|\n]{1,60}[|][^|\n]{0,160}(\n[^|\n]{1,60}[|][^|\n]{0,160})*)?$')
+        && listaDeTextos(u.values(), u.values().join('\n'), '\n');
+    }
+
+    // Só o que a página mostra: nome, WhatsApp, unidades (nome e endereço), se a aula
+    // experimental está aberta e os horários com vaga (um texto por horário, sem nomes).
     function publicoValido(p) {
       return p.keys().hasAll(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
         && p.keys().hasOnly(['nomeEstudio', 'whatsapp', 'unidades', 'experimental', 'horarios', 'atualizadoEm'])
         && texto(p.nomeEstudio, 2, 80)
         && ehTelefone(p.whatsapp)
-        && p.unidades is list && p.unidades.size() <= 10
+        && unidadesPublicasValidas(p.unidades)
         && p.experimental is bool
-        && p.horarios is list && p.horarios.size() <= 120
+        && horariosPublicos(p.horarios)
         && ehInstante(p.atualizadoEm);
     }
 

@@ -8,7 +8,7 @@ import type { Firestore } from 'firebase/firestore'
 import { gerarSemente } from '../../src/dados/demonstracao/semente'
 import { documentoDoMembro } from '../../src/dados/firebase/conversao'
 import { momentoDe } from '../../src/dominio/datas'
-import { paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
+import { documentoDaPaginaPublica, paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
 import { AUTH, CHAVE_DO_EMULADOR, CONTAS, contaDeSenhaDoMotor, convidadoDoMotor, EXCLUIDO_DO_MOTOR, FIRESTORE, MOTORES, PROJETO, projetoVazio, SENHA } from './contas'
 
@@ -116,7 +116,7 @@ export default async function preparar(): Promise<void> {
   for (const p of Object.values(banco.pagamentos)) documentos.push([`pagamentos/${p.id}`, limpo(p)])
   for (const [id, v] of vagasDaJanela(estado, momentoDe(agora).data, instante)) documentos.push([`vagas/${id}`, limpo(v)])
   for (const [id, p] of portaisDosAlunos(estado, instante)) documentos.push([`portal/${id}`, limpo(p)])
-  documentos.push(['publico/estudio', limpo(paginaPublica(estado, momentoDe(agora), instante))])
+  documentos.push(['publico/estudio', limpo(documentoDaPaginaPublica(paginaPublica(estado, momentoDe(agora), instante)))])
 
   const ambiente = await initializeTestEnvironment({
     projectId: PROJETO,

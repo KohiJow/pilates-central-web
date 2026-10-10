@@ -63,6 +63,7 @@ describe('vaga da aula', () => {
       capacidade: 5,
       ocupadas: 3,
       cancelada: false,
+      comecaEm: Date.UTC(2026, 9, 9, 10, 0),
       atualizadoEm: instante,
     })
     expect(JSON.stringify(vaga)).not.toMatch(/a1|a2|a3|a4/)
@@ -166,5 +167,44 @@ describe('página pública', () => {
     expect(p.experimental).toBe(true)
     expect(p.horarios.map((h) => h.data)).toEqual([SEXTA, '2026-10-16', '2026-10-23'])
     expect(p.horarios[0]).toEqual({ data: SEXTA, inicio: '07:00', fim: '07:50', unidadeId: 'u-centro', vagas: 1 })
+  })
+})
+
+describe('o documento público com os horários em texto', () => {
+  it('vai e volta sem perder nada, e o que não tem a forma fica de fora', async () => {
+    const { codificarHorario, decodificarHorario, documentoDaPaginaPublica } = await import('./projecoes')
+    const h = { data: '2026-10-13', inicio: '18:00', fim: '18:50', unidadeId: 'u-centro', vagas: 2 }
+    expect(codificarHorario(h)).toBe('2026-10-13 18:00-18:50 u-centro 2')
+    expect(decodificarHorario(codificarHorario(h))).toEqual(h)
+    expect(decodificarHorario('2026-10-13 18:00-18:50 u-centro 30')?.vagas).toBe(30)
+    for (const torto of ['', '2026-10-13 18:00-18:50 u-centro 31', '2026-13-01 18:00-18:50 u 1', '2026-10-13 24:00-18:50 u 1', 'x', 7, null]) {
+      expect(decodificarHorario(torto), String(torto)).toBeNull()
+    }
+    const pagina = {
+      nomeEstudio: 'E',
+      whatsapp: '',
+      unidades: [{ id: 'u-centro', nome: 'Centro', endereco: 'Rua A|B, 1\nsala 2' }],
+      experimental: true,
+      horarios: [h],
+      atualizadoEm: 'x',
+    }
+    const documento = documentoDaPaginaPublica(pagina)
+    expect(documento.horarios).toEqual(['2026-10-13 18:00-18:50 u-centro 2'])
+    // a unidade vira 'nome|endereco', sem barra nem quebra de linha dentro
+    expect(documento.unidades).toEqual({ 'u-centro': 'Centro|Rua A B, 1 sala 2' })
+    const { decodificarUnidade } = await import('./projecoes')
+    expect(decodificarUnidade('u-centro', 'Centro|Rua Exemplo, 100')).toEqual({ id: 'u-centro', nome: 'Centro', endereco: 'Rua Exemplo, 100' })
+    expect(decodificarUnidade('u-centro', 'Centro|')).toEqual({ id: 'u-centro', nome: 'Centro', endereco: '' })
+    expect(decodificarUnidade('u centro', 'Centro|')).toBeNull()
+    expect(decodificarUnidade('u-centro', 'sem barra')).toBeNull()
+    expect(decodificarUnidade('u-centro', '|sem nome')).toBeNull()
+    expect(decodificarUnidade('u-centro', { nome: 'x' })).toBeNull()
+  })
+
+  it('a vaga leva o início da aula em milissegundos, na conta das regras (UTC-3)', async () => {
+    const { inicioDaAulaEmMs } = await import('./datas')
+    // 13/10/2026 às 18h em Campinas = 21h UTC
+    expect(inicioDaAulaEmMs('2026-10-13', '18:00')).toBe(Date.UTC(2026, 9, 13, 21, 0))
+    expect(inicioDaAulaEmMs('2026-01-01', '00:30')).toBe(Date.UTC(2026, 0, 1, 3, 30))
   })
 })
