@@ -116,6 +116,18 @@ export type Marcacao = 'presente' | 'faltou' | 'avisou'
 export type MotivoCancelamento = 'feriado' | 'estudio'
 
 /**
+ * Quem vem fazer uma aula experimental: ainda não é aluno, só nome e WhatsApp, registrados pela
+ * equipe na própria aula (ocupa um lugar e entra na chamada). Fica no registro da aula, que só a
+ * equipe lê. Quando a pessoa vira aluno, o cadastro que nasceu daqui fica apontado.
+ */
+export interface Experimental {
+  nome: string
+  /** só dígitos, com DDI */
+  telefone: string
+  alunoId?: Id
+}
+
+/**
  * Exceções guardadas de uma aula (a ocorrência de uma turma numa data).
  * A aula em si é derivada da turma; só o que foge da regra é gravado.
  */
@@ -125,10 +137,12 @@ export interface RegistroAula {
   turmaId: Id
   unidadeId: Id
   data: DataISO
-  /** presença por aluno (fixos e reposições); ausência da chave = ainda não marcado */
+  /** presença por aluno (fixos, reposições e experimentais); ausência da chave = ainda não marcado */
   marcacoes: Record<Id, Marcacao>
   /** reposições encaixadas nesta aula: aluno -> crédito usado */
   reposicoes: Record<Id, Id>
+  /** aulas experimentais registradas nesta aula: código -> quem vem */
+  experimentais?: Record<Id, Experimental>
   cancelamento?: { motivo: MotivoCancelamento; observacao: string }
   atualizadoEm: Instante
 }
@@ -268,14 +282,17 @@ export interface PaginaPublica {
 
 // ---------- visões derivadas (calculadas, nunca gravadas) ----------
 
-export type OrigemParticipante = 'fixo' | 'reposicao'
+export type OrigemParticipante = 'fixo' | 'reposicao' | 'experimental'
 
 export interface Participante {
+  /** id do aluno; na aula experimental, o código do registro da pessoa (ela ainda não é aluno) */
   alunoId: Id
   origem: OrigemParticipante
   /** undefined = ainda não marcado */
   marcacao?: Marcacao
   creditoId?: Id
+  /** quem vem experimentar (só quando a origem é experimental) */
+  experimental?: Experimental
 }
 
 export interface Aula {

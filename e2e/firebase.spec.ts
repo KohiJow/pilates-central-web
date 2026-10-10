@@ -56,6 +56,32 @@ test.describe('Firebase (emuladores)', () => {
     await expect(page.locator('.lista-item').first()).toBeVisible()
   })
 
+  test('o professor registra quem vem experimentar pelo Hoje, e o registro vai para o banco em texto', async ({ page }, info) => {
+    await entrarComo(page, CONTAS.professor.email)
+    await expect(page.getByRole('heading', { level: 1, name: /Camila/ })).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Registrar aula experimental' }).click()
+    await esperarFolhaParada(page)
+    await folha(page).locator('.opcao-aula').first().click()
+    const nome = `Visita ${info.project.name}`
+    await folha(page).getByRole('textbox', { name: 'Nome' }).fill(nome)
+    await folha(page).getByRole('textbox', { name: 'WhatsApp' }).fill('11900000091')
+    await folha(page).getByRole('button', { name: /^Registrar / }).click()
+    await expect(aviso(page, /vem experimentar/)).toBeVisible({ timeout: 15_000 })
+    await expect(folha(page)).toHaveCount(0)
+
+    // no banco (sem regras): o registro da aula leva a pessoa numa linha 'Nome|telefone'
+    const registrada = async () => {
+      const r = await fetch(`${FIRESTORE}/v1/projects/demo-pilates/databases/(default)/documents:runQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+        body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'registros' }] } }),
+      })
+      const docs = ((await r.json()) as { document?: { fields: Record<string, unknown> } }[]).filter((d) => d.document)
+      return docs.some((d) => JSON.stringify(d.document?.fields?.experimentais ?? {}).includes(`"${nome}|5511900000091"`))
+    }
+    await expect.poll(registrada, { timeout: 15_000 }).toBe(true)
+  })
+
   test('o aluno avisa a falta, ganha a reposição e remarca numa aula com vaga', async ({ page }, info) => {
     const aluno = alunoDoMotor(info)
     await entrarComo(page, aluno.email)

@@ -1,4 +1,5 @@
 import type { JSX } from 'preact'
+import { useState } from 'preact/hooks'
 import { abrirEm, irPara } from '../app/navegacao'
 import { hoje, momento } from '../app/relogio'
 import { membro as membroAtual, papel } from '../app/perfil'
@@ -21,6 +22,7 @@ import type { PessoaNaAula } from '../dominio/resumo'
 import { plural, primeiroNome } from '../dominio/texto'
 import type { Aula } from '../dominio/tipos'
 import { abrirAula } from './chamada/aulaAberta'
+import { FolhaDeExperimental } from './chamada/FolhaDeExperimental'
 import { tituloDaAula } from './chamada/textos'
 
 function saudacao(minutos: number): string {
@@ -57,6 +59,7 @@ export function Hoje() {
   const depois = resumo.proximas.filter((a) => a !== proxima)
   // aula que já acabou sem chamada completa: entre uma aula e outra, é o que o professor resolve
   const porFazer = aulas.filter((a) => !a.cancelamento && faseDaAula(a, agora) === 'encerrada' && contarMarcacoes(a).pendente > 0)
+  const [registrandoExperimental, setRegistrandoExperimental] = useState(false)
 
   return (
     <section class="tela" aria-labelledby="titulo-hoje">
@@ -157,10 +160,22 @@ export function Hoje() {
             vazio="Ninguém avisou falta hoje."
           />
           <ListaDePessoas id="titulo-reposicoes" titulo="Reposições de hoje" pessoas={resumo.reposicoes} vazio="Nenhuma reposição hoje." />
+          {resumo.experimentais.length > 0 && (
+            <ListaDePessoas id="titulo-experimentais" titulo="Aulas experimentais de hoje" pessoas={resumo.experimentais} vazio="" />
+          )}
           <ParaOlhar />
           {resumo.canceladas > 0 && (
             <p class="texto-secundario">{plural(resumo.canceladas, 'aula cancelada', 'aulas canceladas')} hoje.</p>
           )}
+        </>
+      )}
+      {/* também no dia sem aula: quem pediu pelo WhatsApp entra numa aula com vaga dos próximos dias */}
+      {situacao.value === 'pronto' && (
+        <>
+          <Botao variante="secundario" icone="convidar" largo onClick={() => setRegistrandoExperimental(true)}>
+            Registrar aula experimental
+          </Botao>
+          <FolhaDeExperimental aberta={registrandoExperimental} aoFechar={() => setRegistrandoExperimental(false)} />
         </>
       )}
     </section>
@@ -313,11 +328,11 @@ function ListaDePessoas({ id, titulo, pessoas, vazio }: { id: string; titulo: st
         <p class="texto-secundario">{vazio}</p>
       ) : (
         <ul class="lista">
-          {pessoas.map(({ alunoId, aula }) => (
+          {pessoas.map(({ alunoId, aula, nome }) => (
             <li key={`${alunoId}-${aula.id}`}>
               <button type="button" class="lista-item tocavel" onClick={() => abrirAula(aula.id)}>
                 <span class="lista-item-texto">
-                  <span class="lista-item-titulo">{nomeDoAluno(alunoId)}</span>
+                  <span class="lista-item-titulo">{nome ?? nomeDoAluno(alunoId)}</span>
                   <span class="lista-item-sub">
                     Aula das {horaFalada(aula.inicio)}, {nomeDaUnidade(aula.unidadeId)}
                   </span>

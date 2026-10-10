@@ -39,6 +39,14 @@ describe('frequência', () => {
     expect(todas[0]?.aula.data).toBe('2026-09-25')
   })
 
+  it('quem veio experimentar não entra na frequência (não é aluno)', () => {
+    const r = registro({ turmaId: t.id, data: '2026-10-09', marcacoes: { 'x-1': 'presente' }, experimentais: { 'x-1': { nome: 'Joana Prado', telefone: '5511900000077' } } })
+    const comExperimental = montarAula(t, '2026-10-09', r)
+    expect(comExperimental.participantes.some((p) => p.origem === 'experimental')).toBe(true)
+    const participacoes = participacoesNoPeriodo(['2026-10-09'], () => [comExperimental])
+    expect(participacoes.map((p) => p.participante.alunoId)).toEqual(['a1', 'a2', 'a3', 'a4'])
+  })
+
   it('por aluno: conta só aula que já aconteceu ou que tem marcação', () => {
     const porAluno = agruparPorAluno(todas)
     // a aula das 7h de hoje (16/10) já terminou e só tem a falta de a1: os outros ficam sem chamada

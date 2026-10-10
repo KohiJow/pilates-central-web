@@ -561,10 +561,21 @@ service cloud.firestore {
       return r.get('reposicoes', {});
     }
 
+    // Quem vem fazer a aula experimental, registrado pela equipe na própria aula: um mapa de
+    // código -> 'Nome|telefone' (ou 'Nome|telefone|alunoId', depois que a pessoa virou aluno).
+    // Nome até 80 sem barra vertical nem quebra de linha, telefone só dígitos, até 10 por aula
+    // (MAXIMO_DE_EXPERIMENTAIS em src/dominio/aulaExperimental.ts). Só a equipe lê o registro.
+    function experimentaisValidos(e) {
+      return e is map && e.size() <= 10
+        && ids(e.keys(), 10)
+        && e.values().join('\n').matches('^([^|\n]{1,80}[|][0-9]{0,15}([|][A-Za-z0-9_-]{1,120})?(\n[^|\n]{1,80}[|][0-9]{0,15}([|][A-Za-z0-9_-]{1,120})?)*)?$')
+        && listaDeTextos(e.values(), e.values().join('\n'), '\n');
+    }
+
     // o registro como a equipe grava, com cada marcação e reposição conferida
     function registroValido(id, r) {
       return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'atualizadoEm'])
-        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'cancelamento', 'atualizadoEm'])
+        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'experimentais', 'cancelamento', 'atualizadoEm'])
         && r.id == id
         && id == r.turmaId + '_' + r.data
         && ehId(r.turmaId)
@@ -573,6 +584,7 @@ service cloud.firestore {
         && marcacoes(r) is map && ids(marcacoes(r).keys(), 40)
         && marcacoes(r).values().hasOnly(['presente', 'faltou', 'avisou'])
         && reposicoes(r) is map && ids(reposicoes(r).keys(), 30) && ids(reposicoes(r).values(), 30)
+        && (!('experimentais' in r) || experimentaisValidos(r.experimentais))
         && (!('cancelamento' in r) || (r.cancelamento is map
               && r.cancelamento.keys().hasOnly(['motivo', 'observacao'])
               && r.cancelamento.motivo in ['feriado', 'estudio']
@@ -691,10 +703,12 @@ service cloud.firestore {
     // O registro escrito pelo aluno: a mesma aula da vaga (turma, unidade e data já conferidas
     // quando a equipe gravou a vaga), sem cancelamento, só com os campos de sempre. É a versão
     // enxuta de registroValido: o que o aluno pode mudar nas marcações e reposições é conferido
-    // chave a chave em avisoValido, encaixeValido e companhia.
+    // chave a chave em avisoValido, encaixeValido e companhia. As aulas experimentais que a
+    // equipe registrou ficam no documento (a mescla do aluno não as toca): ele não cria nem muda
+    // esse mapa (ver alunoCriaRegistro e alunoAlteraRegistro).
     function registroDoAluno(aulaId, v, r) {
       return r.keys().hasAll(['id', 'turmaId', 'unidadeId', 'data', 'atualizadoEm'])
-        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'atualizadoEm'])
+        && r.keys().hasOnly(['id', 'turmaId', 'unidadeId', 'data', 'marcacoes', 'reposicoes', 'experimentais', 'atualizadoEm'])
         && r.id == aulaId
         && v.get('turmaId', '') == r.turmaId
         && v.get('unidadeId', '') == r.unidadeId
@@ -770,6 +784,7 @@ service cloud.firestore {
       let v = vagaDaAula(aulaId);
       let s = situacaoDoRegistro(q, {}, r);
       return registroDoAluno(aulaId, v, r)
+        && !('experimentais' in r)
         && (('reposicoes' in r)
           ? (reposicoes(r).keys().hasOnly([q.id]) && reposicoes(r).size() == 1 && marcacoes(r).size() == 0
               && encaixeValido(q, aulaId, v, s))
@@ -784,7 +799,7 @@ service cloud.firestore {
       let marcacoesMudaram = marcacoes(r).diff(marcacoes(resource.data)).affectedKeys();
       let reposicoesMudaram = reposicoes(r).diff(reposicoes(resource.data)).affectedKeys();
       return registroDoAluno(aulaId, v, r)
-        && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data'])
+        && !mudou().hasAny(['id', 'turmaId', 'unidadeId', 'data', 'experimentais'])
         && (
           // avisar ou desfazer o aviso: só a marcação dele muda (quem já avisou só pode desfazer;
           // escolher um caminho só, em vez de tentar os dois, poupa o teto de expressões)

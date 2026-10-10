@@ -26,6 +26,7 @@ import type { RascunhoTurma } from '../dominio/turmas'
 import { desativarUnidade, montarUnidade, validarUnidade } from '../dominio/unidades'
 import type { RascunhoUnidade } from '../dominio/unidades'
 import { exclusaoDoAluno } from '../dominio/privacidade'
+import { vincularAluno } from '../dominio/aulaExperimental'
 import { ehEmailValido } from '../dominio/texto'
 import { alunosPorId, base, creditos, equipePorId, financeiro, gravarComDesfazer, pagamentos, registros } from './estado'
 
@@ -55,11 +56,18 @@ const situacaoDe = (id: Id) => alunosPorId.peek().get(id)?.situacao
 
 // ---------- alunos ----------
 
+/** De que aula experimental o cadastro nasceu: o registro dela passa a apontar para o aluno novo. */
+export interface OrigemExperimental {
+  aulaId: string
+  experimentalId: Id
+}
+
 /** Cadastra ou atualiza o aluno (e o plano, quando quem salva é a administração). */
 export async function salvarAluno(
   r: RascunhoAluno,
   plano: RascunhoPlano | null,
   alunoId?: Id,
+  origem?: OrigemExperimental,
 ): Promise<Resultado<{ aluno: Aluno }>> {
   const b = base.peek()
   if (!b) return recusado('nada-a-fazer', 'Os dados ainda não carregaram.')
@@ -72,7 +80,13 @@ export async function salvarAluno(
   const aluno = montarAluno(r, alunoId ?? idNovo('a'), anterior)
   const finAtual = financeiro.peek().get(aluno.id)
   const fin = plano ? montarFinanceiro(plano, aluno) : finAtual ? { ...finAtual, unidadeId: aluno.unidadeId } : undefined
-  const g = await gravarComDesfazer({ alunos: [aluno], ...(fin ? { financeiro: [fin] } : {}) })
+  const registroDaExperimental = origem ? registros.peek().get(origem.aulaId) : undefined
+  const vinculado = registroDaExperimental && !anterior ? vincularAluno(registroDaExperimental, origem?.experimentalId ?? '', aluno.id, agoraDoApp().toISOString()) : null
+  const g = await gravarComDesfazer({
+    alunos: [aluno],
+    ...(fin ? { financeiro: [fin] } : {}),
+    ...(vinculado ? { registros: [vinculado] } : {}),
+  })
   return g.ok ? aceito({ aluno }) : g
 }
 

@@ -2,6 +2,8 @@ import { batch, computed, signal } from '@preact/signals'
 import { agoraDoApp, momento } from '../app/relogio'
 import { aulasDoDia, montarAula } from '../dominio/agenda'
 import type { FiltroDoDia } from '../dominio/agenda'
+import { registrarExperimental as registrarExperimentalNaAula, tirarExperimental as tirarExperimentalDaAula } from '../dominio/aulaExperimental'
+import type { RascunhoExperimental } from '../dominio/aulaExperimental'
 import { momentoDe, somarDias } from '../dominio/datas'
 import { concederCredito, marcar, marcarTodosPresentes } from '../dominio/presenca'
 import type { Alteracoes, Contexto } from '../dominio/presenca'
@@ -15,11 +17,13 @@ import type {
   Competencia,
   CreditoReposicao,
   DataISO,
+  Experimental,
   FinanceiroDoAluno,
   Id,
   Marcacao,
   MembroEquipe,
   Pagamento,
+  Participante,
   RegistroAula,
 } from '../dominio/tipos'
 import { inversoDe } from './desfazer'
@@ -55,6 +59,11 @@ const ativos = computed(() => new Set((base.value?.alunos ?? []).filter((a) => a
 
 export function nomeDoAluno(id: Id): string {
   return alunosPorId.value.get(id)?.nome ?? 'Aluno removido'
+}
+
+/** O nome de quem está na aula: aluno pelo cadastro, experimental pelo próprio registro. */
+export function nomeDoParticipante(p: Participante): string {
+  return p.origem === 'experimental' ? (p.experimental?.nome ?? 'Aula experimental') : nomeDoAluno(p.alunoId)
 }
 
 export function nomeDaEquipe(id: Id): string {
@@ -377,6 +386,24 @@ export function reabrir(idAula: string) {
     const aula = aulaPorId(idAula)
     if (!aula) return semAula()
     const r = reabrirAula(aula, registros.peek().get(idAula), buscaCredito, contexto())
+    return r.ok ? aceito({ alteracoes: r.valor }) : r
+  })
+}
+
+/** Registra quem vem fazer a aula experimental (nome e WhatsApp) numa aula com vaga. */
+export function registrarExperimental(idAula: string, id: Id, rascunho: RascunhoExperimental) {
+  return executar<{ experimental: Experimental }>(() => {
+    const aula = aulaPorId(idAula)
+    if (!aula) return semAula()
+    return registrarExperimentalNaAula(aula, registros.peek().get(idAula), id, rascunho, contexto())
+  })
+}
+
+export function tirarExperimental(idAula: string, id: Id) {
+  return executar<object>(() => {
+    const aula = aulaPorId(idAula)
+    if (!aula) return semAula()
+    const r = tirarExperimentalDaAula(aula, registros.peek().get(idAula), id, contexto())
     return r.ok ? aceito({ alteracoes: r.valor }) : r
   })
 }

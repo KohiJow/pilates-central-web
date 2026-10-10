@@ -59,6 +59,7 @@ import {
   camposAlterados,
   configuracaoDoDocumento,
   documentoDoMembro,
+  documentoDoRegistro,
   membroDoDocumento,
   mesclarRegistro,
   mudancaDeLista,
@@ -337,7 +338,7 @@ export function criarRepositorioDaEquipe(sdk: Sdk, sessao: SessaoDaEquipe): Repo
       gravarCadastros(tx, antes, g, instante)
       for (const ref of acessosDosExcluidos) tx.delete(ref)
       for (const ref of pagamentosDosExcluidos) tx.update(ref, { observacao: '' })
-      for (const m of mesclados) tx.set(doc(db, 'registros', m.id), semIndefinidos(m))
+      for (const m of mesclados) tx.set(doc(db, 'registros', m.id), documentoDoRegistro(m))
       for (const id of afetadas) {
         const noBanco = vagasNoBanco.get(id)
         const final = vagasFinal.get(id) ?? (noBanco ? { ...noBanco, cancelada: true, atualizadoEm: instante } : undefined)

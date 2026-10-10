@@ -22,6 +22,11 @@ export function inversoDe(
     }
     reverterCampo(novo.marcacoes, anterior?.marcacoes ?? {}, depois.marcacoes)
     reverterCampo(novo.reposicoes, anterior?.reposicoes ?? {}, depois.reposicoes)
+    if (anterior?.experimentais || depois.experimentais || atual.experimentais) {
+      novo.experimentais = { ...atual.experimentais }
+      reverterCampo(novo.experimentais, anterior?.experimentais ?? {}, depois.experimentais ?? {})
+      if (Object.keys(novo.experimentais).length === 0) delete novo.experimentais
+    }
     if (JSON.stringify(anterior?.cancelamento) !== JSON.stringify(depois.cancelamento)) {
       if (anterior?.cancelamento) novo.cancelamento = { ...anterior.cancelamento }
       else delete novo.cancelamento
@@ -38,9 +43,11 @@ export function inversoDe(
   return { registros, creditos, creditosRemovidos }
 }
 
+const igual = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
+
 function reverterCampo<V>(alvo: Record<string, V>, antes: Record<string, V>, depois: Record<string, V>): void {
   for (const chave of new Set([...Object.keys(antes), ...Object.keys(depois)])) {
-    if (antes[chave] === depois[chave]) continue
+    if (igual(antes[chave], depois[chave])) continue
     const valor = antes[chave]
     if (valor === undefined) delete alvo[chave]
     else alvo[chave] = valor

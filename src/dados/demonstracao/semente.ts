@@ -4,7 +4,8 @@
 // mensalidades, com algumas em aberto.
 // Tudo é montado com as mesmas regras do domínio que o app usa, então os dados nunca
 // contradizem as regras (lotação, validade do crédito, reposição só com vaga).
-import { aulasDoDia, idDaAula, montarAula } from '../../dominio/agenda'
+import { aulasDoDia, idDaAula, montarAula, turmaAconteceEm } from '../../dominio/agenda'
+import { registrarExperimental } from '../../dominio/aulaExperimental'
 import { CONFIGURACAO_PADRAO } from '../../dominio/configuracao'
 import { deslocarCompetencia, FORMAS, ultimasCompetencias, ultimoDiaDaCompetencia } from '../../dominio/pagamentos'
 import {
@@ -45,7 +46,8 @@ import type { Aleatorio } from './aleatorio'
 // 2: papéis da administração, financeiro separado do aluno, seis meses de mensalidades
 // 3: acesso do aluno e página pública ligados, alguns alunos com acesso liberado
 // 4: endereço fictício também na unidade Centro (quem já tinha a 3 no aparelho ganha a nova)
-export const VERSAO_DO_BANCO = 4
+// 5: uma aula experimental registrada na aula de sábado de manhã
+export const VERSAO_DO_BANCO = 5
 
 export interface BancoDeDemonstracao {
   versao: typeof VERSAO_DO_BANCO
@@ -507,6 +509,7 @@ export function gerarSemente(agora: Date, semente = 20261009): BancoDeDemonstrac
   }
 
   sumirDasUltimasAulas(m, turmaPorId, alunos, inicio, hoje)
+  registrarExperimentalDeSabado(m, turmaPorId, hoje)
 
   return {
     versao: VERSAO_DO_BANCO,
@@ -549,6 +552,23 @@ function sumirDasUltimasAulas(m: Montagem, turmaPorId: ReadonlyMap<Id, Turma>, a
     const ultimas = (passadas.get(aluno.id) ?? []).slice(-3)
     if (ultimas.length < 3 || !ultimas.every((u) => u.marcacao === 'presente' && u.origem === 'fixo')) continue
     for (const u of ultimas) m.marcar(u.turma, u.data, aluno.id, 'faltou', { data: u.data, minutos: 23 * 60 })
+    return
+  }
+}
+
+/**
+ * Alguém que pediu a aula experimental pelo WhatsApp e foi registrada pela equipe na aula de
+ * sábado de manhã do Centro (a próxima a partir de hoje). Sem sorteio: não muda o resto.
+ */
+function registrarExperimentalDeSabado(m: Montagem, turmaPorId: ReadonlyMap<Id, Turma>, hoje: DataISO) {
+  const sabado = [...turmaPorId.values()].find((t) => t.unidadeId === 'u-centro' && t.diaDaSemana === 6)
+  if (!sabado) return
+  for (let d = hoje; d <= somarDias(hoje, 7); d = somarDias(d, 1)) {
+    const aula = m.aula(sabado, d)
+    if (!turmaAconteceEm(sabado, d) || aula.cancelamento || aula.vagas === 0) continue
+    const quando = { data: somarDias(d, -1), minutos: 16 * 60 }
+    const r = registrarExperimental(aula, m.registros.get(aula.id), 'x-demo-1', { nome: 'Juliana Prado', telefone: '5511900000090' }, m.contexto(quando))
+    if (r.ok) m.aplicar(r.valor.alteracoes)
     return
   }
 }

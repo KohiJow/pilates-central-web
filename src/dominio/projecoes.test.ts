@@ -83,6 +83,17 @@ describe('vaga da aula', () => {
     const e = estado([turma()], [], [aluno('a1', { situacao: 'pausado' })])
     expect(aulasDaJanela(e, SEXTA, 0)[0]?.ocupadas).toBe(3)
   })
+
+  it('quem vem experimentar ocupa lugar na vaga e na página pública, sem o nome em lugar nenhum', () => {
+    const r = registro({ turmaId: 't-sex-07', data: '2026-10-16', experimentais: { 'x-1': { nome: 'Joana Prado', telefone: '5511900000077' } } })
+    const e = estado([turma()], [r])
+    const vaga = vagasDaJanela(e, SEXTA, instante).get('t-sex-07_2026-10-16')
+    expect(vaga?.ocupadas).toBe(5)
+    expect(JSON.stringify(vaga)).not.toContain('Joana')
+    const pagina = paginaPublica(e, { data: SEXTA, minutos: 8 * 60 }, instante)
+    expect(pagina.horarios.find((h) => h.data === '2026-10-16')).toBeUndefined()
+    expect(JSON.stringify(pagina)).not.toContain('Joana')
+  })
 })
 
 describe('mudanças de vaga', () => {

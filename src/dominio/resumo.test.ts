@@ -24,8 +24,20 @@ describe('resumo do dia', () => {
     expect(r.presentes).toBe(2)
     expect(r.faltasAvisadas.map((f) => f.alunoId)).toEqual(['a2', 'b2'])
     expect(r.reposicoes.map((f) => f.alunoId)).toEqual(['z1'])
+    expect(r.experimentais).toEqual([])
     expect(r.proximas.map((a) => a.turmaId)).toEqual(['t18'])
     expect(r.emAndamento).toBeUndefined()
+  })
+
+  it('quem vem experimentar conta como esperado e aparece pelo nome', () => {
+    const comExperimental = montarAula(
+      t18,
+      SEXTA,
+      registro({ turmaId: 't18', data: SEXTA, experimentais: { 'x-1': { nome: 'Joana Prado', telefone: '5511900000077' } } }),
+    )
+    const r = resumoDoDia([comExperimental], { data: SEXTA, minutos: 10 * 60 })
+    expect(r.alunosEsperados).toBe(4)
+    expect(r.experimentais).toEqual([{ alunoId: 'x-1', aula: comExperimental, nome: 'Joana Prado' }])
   })
 
   it('aponta a aula em andamento', () => {

@@ -3,7 +3,7 @@ import { momento } from '../app/relogio'
 import { Card } from '../componentes/Card'
 import { Pilula } from '../componentes/Pilula'
 import { Vagas } from '../componentes/Vagas'
-import { nomeDaEquipe, nomeDaUnidade, nomeDoAluno } from '../dados/estado'
+import { nomeDaEquipe, nomeDaUnidade, nomeDoParticipante } from '../dados/estado'
 import { faseDaAula } from '../dominio/agenda'
 import { horaFalada } from '../dominio/datas'
 import { contarMarcacoes } from '../dominio/presenca'
@@ -15,7 +15,7 @@ import { tituloDaAula } from './chamada/textos'
 const MAX_NOMES = 4
 
 function linhaDeAlunos(aula: Aula): string {
-  const vem = aula.participantes.filter((p) => p.marcacao !== 'avisou').map((p) => primeiroNome(nomeDoAluno(p.alunoId)))
+  const vem = aula.participantes.filter((p) => p.marcacao !== 'avisou').map((p) => primeiroNome(nomeDoParticipante(p)))
   if (vem.length === 0) return 'Ninguém marcado'
   if (vem.length <= MAX_NOMES) return listaFalada(vem)
   return `${vem.slice(0, MAX_NOMES - 1).join(', ')} e mais ${vem.length - (MAX_NOMES - 1)}`
@@ -31,6 +31,7 @@ export function CartaoDeAula({ aula, mostrarUnidade, indice = 0 }: Props) {
   const fase = faseDaAula(aula, momento.value)
   const contagem = contarMarcacoes(aula)
   const reposicoes = aula.participantes.filter((p) => p.origem === 'reposicao').length
+  const experimentais = aula.participantes.filter((p) => p.origem === 'experimental').length
   const cancelada = Boolean(aula.cancelamento)
   const professor = primeiroNome(nomeDaEquipe(aula.professorId))
   const chamadaPendente = !cancelada && fase !== 'futura' && contagem.pendente > 0
@@ -63,6 +64,7 @@ export function CartaoDeAula({ aula, mostrarUnidade, indice = 0 }: Props) {
         {fase === 'agora' && !cancelada && <Pilula tom="acento">agora</Pilula>}
         {contagem.avisou > 0 && !cancelada && <Pilula>{plural(contagem.avisou, 'avisou', 'avisaram')}</Pilula>}
         {reposicoes > 0 && !cancelada && <Pilula>{plural(reposicoes, 'reposição', 'reposições')}</Pilula>}
+        {experimentais > 0 && !cancelada && <Pilula tom="acento">{plural(experimentais, 'experimental', 'experimentais')}</Pilula>}
         {chamadaPendente && <Pilula tom="alerta">chamada pendente</Pilula>}
         {!cancelada && fase === 'encerrada' && contagem.pendente === 0 && aula.participantes.length > 0 && (
           <Pilula tom="sucesso">chamada feita</Pilula>

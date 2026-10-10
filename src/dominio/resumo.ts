@@ -5,12 +5,14 @@ import type { Aula, Id } from './tipos'
 export interface PessoaNaAula {
   alunoId: Id
   aula: Aula
+  /** quem vem experimentar não tem cadastro: o nome vem junto */
+  nome?: string
 }
 
 export interface ResumoDoDia {
   totalDeAulas: number
   canceladas: number
-  /** lugares ocupados nas aulas do dia que vão acontecer (fixos sem aviso + reposições) */
+  /** lugares ocupados nas aulas do dia que vão acontecer (fixos sem aviso + reposições + experimentais) */
   alunosEsperados: number
   presentes: number
   /** aula em andamento agora, se houver */
@@ -19,6 +21,8 @@ export interface ResumoDoDia {
   proximas: Aula[]
   faltasAvisadas: PessoaNaAula[]
   reposicoes: PessoaNaAula[]
+  /** quem vem fazer aula experimental hoje */
+  experimentais: PessoaNaAula[]
 }
 
 export function resumoDoDia(aulas: readonly Aula[], agora: Momento): ResumoDoDia {
@@ -27,12 +31,14 @@ export function resumoDoDia(aulas: readonly Aula[], agora: Momento): ResumoDoDia
   const emAndamento = proximas.find((a) => faseDaAula(a, agora) === 'agora')
   const faltasAvisadas: PessoaNaAula[] = []
   const reposicoes: PessoaNaAula[] = []
+  const experimentais: PessoaNaAula[] = []
   let presentes = 0
   for (const aula of validas) {
     for (const p of aula.participantes) {
       if (p.marcacao === 'avisou') faltasAvisadas.push({ alunoId: p.alunoId, aula })
       if (p.marcacao === 'presente') presentes++
       if (p.origem === 'reposicao') reposicoes.push({ alunoId: p.alunoId, aula })
+      if (p.origem === 'experimental') experimentais.push({ alunoId: p.alunoId, aula, nome: p.experimental?.nome ?? '' })
     }
   }
   const resumo: ResumoDoDia = {
@@ -43,6 +49,7 @@ export function resumoDoDia(aulas: readonly Aula[], agora: Momento): ResumoDoDia
     proximas,
     faltasAvisadas,
     reposicoes,
+    experimentais,
   }
   if (emAndamento) resumo.emAndamento = emAndamento
   return resumo

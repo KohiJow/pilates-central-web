@@ -5,7 +5,7 @@
 //  - o cadastro da equipe guarda o uid de quem aceitou o convite, que o domínio não conhece;
 //  - marcações e reposições podem faltar no registro (o aluno grava só a dele).
 import { completarConfiguracao } from '../../dominio/configuracao'
-import type { Configuracao, Id, MembroEquipe, RegistroAula } from '../../dominio/tipos'
+import type { Configuracao, Experimental, Id, MembroEquipe, RegistroAula } from '../../dominio/tipos'
 
 /** Marca de "apagar este campo" (vira deleteField() na hora de gravar). */
 export const APAGAR = Symbol('apagar')
@@ -25,9 +25,48 @@ export function documentoDoMembro(m: MembroEquipe): Documento {
   return semIndefinidos({ ...m, papel: m.papel === 'titular' ? 'administrador' : m.papel })
 }
 
+// ---------- quem vem experimentar, no registro da aula ----------
+// No banco, cada pessoa vai numa linha de texto ('Nome|telefone' ou 'Nome|telefone|alunoId'):
+// as regras conferem o mapa inteiro com uma expressão, como fazem com a página pública.
+
+export function codificarExperimental(e: Experimental): string {
+  const nome = e.nome.replace(/[|\n\r]/g, ' ')
+  return e.alunoId ? `${nome}|${e.telefone}|${e.alunoId}` : `${nome}|${e.telefone}`
+}
+
+export function decodificarExperimental(v: unknown): Experimental | null {
+  if (typeof v !== 'string') return null
+  const [nome, telefone, alunoId] = v.split('|')
+  if (!nome || telefone === undefined) return null
+  return alunoId ? { nome, telefone, alunoId } : { nome, telefone }
+}
+
+function experimentaisDoDocumento(v: unknown): Record<Id, Experimental> | undefined {
+  if (typeof v !== 'object' || v === null) return undefined
+  const saida: Record<Id, Experimental> = {}
+  for (const [id, texto] of Object.entries(v as Record<string, unknown>)) {
+    const e = decodificarExperimental(texto)
+    if (e) saida[id] = e
+  }
+  return Object.keys(saida).length ? saida : undefined
+}
+
 export function registroDoDocumento(d: Documento): RegistroAula {
   const r = d as Partial<RegistroAula>
-  return { ...(r as RegistroAula), marcacoes: { ...(r.marcacoes ?? {}) }, reposicoes: { ...(r.reposicoes ?? {}) } }
+  const experimentais = experimentaisDoDocumento(d.experimentais)
+  const saida: RegistroAula = { ...(r as RegistroAula), marcacoes: { ...(r.marcacoes ?? {}) }, reposicoes: { ...(r.reposicoes ?? {}) } }
+  if (experimentais) saida.experimentais = experimentais
+  else delete saida.experimentais
+  return saida
+}
+
+/** O registro como vai para o banco: sem undefined e com quem vem experimentar em texto. */
+export function documentoDoRegistro(r: RegistroAula): Documento {
+  const d = semIndefinidos(r)
+  if (r.experimentais && Object.keys(r.experimentais).length) {
+    d.experimentais = Object.fromEntries(Object.entries(r.experimentais).map(([id, e]) => [id, codificarExperimental(e)]))
+  } else delete d.experimentais
+  return d
 }
 
 export function configuracaoDoDocumento(d: Documento | undefined): Configuracao {
@@ -57,11 +96,11 @@ export function camposAlterados(antes: Documento | undefined, depois: Documento)
   return saida
 }
 
-function aplicarMapa<V extends string>(fresco: Record<string, V>, antes: Record<string, V>, depois: Record<string, V>) {
+function aplicarMapa<V>(fresco: Record<string, V>, antes: Record<string, V>, depois: Record<string, V>) {
   const saida = { ...fresco }
   const chaves = new Set([...Object.keys(antes), ...Object.keys(depois)])
   for (const chave of chaves) {
-    if (antes[chave] === depois[chave]) continue
+    if (igual(antes[chave], depois[chave])) continue
     const novo = depois[chave]
     if (novo === undefined) delete saida[chave]
     else saida[chave] = novo
@@ -75,8 +114,8 @@ function aplicarMapa<V extends string>(fresco: Record<string, V>, antes: Record<
  * aula ao mesmo tempo não apagam a marcação uma da outra.
  */
 export function mesclarRegistro(fresco: RegistroAula | undefined, antes: RegistroAula | undefined, depois: RegistroAula): RegistroAula {
-  const base = fresco ?? { ...depois, marcacoes: {}, reposicoes: {} }
-  const de = antes ?? { ...depois, marcacoes: {}, reposicoes: {} }
+  const base = fresco ?? { ...depois, marcacoes: {}, reposicoes: {}, experimentais: {} }
+  const de = antes ?? { ...depois, marcacoes: {}, reposicoes: {}, experimentais: {} }
   const saida: RegistroAula = {
     ...base,
     id: depois.id,
@@ -87,6 +126,9 @@ export function mesclarRegistro(fresco: RegistroAula | undefined, antes: Registr
     reposicoes: aplicarMapa(base.reposicoes, de.reposicoes, depois.reposicoes),
     atualizadoEm: depois.atualizadoEm,
   }
+  const experimentais = aplicarMapa(base.experimentais ?? {}, de.experimentais ?? {}, depois.experimentais ?? {})
+  if (Object.keys(experimentais).length) saida.experimentais = experimentais
+  else delete saida.experimentais
   if (!igual(de.cancelamento, depois.cancelamento)) {
     if (depois.cancelamento) saida.cancelamento = depois.cancelamento
     else delete saida.cancelamento

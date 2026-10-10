@@ -21,7 +21,7 @@ import type { ErrosDeCampo } from '../../dominio/resultado'
 import { primeiroNome, telefoneLegivel } from '../../dominio/texto'
 import type { FormaPagamento, Id } from '../../dominio/tipos'
 import { focarPrimeiroErro } from '../formulario'
-import { unidadeDosAlunos } from './estadoDaLista'
+import { cadastroDeExperimental, unidadeDosAlunos } from './estadoDaLista'
 
 const PLANOS = [1, 2, 3, 4, 5]
 
@@ -36,14 +36,19 @@ function planoInicial(alunoId: Id | undefined, vezes: number): RascunhoPlano {
 export function FormularioDoAluno({ alunoId }: { alunoId?: Id }) {
   const anterior = alunoId ? alunosPorId.value.get(alunoId) : undefined
   const podeEditar = pode('editar-alunos')
+  // quem veio experimentar e vai virar aluno chega com nome, WhatsApp e unidade preenchidos
+  const [daExperimental] = useState(() => (alunoId ? null : cadastroDeExperimental.peek()))
+  useEffect(() => {
+    cadastroDeExperimental.value = null
+  }, [])
   const [r, setR] = useState<RascunhoAluno>(() =>
     anterior
       ? { ...rascunhoDe(anterior), telefone: anterior.telefone ? telefoneLegivel(anterior.telefone) : '' }
       : {
-          nome: '',
-          telefone: '',
+          nome: daExperimental?.nome ?? '',
+          telefone: daExperimental?.telefone ? telefoneLegivel(daExperimental.telefone) : '',
           email: '',
-          unidadeId: unidadeDosAlunos.peek() ?? unidades.peek()[0]?.id ?? '',
+          unidadeId: daExperimental?.unidadeId ?? unidadeDosAlunos.peek() ?? unidades.peek()[0]?.id ?? '',
           vezesPorSemana: 2,
           observacao: '',
           desde: hoje.peek(),
@@ -95,7 +100,7 @@ export function FormularioDoAluno({ alunoId }: { alunoId?: Id }) {
       return
     }
     setSalvando(true)
-    const feito = await salvarAluno(r, plano, alunoId)
+    const feito = await salvarAluno(r, plano, alunoId, daExperimental ? { aulaId: daExperimental.aulaId, experimentalId: daExperimental.experimentalId } : undefined)
     setSalvando(false)
     if (!feito.ok) return avisar({ texto: feito.mensagem, icone: 'info' })
     avisar({
@@ -117,6 +122,11 @@ export function FormularioDoAluno({ alunoId }: { alunoId?: Id }) {
         titulo={anterior ? anterior.nome : 'Novo aluno'}
         idTitulo="titulo-formulario"
       />
+      {daExperimental && (
+        <p class="texto-secundario">
+          {primeiroNome(daExperimental.nome)} fez a aula experimental e vai ficar: o nome e o WhatsApp já vieram de lá. Confira e complete o plano.
+        </p>
+      )}
       <form ref={formulario} class="formulario pilha" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo
           rotulo="Nome e sobrenome"

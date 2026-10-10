@@ -551,6 +551,15 @@
   text-underline-offset: 4px;
 }
 
+/* quem veio experimentar ainda não tem ficha: o nome fica só escrito, na mesma altura */
+.chamada-nome-texto {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  padding: 0 4px;
+  font-weight: 600;
+}
+
 /* endereço da página pública em Mais: legível e quebrando onde precisar */
 .endereco-da-pagina {
   font-size: 16px;

@@ -9,14 +9,17 @@ export interface Participacao {
   participante: Participante
 }
 
-/** Todas as participações nas aulas das datas pedidas, na ordem do calendário. */
+/**
+ * Todas as participações de alunos nas aulas das datas pedidas, na ordem do calendário. Quem
+ * veio experimentar fica de fora: não é aluno, e a frequência é do plano.
+ */
 export function participacoesNoPeriodo(datas: readonly DataISO[], aulasDoDia: (data: DataISO) => readonly Aula[]): Participacao[] {
   const saida: Participacao[] = []
   for (const data of [...datas].sort()) {
     const aulas = [...aulasDoDia(data)].sort((a, b) => a.inicio.localeCompare(b.inicio))
     for (const aula of aulas) {
       if (aula.cancelamento) continue
-      for (const participante of aula.participantes) saida.push({ aula, participante })
+      for (const participante of aula.participantes) if (participante.origem !== 'experimental') saida.push({ aula, participante })
     }
   }
   return saida

@@ -24,21 +24,25 @@ import {
   marcarTodosComoPresentes,
   nomeDaEquipe,
   nomeDaUnidade,
+  nomeDoParticipante,
   reabrir,
+  tirarExperimental,
   tirarReposicao,
 } from '../../dados/estado'
 import { faseDaAula } from '../../dominio/agenda'
 import { dataCurta, horaDe, horaFalada, minutosDe } from '../../dominio/datas'
 import { pode } from '../../dominio/permissoes'
 import { ABERTURA_DA_CHAMADA_MIN, chamadaAberta, contarMarcacoes, idDoCredito } from '../../dominio/presenca'
-import { normalizar, plural, primeiroNome } from '../../dominio/texto'
+import { linkDoWhatsApp, normalizar, plural, primeiroNome } from '../../dominio/texto'
 import type { Aula, Marcacao, MotivoCancelamento, Papel, Participante } from '../../dominio/tipos'
 import { abrirEm } from '../../app/navegacao'
+import { cadastroDeExperimental } from '../alunos/estadoDaLista'
 import { aulasDoCredito, confirmarEncaixe, ListaDeEncaixe, rotuloDoEncaixe } from '../reposicao/FolhaDeEncaixe'
 import { aulaAberta, fecharAula } from './aulaAberta'
+import { FormularioDeExperimental } from './FormularioDeExperimental'
 import { textoDaMarcacao, tituloDaAula } from './textos'
 
-type Etapa = 'chamada' | 'encaixe' | 'cancelar' | 'remarcar'
+type Etapa = 'chamada' | 'encaixe' | 'cancelar' | 'remarcar' | 'experimental'
 
 const ICONE_DA_MARCACAO: Record<Marcacao, NomeDoIcone> = { presente: 'presente', faltou: 'faltou', avisou: 'avisou' }
 
@@ -66,6 +70,8 @@ export function FolhaDaAula() {
   const contagem = contarMarcacoes(aula)
   const podeTodos = !aula.cancelamento && chamadaAberta(aula, momento.value) && contagem.pendente > 0
   const podeEncaixar = !aula.cancelamento && aula.vagas > 0 && fase !== 'encerrada'
+  // quem pediu a aula experimental entra numa aula com vaga, enquanto ela não terminou
+  const podeRegistrarExperimental = podeEncaixar
   const podeCancelar = pode(papel, 'cancelar-aula') && !aula.cancelamento && fase === 'futura'
 
   const todosPresentes = async () => {
@@ -109,6 +115,15 @@ export function FolhaDaAula() {
     conteudo = <Encaixe aula={aula} aoVoltar={() => setEtapa('chamada')} />
   } else if (etapa === 'cancelar') {
     conteudo = <Cancelamento aula={aula} aoVoltar={() => setEtapa('chamada')} />
+  } else if (etapa === 'experimental') {
+    conteudo = (
+      <div class="pilha">
+        <Botao variante="terciario" icone="voltar" onClick={() => setEtapa('chamada')} class="botao--alinhado">
+          Voltar para a chamada
+        </Botao>
+        <FormularioDeExperimental aula={aula} aoRegistrar={() => setEtapa('chamada')} />
+      </div>
+    )
   } else {
     conteudo = (
       <>
@@ -121,8 +136,13 @@ export function FolhaDaAula() {
             setEtapa('remarcar')
           }}
         />
+        {podeRegistrarExperimental && (
+          <Botao variante="terciario" largo icone="convidar" onClick={() => setEtapa('experimental')} class="botao--fim">
+            Registrar aula experimental
+          </Botao>
+        )}
         {podeCancelar && (
-          <Botao variante="terciario" largo icone="folga" onClick={() => setEtapa('cancelar')} class="botao--fim">
+          <Botao variante="terciario" largo icone="folga" onClick={() => setEtapa('cancelar')} class={podeRegistrarExperimental ? '' : 'botao--fim'}>
             Cancelar esta aula
           </Botao>
         )}
@@ -165,7 +185,15 @@ export function FolhaDaAula() {
       aberta={id !== null}
       aoFechar={fecharAula}
       rotulo={
-        aula.cancelamento ? 'Aula cancelada' : etapa === 'encaixe' ? 'Encaixar reposição' : etapa === 'remarcar' ? 'Remarcar' : 'Chamada'
+        aula.cancelamento
+          ? 'Aula cancelada'
+          : etapa === 'encaixe'
+            ? 'Encaixar reposição'
+            : etapa === 'remarcar'
+              ? 'Remarcar'
+              : etapa === 'experimental'
+                ? 'Aula experimental'
+                : 'Chamada'
       }
       titulo={tituloDaAula(aula)}
       subtitulo={
@@ -226,11 +254,123 @@ function Chamada({ aula, papel, aoRemarcar }: { aula: Aula; papel: Papel; aoRema
         {contagem.pendente > 0 && <Pilula>{contagem.pendente} sem marcação</Pilula>}
       </div>
       <ul class="chamada-lista">
-        {aula.participantes.map((p, i) => (
-          <AlunoNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} aoRemarcar={aoRemarcar} />
-        ))}
+        {aula.participantes.map((p, i) =>
+          p.origem === 'experimental' ? (
+            <ExperimentalNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} />
+          ) : (
+            <AlunoNaChamada key={p.alunoId} aula={aula} participante={p} indice={i} papel={papel} aoRemarcar={aoRemarcar} />
+          ),
+        )}
       </ul>
     </>
+  )
+}
+
+/** Um segmento da chamada (Presente, Faltou, Avisou). */
+function Segmento({ tipo, rotulo, pressionado, desativado, aoTocar }: { tipo: Marcacao; rotulo: string; pressionado: boolean; desativado: boolean; aoTocar: () => void }) {
+  return (
+    <button type="button" class={`segmento segmento--${tipo} tocavel`} aria-pressed={pressionado} disabled={desativado} onClick={aoTocar}>
+      <Icone nome={ICONE_DA_MARCACAO[tipo]} tamanho={20} traco={2} />
+      <span>{rotulo}</span>
+    </button>
+  )
+}
+
+/**
+ * Quem veio experimentar: nome e WhatsApp registrados na aula, presença ou falta, "Tirar"
+ * enquanto a aula não terminou e, para a administração, o cadastro já preenchido.
+ */
+function ExperimentalNaChamada({ aula, participante: p, indice, papel }: Omit<PropsAluno, 'aoRemarcar'>) {
+  const nome = nomeDoParticipante(p)
+  const fase = faseDaAula(aula, momento.value)
+  const fechada = !chamadaAberta(aula, momento.value)
+  const experimental = p.experimental
+  const virouAluno = experimental?.alunoId ? alunosPorId.value.get(experimental.alunoId) : undefined
+
+  const marcar = async (m: Marcacao) => {
+    const nova = p.marcacao === m ? null : m
+    const r = await marcarPresenca(aula.id, p.alunoId, nova)
+    if (!r.ok) return avisar({ texto: r.mensagem, icone: 'info' })
+    avisar({
+      texto: textoDaMarcacao(nome, nova),
+      icone: nova ? ICONE_DA_MARCACAO[nova] : 'desfazer',
+      acao: { rotulo: 'Desfazer', executar: () => void r.valor.desfazer() },
+    })
+  }
+
+  const tirar = async () => {
+    const r = await tirarExperimental(aula.id, p.alunoId)
+    if (!r.ok) return avisar({ texto: r.mensagem, icone: 'info' })
+    avisar({
+      texto: `${primeiroNome(nome)} saiu desta aula.`,
+      icone: 'desfazer',
+      acao: { rotulo: 'Desfazer', executar: () => void r.valor.desfazer() },
+    })
+  }
+
+  const cadastrar = () => {
+    if (!experimental) return
+    cadastroDeExperimental.value = {
+      aulaId: aula.id,
+      experimentalId: p.alunoId,
+      nome: experimental.nome,
+      telefone: experimental.telefone,
+      unidadeId: aula.unidadeId,
+    }
+    abrirEm('alunos', ['novo'])
+    fecharAula()
+  }
+
+  return (
+    <li class="chamada-aluno" style={{ '--i': indice } as JSX.CSSProperties} data-aluno={p.alunoId} data-experimental>
+      <div class="chamada-nome">
+        <Avatar nome={nome} tamanho={36} />
+        {virouAluno ? (
+          <button
+            type="button"
+            class="chamada-nome-botao tocavel"
+            onClick={() => {
+              abrirEm('alunos', [virouAluno.id])
+              fecharAula()
+            }}
+            aria-label={`${nome}: abrir ficha`}
+          >
+            {nome}
+          </button>
+        ) : (
+          <span class="chamada-nome-texto">{nome}</span>
+        )}
+        <Pilula tom="acento">experimental</Pilula>
+        {experimental?.telefone && (
+          <a
+            class="botao-icone tocavel"
+            href={linkDoWhatsApp(experimental.telefone)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`WhatsApp de ${primeiroNome(nome)}`}
+          >
+            <Icone nome="mensagem" tamanho={22} />
+          </a>
+        )}
+      </div>
+      <div class="segmentado" role="group" aria-label={`Presença de ${nome}`}>
+        <Segmento tipo="presente" rotulo="Presente" pressionado={p.marcacao === 'presente'} desativado={fechada} aoTocar={() => void marcar('presente')} />
+        <Segmento tipo="faltou" rotulo="Faltou" pressionado={p.marcacao === 'faltou'} desativado={fechada} aoTocar={() => void marcar('faltou')} />
+        <button type="button" class="segmento tocavel" onClick={() => void tirar()} disabled={fase === 'encerrada'}>
+          <Icone nome="desfazer" tamanho={20} traco={2} />
+          <span>Tirar</span>
+        </button>
+      </div>
+      {virouAluno ? (
+        <p class="texto-secundario">Virou aluno: {primeiroNome(virouAluno.nome)} já está no cadastro.</p>
+      ) : (
+        pode(papel, 'editar-alunos') && (
+          <Botao variante="terciario" icone="adicionar" onClick={cadastrar}>
+            Cadastrar como aluno
+          </Botao>
+        )
+      )}
+    </li>
   )
 }
 
@@ -289,16 +429,7 @@ function AlunoNaChamada({ aula, participante: p, indice, papel, aoRemarcar }: Pr
   }
 
   const segmento = (tipo: Marcacao, rotulo: string, desativado: boolean) => (
-    <button
-      type="button"
-      class={`segmento segmento--${tipo} tocavel`}
-      aria-pressed={p.marcacao === tipo}
-      disabled={desativado}
-      onClick={() => void marcar(tipo)}
-    >
-      <Icone nome={ICONE_DA_MARCACAO[tipo]} tamanho={20} traco={2} />
-      <span>{rotulo}</span>
-    </button>
+    <Segmento tipo={tipo} rotulo={rotulo} pressionado={p.marcacao === tipo} desativado={desativado} aoTocar={() => void marcar(tipo)} />
   )
 
   return (

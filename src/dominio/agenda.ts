@@ -17,7 +17,8 @@ export interface OpcoesDaAula {
 
 /**
  * Monta a aula de uma turma numa data, aplicando as exceções guardadas no registro.
- * Ordem dos participantes: fixos (na ordem da turma), depois reposições.
+ * Ordem dos participantes: fixos (na ordem da turma), depois reposições, depois quem vem
+ * experimentar.
  */
 export function montarAula(
   turma: Turma,
@@ -50,6 +51,14 @@ export function montarAula(
         : { alunoId, origem: 'reposicao', creditoId },
     )
     vistos.add(alunoId)
+  }
+  // quem vem experimentar ocupa um lugar e entra na chamada como qualquer outra pessoa
+  for (const [id, experimental] of Object.entries(registro?.experimentais ?? {})) {
+    const marcacao = marcacoes[id]
+    participantes.push(
+      marcacao ? { alunoId: id, origem: 'experimental', experimental, marcacao } : { alunoId: id, origem: 'experimental', experimental },
+    )
+    vistos.add(id)
   }
   // histórico: alguém marcado nesta data que depois saiu da turma continua aparecendo
   for (const [alunoId, marcacao] of Object.entries(marcacoes)) {

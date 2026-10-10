@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { registro } from '../../dominio/apoio-de-teste'
 import type { MembroEquipe, RegistroAula } from '../../dominio/tipos'
-import { APAGAR, camposAlterados, documentoDoMembro, membroDoDocumento, mesclarRegistro, mudancaDeLista, registroDoDocumento } from './conversao'
+import {
+  APAGAR,
+  camposAlterados,
+  codificarExperimental,
+  decodificarExperimental,
+  documentoDoMembro,
+  documentoDoRegistro,
+  membroDoDocumento,
+  mesclarRegistro,
+  mudancaDeLista,
+  registroDoDocumento,
+} from './conversao'
 
 const membro: MembroEquipe = {
   id: 'e-1',
@@ -55,6 +66,39 @@ describe('registro no banco', () => {
   it('registro novo, sem versão no banco', () => {
     const depois = registro({ turmaId: 't', data: '2026-10-09', marcacoes: { a1: 'avisou' } })
     expect(mesclarRegistro(undefined, undefined, depois)).toEqual(depois)
+  })
+})
+
+describe('quem vem experimentar, no banco', () => {
+  const joana = { nome: 'Joana Prado', telefone: '5511900000077' }
+
+  it('vai numa linha de texto e volta igual, com ou sem o aluno que nasceu dela', () => {
+    expect(codificarExperimental(joana)).toBe('Joana Prado|5511900000077')
+    expect(codificarExperimental({ ...joana, alunoId: 'a-novo' })).toBe('Joana Prado|5511900000077|a-novo')
+    expect(decodificarExperimental('Joana Prado|5511900000077')).toEqual(joana)
+    expect(decodificarExperimental('Joana Prado|5511900000077|a-novo')).toEqual({ ...joana, alunoId: 'a-novo' })
+    // a barra no nome viraria outro campo: sai antes de gravar
+    expect(codificarExperimental({ nome: 'Ana|Lima', telefone: '' })).toBe('Ana Lima|')
+    expect(decodificarExperimental('semtelefone')).toBeNull()
+    expect(decodificarExperimental(7)).toBeNull()
+  })
+
+  it('o registro grava o mapa em texto e lê de volta como objeto; sem ninguém, o campo some', () => {
+    const r = registro({ turmaId: 't', data: '2026-10-09', experimentais: { 'x-1': joana } })
+    const d = documentoDoRegistro(r)
+    expect(d.experimentais).toEqual({ 'x-1': 'Joana Prado|5511900000077' })
+    expect(registroDoDocumento(d)).toEqual(r)
+    expect(documentoDoRegistro(registro({ turmaId: 't', data: '2026-10-09', experimentais: {} }))).not.toHaveProperty('experimentais')
+    expect(registroDoDocumento({ ...d, experimentais: { 'x-1': 'torto' } })).not.toHaveProperty('experimentais')
+  })
+
+  it('a mescla leva só a pessoa que esta ação registrou ou tirou', () => {
+    const antes = registro({ turmaId: 't', data: '2026-10-09' })
+    const depois = registro({ turmaId: 't', data: '2026-10-09', experimentais: { 'x-1': joana } })
+    const fresco = registro({ turmaId: 't', data: '2026-10-09', experimentais: { 'x-2': { nome: 'Outra Pessoa', telefone: '5511900000078' } } })
+    expect(mesclarRegistro(fresco, antes, depois).experimentais).toEqual({ 'x-2': { nome: 'Outra Pessoa', telefone: '5511900000078' }, 'x-1': joana })
+    expect(mesclarRegistro(fresco, depois, antes).experimentais).toEqual({ 'x-2': { nome: 'Outra Pessoa', telefone: '5511900000078' } })
+    expect(mesclarRegistro(depois, depois, antes)).not.toHaveProperty('experimentais')
   })
 })
 

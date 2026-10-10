@@ -38,6 +38,10 @@ export function AvisoDePrivacidade() {
               <strong>Observação da equipe:</strong> um campo de texto livre para combinados do dia a dia. Não guardamos ficha de saúde.
             </li>
             <li>
+              <strong>De quem vem fazer uma aula experimental:</strong> nome e WhatsApp, registrados pela equipe na aula combinada. Só a
+              equipe vê, e ficam na chamada daquela aula; se a pessoa virar aluno, o cadastro nasce desses dados.
+            </li>
+            <li>
               <strong>De quem é da equipe:</strong> nome, e-mail, telefone, unidades e papel (responsável, administração ou professor).
             </li>
             <li>

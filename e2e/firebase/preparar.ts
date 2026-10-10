@@ -6,7 +6,7 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
 import { gerarSemente } from '../../src/dados/demonstracao/semente'
-import { documentoDoMembro } from '../../src/dados/firebase/conversao'
+import { documentoDoMembro, documentoDoRegistro } from '../../src/dados/firebase/conversao'
 import { momentoDe } from '../../src/dominio/datas'
 import { documentoDaPaginaPublica, paginaPublica, portaisDosAlunos, vagasDaJanela } from '../../src/dominio/projecoes'
 import type { MembroEquipe } from '../../src/dominio/tipos'
@@ -110,7 +110,7 @@ export default async function preparar(): Promise<void> {
   }
   for (const a of b.alunos) documentos.push([`alunos/${a.id}`, limpo(a)])
   for (const t of b.turmas) documentos.push([`turmas/${t.id}`, limpo(t)])
-  for (const r of registros.values()) documentos.push([`registros/${r.id}`, limpo(r)])
+  for (const r of registros.values()) documentos.push([`registros/${r.id}`, documentoDoRegistro(r)])
   for (const c of Object.values(banco.creditos)) documentos.push([`creditos/${c.id}`, limpo(c)])
   for (const f of Object.values(banco.financeiro)) documentos.push([`financeiroDosAlunos/${f.alunoId}`, limpo(f)])
   for (const p of Object.values(banco.pagamentos)) documentos.push([`pagamentos/${p.id}`, limpo(p)])

@@ -144,6 +144,9 @@ export function marcar(
     if (participante.origem === 'reposicao') {
       return recusado('reposicao-nao-avisa', 'Quem veio repor não gera outro crédito. Desfaça o encaixe.')
     }
+    if (participante.origem === 'experimental') {
+      return recusado('reposicao-nao-avisa', 'Aula experimental não gera reposição. Se a pessoa não vier, marque como faltou ou tire da aula.')
+    }
     if (faseDaAula(aula, ctx.agora) === 'encerrada') {
       return recusado('aula-encerrada', 'A aula já terminou. Marque como faltou.')
     }

@@ -39,6 +39,28 @@ describe('desfazer', () => {
     expect(inverso.creditos.find((c) => c.id === 'usado')?.usadoEm).toBeUndefined()
   })
 
+  it('desfaz o registro de quem veio experimentar, sem mexer em quem outra pessoa registrou', () => {
+    const joana = { nome: 'Joana Prado', telefone: '5511900000077' }
+    const depois = registro({ turmaId: 't', data: DIA, experimentais: { 'x-1': joana } })
+    const agora = registro({ turmaId: 't', data: DIA, experimentais: { 'x-1': joana, 'x-2': { nome: 'Outra Pessoa', telefone: '5511900000078' } } })
+    const inverso = inversoDe(
+      { registros: [depois], creditos: [], creditosRemovidos: [] },
+      { registro: () => undefined, credito: () => undefined },
+      { registro: () => agora },
+      'x',
+    )
+    expect(inverso.registros[0]?.experimentais).toEqual({ 'x-2': { nome: 'Outra Pessoa', telefone: '5511900000078' } })
+    // tirar a pessoa e desfazer: ela volta
+    const semEla = registro({ turmaId: 't', data: DIA })
+    const volta = inversoDe(
+      { registros: [semEla], creditos: [], creditosRemovidos: [] },
+      { registro: () => depois, credito: () => undefined },
+      { registro: () => semEla },
+      'x',
+    )
+    expect(volta.registros[0]?.experimentais).toEqual({ 'x-1': joana })
+  })
+
   it('desfaz cancelamento de aula', () => {
     const depois = registro({ turmaId: 't', data: DIA, cancelamento: { motivo: 'feriado', observacao: '' } })
     const inverso = inversoDe(
