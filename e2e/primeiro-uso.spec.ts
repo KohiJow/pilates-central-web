@@ -126,4 +126,33 @@ test.describe('montar o estúdio (prévia na demonstração)', () => {
     await folha(page).getByRole('button', { name: 'Pronto' }).click()
     await expect(page.getByText('Cada turma nova: 55 min, 6 lugares.')).toBeVisible()
   })
+
+  test('a grade cabe no iPhone SE: a página não rola de lado e cada horário tem pelo menos 48 px', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await entrarComoAdministracao(page)
+    await page.evaluate(() => {
+      location.hash = '#/mais/montar/turmas'
+    })
+    await expect(titulo(page)).toHaveText('Turmas da semana')
+    const medir = () =>
+      page.evaluate(() => {
+        const celulas = [...document.querySelectorAll('.grade-visual-celula')].map((c) => c.getBoundingClientRect())
+        const caixa = document.querySelector('.grade-visual-caixa')
+        return {
+          pagina: document.documentElement.scrollWidth,
+          menor: Math.min(...celulas.map((r) => Math.min(r.width, r.height))),
+          caixaRola: caixa ? caixa.scrollWidth > caixa.clientWidth + 1 : false,
+        }
+      })
+    const em375 = await medir()
+    expect(em375.pagina).toBeLessThanOrEqual(375)
+    expect(em375.menor).toBeGreaterThanOrEqual(47.5)
+    expect(em375.caixaRola).toBe(false)
+    // na menor tela (320 px) os seis dias não cabem com 48 px: a grade rola de lado dentro da caixa, a página não
+    await page.setViewportSize({ width: 320, height: 568 })
+    const em320 = await medir()
+    expect(em320.pagina).toBeLessThanOrEqual(320)
+    expect(em320.menor).toBeGreaterThanOrEqual(47.5)
+    expect(em320.caixaRola).toBe(true)
+  })
 })
