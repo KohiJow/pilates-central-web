@@ -271,6 +271,11 @@ não foi tocado.
 ### Achado e corrigido no trabalho que veio pela metade
 - [x] `FIREBASE_CONFIG` como nome da variável que troca o `firebase.json`: o próprio `firebase emulators:exec` define `FIREBASE_CONFIG` com um JSON, e os três arquivos de testes de regras nem abriam. Virou `FIREBASE_JSON`
 - [x] O App Check era ligado também com os emuladores: no CI, assim que o dono criasse `FIREBASE_APPCHECK_SITE_KEY`, o reCAPTCHA pediria o Google e a trava dos testes reprovaria tudo
+- [x] A política de Trusted Types recusava o registro do service worker no Chromium: o app registra `sw.js` por caminho relativo e a política só aceitava o endereço absoluto, então o registro falhava em silêncio e o app publicado não abriria sem internet (os seis testes de service worker caíam). A política resolve o endereço contra a página antes de comparar, com teste
+- [x] Na primeira visita a página recarregava sozinha: o `controllerchange` disparado pela primeira instalação (o service worker reivindica a página) era tratado como "versão nova assumiu". Agora só recarrega se já havia um controlador ou se a pessoa tocou em Atualizar
+- [x] O teste da versão nova trocava o `sw.js` por rota do Playwright, que não alcança a busca do script do service worker (nenhum dos dois motores): o teste sobe um servidor próprio de `dist/` que passa a entregar outra versão (`servidorDoDist` em `e2e/apoio.ts`, o mesmo do teste sem servidor)
+- [x] No WebKit, pedido que passa pelo service worker também não é alcançado pela rota: os testes que simulam a resposta do Firebase rodam com o service worker bloqueado (`serviceWorkers: 'block'`), e só o teste do cache o liga
+- [x] `trustedTypes.getPolicyNames()` não existe nos motores; o teste confere `defaultPolicy.name`. O teste de senha procurava "Professor Senha" no título do Hoje, que cumprimenta pelo primeiro nome
 
 ### Ficou para depois
 - [ ] A conta de login do aluno excluído continua no Firebase Authentication (apagar pelo console); sem Cloud Functions não há como apagar pelo app
