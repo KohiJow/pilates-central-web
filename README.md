@@ -37,6 +37,11 @@ caminho); depois da transferência esse endereço some.
   <img src="docs/telas/login.webp" alt="Entrar com e-mail e senha" width="200">
   <img src="docs/telas/ficha-lgpd.webp" alt="Na ficha: app do aluno, baixar os dados e excluir o cadastro" width="200">
 </p>
+<p>
+  <img src="docs/telas/guia-grade.webp" alt="Montar o estúdio: a grade da semana, em que tocar no horário cria a turma" width="200">
+  <img src="docs/telas/importar.webp" alt="Importar de uma planilha: a prévia com o erro de cada linha" width="200">
+  <img src="docs/telas/ajuda.webp" alt="Ajuda: pôr o app na tela inicial do iPhone, com o desenho do caminho" width="200">
+</p>
 
 ## O que é
 
@@ -86,8 +91,8 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
   escolha do aluno começa por quem ainda não pagou o mês, com o valor); totais por forma de pagamento
   (Pix, cartões, dinheiro, transferência, Gympass, TotalPass, outro); gráfico dos últimos seis
   meses; planilha do mês em CSV.
-- **Mais:** perfil, tema, instalar no celular, o link da página de aula experimental (ver,
-  compartilhar ou copiar, para pôr no Instagram) e, para a administração, o estúdio (nome,
+- **Mais:** perfil, Ajuda, tema, instalar no celular, o link da página de aula experimental (ver,
+  compartilhar ou copiar, para pôr no Instagram) e, para a administração, Montar o estúdio, o estúdio (nome,
   WhatsApp, os textos da página pública: frase de apresentação, até três focos, endereço, link do
   mapa e Instagram; app do aluno e página pública ligados ou não; por quantos dias um convite
   vale), regras de reposição (antecedência do aviso, validade, limite por mês, a partir de quantas
@@ -110,6 +115,32 @@ tela inicial sem loja e funciona sem internet no modo demonstração.
 - **LGPD:** aviso de privacidade em português simples; na ficha do aluno, baixar os dados dele num
   arquivo e excluir o cadastro (com confirmação): fica só o código nas presenças antigas e nos
   pagamentos, sem observação, e a linha do registro de alterações que anota a exclusão.
+- **Montar o estúdio (primeiro uso guiado):** com o estúdio de verdade ainda vazio, o app abre
+  sozinho um guia de cinco passos curtos, um por tela, com o progresso em cima e "Pular" em cada
+  um: o estúdio (nome e WhatsApp), as unidades, os professores (o convite sai depois), a grade da
+  semana (uma tabela de dias por horários em que tocar no horário cria a turma, com o professor, a
+  duração e os lugares escolhidos em cima; "Copiar um dia para outros"; horário quebrado como
+  18h30) e os alunos, pela planilha; no fim, o resumo e "Ir para a agenda". Fica também em Mais,
+  Montar o estúdio; na demonstração é uma prévia que não grava.
+- **Importar de uma planilha:** em Alunos (e em Turmas), colar as linhas copiadas do Excel, do
+  Google Planilhas ou do Numbers, ou escolher o arquivo .csv (o do Excel em português, com ponto e
+  vírgula e acentos, também). Com ou sem cabeçalho: as colunas são reconhecidas pelo nome em
+  português ("Celular", "Plano", "Horários", "Valor (R$)", "Como paga"...) ou, sem cabeçalho, pelo
+  que têm dentro; a que sobrar a pessoa diz o que é. A prévia mostra cada linha, as com erro
+  primeiro (WhatsApp sem DDD, turma que não existe, aluno repetido, turma cheia), e a correção é
+  feita ali mesmo, numa folha com os campos do cadastro, ou a linha sai da lista. Grava em lote,
+  diz quantos entraram, quantos já estão nas turmas e quem ficou de fora, e tem "Desfazer a
+  importação". O modelo em branco (só o cabeçalho) baixa num toque.
+- **Ajuda (Mais, Ajuda):** cards curtos: pôr o app na tela inicial (iPhone, com o desenho do
+  caminho, e Android), chamada, reposição, pagamento, convidar alguém, o que o professor e o aluno
+  veem, sem internet e privacidade. O mesmo texto está em
+  [docs/guia-da-equipe.md](docs/guia-da-equipe.md), para mandar no WhatsApp.
+- **Gravação que diz o que fazer:** sem internet, o que a pessoa marcou fica na tela e numa fila,
+  com uma faixa no alto ("1 mudança esperando a internet para gravar"), e grava sozinho quando a
+  conexão volta. Recusa do banco: "Sua conta não tem esse acesso" quando o acesso da pessoa mudou,
+  ou "as regras do Firebase estão desatualizadas... Peça para a administração publicar as regras
+  novas" quando a conta está em dia. Agenda, Hoje e Turmas vazias levam a "Montar a grade"; a lista
+  de alunos vazia, a "Importar de uma planilha".
 - **Login que explica o que aconteceu:** cada resposta do Firebase vira uma frase em português
   (do "login por e-mail e senha ainda não foi ativado no Firebase deste projeto" ao "sem conexão"),
   com o código bruto atrás de "Detalhes" para quem configura o projeto; confirmação do e-mail com
@@ -164,6 +195,43 @@ as regras do Firestore negam o que a tela não oferece (ver [docs/seguranca.md](
 Com o projeto Firebase do estúdio configurado, a tela inicial vira duas portas: **Entrar** (o
 estúdio de verdade, com e-mail e senha) e **Ver demonstração**. O passo a passo para criar o
 projeto, publicar as regras e fazer o primeiro acesso está em [docs/firebase.md](docs/firebase.md).
+
+## Começando a usar
+
+O caminho do primeiro dia com o estúdio de verdade, o mesmo que o teste
+`e2e/comecando.spec.ts` faz nos dois motores, com os emuladores do Firebase.
+
+1. **Antes (quem cuida do projeto):** as regras publicadas e a lista de verificação do console em
+   [docs/firebase.md](docs/firebase.md). As regras não mudaram nesta etapa.
+2. **Primeiro acesso:** no celular, abrir o site, **Entrar**, **Primeiro acesso? Criar conta** com
+   o e-mail combinado nas regras, confirmar pelo link do e-mail e tocar em **Já confirmei**. O app
+   pede o seu nome e o nome do estúdio: **Começar**.
+3. **O guia abre sozinho** (estúdio vazio): o estúdio e o WhatsApp; a unidade (o nome do bairro
+   serve); os professores, com nome e e-mail (o convite sai depois, pelo WhatsApp); a grade da
+   semana, tocando nos horários de um dia e copiando para os outros; e os alunos.
+4. **Alunos de uma planilha:** na planilha, selecionar as linhas (com o cabeçalho, se tiver),
+   copiar, voltar ao app e colar. Conferir a prévia, corrigir o que vier marcado e **Importar**.
+   Sem planilha, cadastrar um a um depois, em Alunos, Novo aluno.
+5. **Equipe:** em Mais, Equipe, **Convidar pessoa**; na ficha da pessoa, **Mandar o convite pelo
+   WhatsApp**. Ela cria a conta com aquele e-mail e entra.
+6. **Instalar no celular** e o resto do dia a dia: Mais, Ajuda (o mesmo texto em
+   [docs/guia-da-equipe.md](docs/guia-da-equipe.md), para mandar à equipe).
+
+Toques contados pelo teste (iPhone 13 e Pixel 7; tocar num campo para escrever conta, digitar e
+colar não):
+
+| Tarefa | Toques |
+|---|:-:|
+| Criar a conta da responsável e confirmar o e-mail | 6 |
+| Primeiro uso, do "Começar" à agenda (estúdio, unidade, um professor, quatro turmas com uma cópia de dia), sem a importação | 20 |
+| Importar 30 alunos de um TSV colado | 4 |
+| Chamada da turma inteira, na agenda | 2 |
+| Convidar uma administradora (nome, e-mail, telefone, papel) | 8, mais 1 para mandar pelo WhatsApp |
+| A administradora cria a conta e entra, em outro aparelho | 6 |
+
+No mesmo teste: a chamada feita sem internet entra na fila e grava quando a conexão volta; com
+regras de uma versão anterior no emulador, a frase pede para publicar as regras novas; e a
+administradora que perdeu o acesso lê "Sua conta não tem esse acesso".
 
 ## Decisões
 
@@ -400,7 +468,11 @@ desligado (nos dois motores), a agenda no tamanho do iPhone SE, os gestos soltan
 marca das seções deslizando com o cabeçalho parado e a lista de alunos montando em partes.
 `e2e/experimental.spec.ts` cobre a aula experimental registrada na agenda, `e2e/estudio.spec.ts`
 os textos do estúdio na página pública e `e2e/equipe.spec.ts` os convites (data e prazo, copiar,
-revogar, mandar de novo, vencido).
+revogar, mandar de novo, vencido). `e2e/importacao.spec.ts` importa alunos e turmas na
+demonstração (colar com e sem cabeçalho, arquivo .csv em Windows-1252, correção na prévia, lote,
+desfazer, modelo em branco), `e2e/primeiro-uso.spec.ts` passa pelo guia como prévia (e confere a
+grade no iPhone SE), `e2e/ajuda.spec.ts` a ajuda de cada papel, e `e2e/comecando.spec.ts`, com
+`EMULADOR=1`, o primeiro dia inteiro com o estúdio de verdade (ver "Começando a usar").
 
 `PORTA=8853` troca a porta (prévia e testes), `LENTO=1` liga a CPU 4x mais lenta no Chromium e
 `GRAVAR=1` grava vídeo das transições. No GitHub Actions: tipos, lint, Vitest e build; as regras
@@ -458,17 +530,19 @@ Resumo; o detalhe está em [docs/seguranca.md](docs/seguranca.md).
 src/
   dominio/       regras puras e testadas (agenda, presença, reposição, frequência, alunos,
                  turmas, pagamentos, equipe, convites, unidades, permissões, cópias para o aluno
-                 e a página pública, app do aluno, aula experimental, LGPD)
+                 e a página pública, app do aluno, aula experimental, LGPD, importação de
+                 planilha, montagem do estúdio)
   dados/         contrato do repositório, demonstração, estado em sinais, ações com desfazer,
-                 consultas, exportação, estado do app do aluno
+                 fila sem internet e frases de falha, consultas, exportação, estado do app do aluno
   dados/firebase SDK, login, acesso e convites, adaptador da equipe e do aluno (pedaço sob demanda)
   config/        a configuração do projeto Firebase (lida no build) e dos emuladores
   app/           portas e conta, sessão, navegação, relógio, tema, instalação
   movimento/     molas, tempos, gestos, animação depois de pintar, retorno de toque
   componentes/   botão, campo, seletor, contador, interruptor, chip, card, folha inferior,
                  seções, faixa de dias, vagas, avisos, ícones
-  telas/         Entrar, conta (portas, login), Hoje, Agenda e chamada, Alunos, Turmas,
-                 Reposição, Financeiro, Mais, app do aluno
+  telas/         Entrar, conta (portas, login), Hoje, Agenda e chamada, Alunos (e a importação
+                 de planilha), Turmas, Reposição, Financeiro, Mais (e a Ajuda), o guia de
+                 primeiro uso (montar/), app do aluno
   experimental/  página pública de aula experimental
   privacidade/   aviso de privacidade
   estilos/       tokens, base, componentes, telas, gestão, conta, vitrine e movimento
@@ -479,7 +553,7 @@ testes-de-regras/ testes das regras no emulador
 e2e/             ponta a ponta, acessibilidade, fluidez e os testes com os emuladores
 scripts/         plugin do service worker e da política de segurança; caminho base; geração de
                  ícones e das telas de abertura
-docs/            roteiro, modelo de dados, Firebase, segurança e capturas de tela
+docs/            roteiro, modelo de dados, Firebase, segurança, guia da equipe e capturas de tela
 ```
 
 ## Roteiro
@@ -497,8 +571,11 @@ folga nas regras do aluno, Trusted Types, versão nova do service worker e o reg
 alterações. Depois, as pendências de produto e do celular: a aula experimental registrada na
 agenda, os textos do estúdio configuráveis, os convites com prazo, a tela de abertura do iPhone,
 as listas em partes, a marca das seções deslizando e o caminho base vindo do ambiente (para o
-site mudar de endereço sem mexer no código). Detalhes e o que falta (republicar as regras e fazer
-o primeiro acesso no projeto real) em [docs/roteiro.md](docs/roteiro.md).
+site mudar de endereço sem mexer no código). Por fim, pronto para usar: o guia de primeiro uso
+com a grade visual, a importação de alunos e turmas por planilha, a ajuda dentro do app (e o guia
+da equipe em texto), estados vazios que levam à ação e gravação que diz o que fazer sem internet
+ou com a recusa do banco, conferidos como quem usa, com os emuladores. Detalhes e o que falta em
+[docs/roteiro.md](docs/roteiro.md).
 
 ## Créditos
 

@@ -115,6 +115,10 @@ conta para ela depois).
    e a aba de promoções), toque no link e volte ao app: **Já confirmei**. Não chegou em um
    minuto? **Reenviar o e-mail** (a espera de 60 segundos entre envios é de propósito).
 4. O app pergunta seu nome, WhatsApp e o nome do estúdio. Toque em **Começar**.
+5. Com o estúdio ainda vazio, abre sozinho o guia **Montar o estúdio**: o WhatsApp do estúdio,
+   as unidades, os professores, a grade da semana (tocar no horário cria a turma) e os alunos,
+   colados de uma planilha. Cada passo tem **Pular**; o guia fica em Mais, Montar o estúdio, para
+   voltar quando quiser (ver "Começando a usar" no README).
 
 Se em vez disso aparecer "O login por e-mail e senha ainda não foi ativado" ou outra frase de
 erro, toque em **Detalhes**: o código que aparece ali (`auth/...`) diz o que falta na lista de
@@ -154,14 +158,16 @@ Se algo der errado depois de impor (a página pública sem horários, o login re
 
 ## 8. Depois do primeiro acesso
 
-Em **Mais**:
+O guia Montar o estúdio cobre o primeiro dia (estúdio, unidades, professores, grade e alunos).
+Para o resto, e para mexer depois, em **Mais**:
 
 1. **Estúdio:** WhatsApp, os textos da página pública (a frase de apresentação, até três focos,
    o endereço, o link do mapa e o Instagram), se o **app do aluno** e a **página de aula
    experimental** ficam ligados, e por quantos dias um convite vale.
 2. **Unidades** (com o endereço: é ele que aparece na página de aula experimental, por exemplo
    "Rua Exemplo, 100, sala 2, Centro"), depois **Alunos** (com e-mail para
-   quem vai usar o app) e **Turmas**.
+   quem vai usar o app; vários de uma vez em Alunos, **Importar**, colando da planilha) e
+   **Turmas** (também por planilha, em Turmas, **Importar**).
 3. **Equipe:** convide a administração e os professores pelo e-mail de cada um. O app não manda
    e-mail de convite (isso pediria Cloud Functions): na ficha da pessoa, **Mandar o convite pelo
    WhatsApp** ou **Compartilhar o convite** (copia o texto pronto, com o endereço do site e o

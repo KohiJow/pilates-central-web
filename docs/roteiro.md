@@ -339,6 +339,57 @@ e o site vai para a raiz de `pilates-central.github.io`). O repositório antigo 
 - [ ] Depois de o dono ligar e impor o App Check: conferir login e página pública no site publicado
 - [ ] Cancelar o dia inteiro de uma vez (feriado móvel); limite de reposições por mês nas regras
 
+## Pronto para usar: primeiro uso guiado, importação de alunos e ajuda (feita)
+
+A proprietária do estúdio começa a usar com os alunos no caderno ou numa planilha; cadastrar um
+a um, tela por tela, é o que faz desistir. Esta etapa fez o primeiro dia caber em poucos toques e
+conferiu tudo como quem usa, com o estúdio de verdade nos emuladores, nos dois motores. As regras
+do Firestore não mudaram: tudo grava pelo repositório de sempre, com as mesmas regras.
+
+### Primeiro uso guiado (Montar o estúdio)
+- [x] Guia em cinco passos, um por tela (`src/telas/montar/`): o estúdio (nome e WhatsApp), unidades, professores (nome e e-mail; o convite sai depois), turmas da semana e alunos; progresso em cima ("Passo 2 de 5" e a barra), "Pular este passo", "Voltar" e "Sair do guia"; no fim, o resumo (unidades, professores e convites para mandar, turmas, alunos), "Ir para a agenda" e "Mandar os convites"
+- [x] Abre sozinho para a administração quando o estúdio de verdade está vazio (sem turma e sem aluno), no passo que falta (`src/app/guia.ts`, `passoInicial` em `src/dominio/montagem.ts`); quem sai do guia não o vê abrir de novo naquele aparelho. Fica em Mais, Montar o estúdio. Tela inteira, sem a barra de abas (`emFoco` em `navegacao.ts`)
+- [x] Grade visual: tabela de dias (segunda a sábado; domingo quando o estúdio abre) por horários (das 6h às 21h, mais os horários quebrados que existem ou que a pessoa põe em "Outro horário"); tocar cria a turma com o professor, a duração e os lugares escolhidos em cima, tocar de novo tira; turma já gravada não sai por aqui; "Copiar um dia para outros" pula o que está ocupado ou dá choque de professor; as turmas novas ficam no rascunho até "Salvar a grade", gravadas numa vez (`criarTurmasEmLote`); sair com turmas por salvar pergunta antes
+- [x] O que vale para turma, unidade e professor é o de sempre (`validarTurma`, `validarUnidade`, `convidar`): mesmo professor em duas turmas que se cruzam, professor fora da unidade, nome de unidade repetido, e-mail repetido
+- [x] Na demonstração o guia é uma prévia: mostra e "cria" tudo num rascunho, sem gravar
+- [x] Estados vazios que levam à ação: Hoje e Agenda sem turma ("Montar a grade"), Turmas sem turma ("Montar a grade", "Nova turma", "Importar"), Alunos sem aluno ("Importar de uma planilha", "Cadastrar um aluno"); para o professor, o que esperar
+- [x] Testes: `montagem.test.ts` (passos, grade, choque, cópia, resumo), `e2e/primeiro-uso.spec.ts` (o guia inteiro na prévia, pular e sair, a folha do padrão, a grade no iPhone SE de 375 e 320 px) e a auditoria de alvos, texto e contraste de cada passo
+
+### Importar alunos e turmas
+- [x] `src/dominio/importacao.ts`: lê o texto (tabulação, ponto e vírgula ou vírgula, o mais frequente; aspas no começo da célula protegem separador e quebra de linha; a marca do Excel sai), reconhece as colunas pelo nome em português (nome, WhatsApp, e-mail, plano em vezes por semana, turmas por dia e hora, mensalidade, forma de pagamento, observação, unidade, desde) e, sem cabeçalho, pelo conteúdo; o que não reconhece fica para a pessoa dizer o que é
+- [x] Cada linha passa pelas regras do cadastro (`validarAluno`, `validarPlano`, `colocarNaTurma`): WhatsApp sem DDD, turma que não existe na unidade, turma cheia (a planilha vai enchendo as turmas na ordem), repetido com quem já existe ou com uma linha de cima ("É outra pessoa" para família que divide o número)
+- [x] Tela (`src/telas/alunos/Importacao.tsx`): colar ou escolher o .csv (UTF-8 ou Windows-1252), "Como escrever cada coluna", prévia com as linhas com erro primeiro, correção numa folha com os campos do cadastro (e a lista das turmas da unidade, dia a dia), tirar a linha, gravação em lotes de 60 (`importarAlunos`), resumo (quantos entraram, quantos já nas turmas, quantos sem mensalidade, quem ficou de fora e por quê) e "Desfazer a importação" (só quem ainda não tem presença, reposição nem pagamento)
+- [x] Turmas pelo mesmo caminho (dia, horário, duração, lugares, professor, unidade), com correção na folha; modelo em branco para os dois (só o cabeçalho, com a marca que faz o Excel ler os acentos)
+- [x] Na demonstração a importação grava no aparelho (dá para experimentar inteira); dentro do guia, na prévia, só confere
+- [x] Testes: `importacao.test.ts` (separador, aspas, reconhecimento, conteúdo, vezes, forma, data, conferência, lotes, turmas) e `e2e/importacao.spec.ts` nos dois motores
+
+### Ajuda e mensagens de gravação
+- [x] Mais, Ajuda: cards curtos, sem jargão (instalar no iPhone, com o desenho do caminho, e no Android; montar o estúdio; chamada; reposição; pagamento; convidar; o que o professor vê; o que o aluno vê; sem internet; privacidade); o professor não vê o que é só da administração. O texto mora em `src/telas/mais/conteudoDaAjuda.ts` e o mesmo está em [guia-da-equipe.md](guia-da-equipe.md), para mandar no WhatsApp; `conteudoDaAjuda.test.ts` reprova se os dois se desencontram
+- [x] Gravação no modo real (`src/dados/falhas.ts`, `estado.ts`): sem internet (ou o SDK sem conseguir falar com o banco) a mudança fica na tela e numa fila na memória, com a faixa "1 mudança esperando a internet para gravar" e "Tentar agora"; anda sozinha no evento `online` e a cada 20 s. Recusa do banco: relê os cadastros; se o acesso de quem gravou mudou (ou nem a leitura passa), "Sua conta não tem esse acesso"; com a conta em dia, "as regras do Firebase estão desatualizadas... Peça para a administração publicar as regras novas". Erro com frase pronta do adaptador aparece como veio. No app do aluno, sem fila: a frase diz que nada foi gravado
+- [x] Testes: `falhas.test.ts`; `e2e/ajuda.spec.ts`; e os três casos de gravação no teste de começar a usar
+
+### Verificado como quem usa (`e2e/comecando.spec.ts`, com os emuladores, nos dois motores)
+- [x] A responsável cria a conta num estúdio vazio, confirma o e-mail, passa pelo guia (unidade, professora, quatro turmas com uma cópia de dia), importa 30 alunos de um TSV colado (10 entram nas turmas), abre a agenda e faz a chamada da aula de hoje; a falta marcada sem internet entra na fila e grava quando a conexão volta; com regras de uma versão anterior no emulador, a frase pede regras novas; convida uma administradora, que cria a conta e entra em outro contexto (outro aparelho) e vê o financeiro; com o acesso tirado, a gravação dela diz que a conta não tem esse acesso
+- [x] Toques: criar a conta 6, primeiro uso 20 (sem a importação), importar 30 alunos 4, chamada 2, convidar a administradora 8 (mais 1 para mandar pelo WhatsApp), ela entrar 6 (tabela no README)
+
+### Achado e corrigido no trabalho que veio pela metade
+- [x] `lerVezes('280')` dava 2 (a expressão não ia até o fim do texto): uma coluna de mensalidade virava "vezes por semana". Agora o texto inteiro tem que ser o plano
+- [x] O modelo de planilha vinha com duas linhas de exemplo: esquecidas na planilha, virariam dois alunos de mentira. Agora é só o cabeçalho, e o "como escrever" fica na tela
+- [x] Uma aspa no meio do texto (Ana "Aninha" Souza) engolia o resto da planilha; aspas só valem no começo da célula
+- [x] Sem cabeçalho, as colunas iam pela posição do modelo; uma planilha em outra ordem saía toda errada. Agora vão pelo conteúdo, e o resto a pessoa diz
+- [x] Na demonstração a importação não gravava (não dava para experimentar nem testar o lote); grava no aparelho, e só o guia, na prévia, não grava
+- [x] A fila de "sem internet" valia também na demonstração (que grava no aparelho): com o celular sem rede, a demonstração diria "Sem internet" e seguraria a mudança
+- [x] A recusa do banco com a conta desligada dizia "regras desatualizadas": a releitura dos cadastros também é recusada nesse caso, e agora isso conta como conta sem acesso (provado no teste de começar a usar). A frase das regras citava um arquivo do repositório; agora diz o que fazer
+- [x] O campo de arquivo ficava escondido com 1 px (a auditoria de 48 px reprovaria); agora cobre o botão inteiro, transparente
+- [x] Na correção de uma linha, a lista das turmas da unidade sumia justo quando havia erro (o campo mostra o erro no lugar da ajuda) e era cortada em 12 turmas; agora fica sempre, um dia por linha
+
+### Ficou para depois
+- [ ] O app não fica escutando o banco: o que outra pessoa grava (um convite aceito, uma presença marcada no outro celular) aparece quando o app é aberto de novo. No teste, a responsável só via a administradora como "convite pendente" depois de recarregar. Vale um "puxar para atualizar" ou reler ao voltar para o app
+- [ ] A fila de "sem internet" mora na memória: fechar o app com a faixa na tela perde o que esperava (a faixa e a Ajuda pedem para não fechar). Guardar a fila no aparelho pede cuidado com a ordem e com outra pessoa mexendo na mesma aula
+- [ ] O professor sem e-mail não entra no guia: a regra do banco pede e-mail em todo cadastro da equipe (mudar pediria republicar as regras). Quem não tem o e-mail do professor ainda pode pular o passo e escolher o próprio nome na grade
+- [ ] Conferir num iPhone de verdade: a folha de correção com o teclado, o arquivo .csv escolhido pelo app Arquivos e o colar do Numbers
+- [ ] Antes das 4h30 (Campinas) o teste de começar a usar não tem aula possível hoje e pula a chamada (anota no relatório do teste)
+
 ## Notas para quem continuar
 
 - **Seções da aba Alunos:** as três seções dividem a chave de tela (`chaveDaTelaDe` em `src/app/navegacao.ts`, `SECOES_DA_ABA`); `Alunos.tsx` renderiza o cabeçalho (`CabecaDeAlunos`) e o conteúdo num `QuadroDeTela` com a classe `secao-quadro`. Conteúdo de seção é um `div.tela` sem cabeçalho. Nos testes, `irParaSecao` espera a marca (`esperarSemAnimacao('.secoes-marca')`, cujo repouso não é transform zero) e o quadro.
@@ -376,3 +427,9 @@ e o site vai para a raiz de `pilates-central.github.io`). O repositório antigo 
 - **Desfazer:** ações de cadastro passam por `gravarComDesfazer` com um inverso calculado na hora de desfazer (por exemplo, tirar da turma só o aluno colocado). No Firebase, alunos fixos com `arrayUnion`/`arrayRemove` para duas pessoas não apagarem a mudança uma da outra.
 - **Dados da demonstração:** versão 3 (`VERSAO_DO_BANCO`): app do aluno e página pública ligados, seis alunos com acesso (Beatriz Barbosa, a-11, é a dos testes) e o endereço do Centro igual ao do estúdio. Quem tinha versão anterior no aparelho ganha dados novos ao abrir. As três semanas recentes são as mesmas da etapa 1 (os testes conhecem: sexta 9/10, 18h com Camila tem 5 de 6; Ana Almeida tem 4 ausências seguidas; outubro tem R$ 10.660,00 previstos e R$ 5.590,00 recebidos).
 - **Telas em teste:** para esperar uma tela nova parar, `esperarParado(page, '.tela-quadro')`; `irPara(page, '#/rota')` abre pelo endereço; `irParaSecao` troca Alunos, Turmas e Reposições.
+
+- **Guia de primeiro uso:** passos em `PASSOS` (`src/dominio/montagem.ts`), uma rota por passo (`#/mais/montar/<passo>`, trocados com `trocarTela`, sem empilhar: o "voltar" do celular sai do guia). O rascunho (`src/telas/montar/estadoDaMontagem.ts`) é um sinal do módulo, vivo enquanto o app está aberto: no modo real cada passo grava na hora, menos a grade, que espera "Salvar a grade"; na demonstração tudo fica no rascunho (`previa`). `abrirGuiaSePreciso` (`src/app/guia.ts`) roda ao entrar na conta; "visto" fica no `localStorage` do aparelho.
+- **Importação:** a lógica é pura (`src/dominio/importacao.ts`) e a tela só mostra. Coluna nova: `CampoDeAluno`, `NOME_DO_CAMPO`, `SINONIMOS` (sem acento, minúsculas) e, se der para reconhecer pelo conteúdo, um teste em `inferirColunasDeAlunos`. A gravação vai em lotes de `ALUNOS_POR_LOTE` (uma transação do Firestore aguenta 500 escritas; um lote de 60 com o financeiro, as turmas e as vagas fica longe disso).
+- **Fila sem internet:** `salvarOuEnfileirar` em `estado.ts`; a demonstração nunca entra na fila. Para testar, `context.setOffline(true)` antes de marcar e `false` depois (o evento `online` anda a fila; o intervalo de 20 s cobre o motor que não o dispara).
+- **Regras velhas no teste:** `trocarRegras(projeto, texto)` (`e2e/firebase/contas.ts`) troca as regras só de um projeto do emulador; devolva as do arquivo num `finally`.
+- **Ajuda:** mudou um card em `conteudoDaAjuda.ts`? Mude o mesmo texto em `docs/guia-da-equipe.md` (o teste compara).

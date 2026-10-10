@@ -20,6 +20,8 @@ cada leitura e gravação. A tela só esconde o que o banco já nega.
 | Dado pessoal vazando pela URL ou pelo referrer | nada pessoal na URL (só códigos nas rotas); `referrer` `strict-origin-when-cross-origin` | `index.html` e as outras duas páginas |
 | Dado do banco guardado no aparelho | o service worker só guarda arquivos do próprio site; a leitura da página pública fica na aba por dez minutos, nunca no cache do SW | `src/pwa/sw.js`, `src/experimental/dados.ts` |
 | Versão velha do app com regras novas | a versão nova fica esperando e o app avisa "Tem uma versão nova do app" com "Atualizar" | `src/app/atualizacao.ts` |
+| Regras publicadas mais velhas que o app | a recusa do banco vira uma frase: com a conta em dia, "peça para a administração publicar as regras novas"; com o acesso mudado, "sua conta não tem esse acesso" | `src/dados/falhas.ts`, `estado.ts` |
+| Planilha colada com dado torto | cada linha passa pelas mesmas validações do cadastro antes de gravar; nada do texto vira HTML; as regras do banco conferem de novo | `src/dominio/importacao.ts` |
 | Alguém de fora gasta a cota do plano gratuito | App Check com reCAPTCHA v3 (quando o dono liga e impõe no console) | `src/dados/firebase/sdk.ts`, `src/experimental/firebaseAppCheck.ts` |
 | Chave de API usada em outro site | restrição da chave por site e por API (console do Google Cloud) | `docs/firebase.md` |
 | Quem mexeu no dinheiro ou excluiu alguém | registro de alterações só com códigos, que ninguém edita nem apaga | coleção `auditoria`, Mais, Registro de alterações |
