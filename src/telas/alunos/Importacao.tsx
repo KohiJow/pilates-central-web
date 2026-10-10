@@ -1,6 +1,7 @@
 // Importar alunos (e turmas) de uma planilha: colar o texto ou escolher um .csv, ver a prévia
 // linha a linha com os erros, corrigir ali mesmo e gravar em lote. A lógica mora em
 // src/dominio/importacao.ts; aqui é só a tela.
+import { Fragment } from 'preact'
 import type { ComponentChildren, JSX } from 'preact'
 import { useMemo, useState } from 'preact/hooks'
 import { baixarArquivo } from '../../app/baixar'
@@ -450,10 +451,11 @@ function LinhaDeAlunoLido({ lido, aoTocar }: { lido: AlunoLido; aoTocar: () => v
         <span class="lista-item-titulo">{r.nome || 'Sem nome'}</span>
         <span class="lista-item-sub">
           {partes.map((parte, i) => (
-            <span key={i} class="sem-quebra">
-              {parte}
-              {i < partes.length - 1 ? ', ' : ''}
-            </span>
+            // o pedaço não quebra no meio; entre um pedaço e outro, sim (o espaço fica fora)
+            <Fragment key={i}>
+              <span class="sem-quebra">{i < partes.length - 1 ? `${parte},` : parte}</span>
+              {i < partes.length - 1 ? ' ' : ''}
+            </Fragment>
           ))}
         </span>
         {erro ? <span class="campo-erro">{erro}</span> : lido.avisos[0] && <span class="lista-item-sub">{lido.avisos[0]}</span>}
