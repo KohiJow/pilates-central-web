@@ -17,7 +17,6 @@ import { primeiroNome } from '../../dominio/texto'
 import type { Turma } from '../../dominio/tipos'
 import { gradeDaSemana, lugaresReservados, NOME_DO_DIA } from '../../dominio/turmas'
 import { momento } from '../../app/relogio'
-import { CabecaDeAlunos } from '../alunos/CabecaDeAlunos'
 import { unidadesVisiveis } from '../alunos/ListaDeAlunos'
 import { unidadeDasTurmas } from '../alunos/estadoDaLista'
 
@@ -36,10 +35,9 @@ export function GradeDeTurmas() {
   }, [inicioDoMes, pronto])
   const porTurma = pronto ? agruparPorTurma(participacoesEntre(inicioDoMes, hoje.value)) : new Map()
 
+  // o cabeçalho (título e seções) fica em Alunos.tsx: só este conteúdo troca entre as seções
   return (
-    <section class="tela" aria-labelledby="titulo-turmas">
-      <CabecaDeAlunos atual="turmas" idTitulo="titulo-turmas" />
-
+    <div class="tela">
       {visiveis.length > 1 && (
         <div class="chips" role="radiogroup" aria-label="Unidade">
           {visiveis.map((u) => (
@@ -76,7 +74,7 @@ export function GradeDeTurmas() {
           </section>
         ))
       )}
-    </section>
+    </div>
   )
 }
 

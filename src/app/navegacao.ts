@@ -58,10 +58,28 @@ function enderecoDe(r: Rota): string {
 
 const chaveDe = (r: Rota) => [r.aba, ...r.caminho].join('/')
 
+/**
+ * Seções de primeiro nível de uma aba (Alunos, Turmas, Reposições): trocam só o conteúdo abaixo
+ * do cabeçalho, que fica no lugar com a marca da seção deslizando. Por isso dividem a mesma
+ * chave de tela; qualquer outro caminho (ficha, formulário) é uma tela nova.
+ */
+const SECOES_DA_ABA: Partial<Record<Aba, readonly string[]>> = { alunos: ['turmas', 'reposicoes'] }
+
+export function secaoDaAba(r: Rota): string | null {
+  const secoes = SECOES_DA_ABA[r.aba]
+  if (!secoes || r.caminho.length > 1) return null
+  const primeira = r.caminho[0] ?? ''
+  return primeira === '' || secoes.includes(primeira) ? primeira : null
+}
+
+export function chaveDaTelaDe(r: Rota): string {
+  return secaoDaAba(r) === null ? chaveDe(r) : r.aba
+}
+
 export const rota = signal<Rota>(rotaDoEndereco())
 export const aba = computed(() => rota.value.aba)
 /** Chave da tela atual: muda a cada troca de tela (a tela nova entra animada). */
-export const chaveDaTela = computed(() => chaveDe(rota.value))
+export const chaveDaTela = computed(() => chaveDaTelaDe(rota.value))
 
 /** Rolagem de cada tela, para a lista voltar onde estava depois de abrir uma ficha. */
 const rolagens = new Map<string, number>()
@@ -70,7 +88,18 @@ function mudar(nova: Rota, direcao: 'frente' | 'tras', rolagem = 0): void {
   document.documentElement.dataset.direcao = direcao
   rota.value = nova
   // depois que a tela nova foi montada
-  requestAnimationFrame(() => window.scrollTo(0, rolagem))
+  rolarPara(rolagem)
+}
+
+/**
+ * Rola até onde a lista estava. Uma lista grande monta em partes (useEmPartes): nos primeiros
+ * quadros a página ainda não é alta o bastante, então insiste por alguns quadros até chegar lá.
+ */
+function rolarPara(rolagem: number, quadros = 12): void {
+  requestAnimationFrame(() => {
+    window.scrollTo(0, rolagem)
+    if (rolagem > 0 && window.scrollY < rolagem - 1 && quadros > 0) rolarPara(rolagem, quadros - 1)
+  })
 }
 
 /**

@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib'
 import { expect, test } from './base'
-import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, folha, irPara, irParaAba, servidorDoDist } from './apoio'
+import { abrirApp, arrastar, entrarComoAdministracao, esperarFolhaParada, esperarParado, esperarSemAnimacao, folha, irPara, irParaAba, servidorDoDist } from './apoio'
 
 // Coisas de celular que o resto da suíte não pega, cada uma achada na revisão no iPhone e no
 // Android (vídeo quadro a quadro, medição na tela) e conferida aqui nos dois motores.
@@ -286,5 +286,52 @@ test.describe('celular', () => {
     // até o dia novo entrar (quando o x pula para o outro lado), só anda para a esquerda
     const saida = x.slice(0, Math.max(1, x.findIndex((v) => v > 0)))
     for (let i = 1; i < saida.length; i++) expect(saida[i], `quadro ${i}: ${saida.join(', ')}`).toBeLessThanOrEqual((saida[i - 1] ?? 0) + 0.5)
+  })
+
+  test('trocar de seção: o cabeçalho fica, a marca desliza até a seção nova e só o conteúdo entra', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    await irParaAba(page, 'Alunos')
+    const secoes = page.getByRole('navigation', { name: 'Seções' })
+    // a mesma nav antes e depois (marcada aqui), e a marca a partir do lugar antigo
+    await secoes.evaluate((el) => el.setAttribute('data-mesma', '1'))
+    const antes = await page.locator('.secoes-marca').evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)
+    await page.evaluate(() => {
+      const w = window as unknown as { __marca: number[] }
+      w.__marca = []
+      const marca = document.querySelector('.secoes-marca') as HTMLElement
+      const quadro = () => {
+        w.__marca.push(new DOMMatrixReadOnly(getComputedStyle(marca).transform).m41)
+        if (w.__marca.length < 40) requestAnimationFrame(quadro)
+      }
+      requestAnimationFrame(quadro)
+    })
+    await secoes.getByRole('button', { name: 'Reposições' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reposições')
+    await expect(secoes).toHaveAttribute('data-mesma', '1')
+    await esperarSemAnimacao(page, '.secoes-marca')
+    await esperarParado(page, '.secao-quadro')
+    const depois = await page.locator('.secoes-marca').evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)
+    expect(depois).toBeGreaterThan(antes + 100)
+    // passou por posições do meio: deslizou, em vez de aparecer já no lugar
+    const x = await page.evaluate(() => (window as unknown as { __marca: number[] }).__marca)
+    expect(x.some((v) => v > antes + 10 && v < depois - 10), x.join(', ')).toBe(true)
+    // o conteúdo da seção tem o quadro dele; a tela (com o cabeçalho) é a mesma
+    await expect(page.locator('.tela-quadro .secao-quadro')).toHaveCount(1)
+    await expect(page.getByRole('heading', { name: 'Para encaixar' })).toBeVisible()
+  })
+
+  test('a lista de alunos monta em partes: os primeiros no primeiro quadro, o resto logo depois', async ({ page }) => {
+    await entrarComoAdministracao(page)
+    const noPrimeiroQuadro = await page.evaluate(() => {
+      const botao = [...document.querySelectorAll('nav[aria-label="Principal"] button')].find((b) => b.textContent?.includes('Alunos')) as HTMLButtonElement
+      botao.click()
+      // depois que o Preact pintou a tela nova (um quadro), antes de a parte seguinte entrar
+      return new Promise<number>((r) => requestAnimationFrame(() => r(document.querySelectorAll('[data-aluno]').length)))
+    })
+    expect(noPrimeiroQuadro).toBeGreaterThan(0)
+    expect(noPrimeiroQuadro).toBeLessThanOrEqual(16)
+    const total = Number(((await page.locator('.secao > .texto-secundario').first().textContent()) ?? '0').replace(/\D/g, ''))
+    expect(total).toBeGreaterThan(16)
+    await expect(page.locator('[data-aluno]')).toHaveCount(total)
   })
 })

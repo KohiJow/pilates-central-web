@@ -1,0 +1,1 @@
+Telas de abertura do app instalado no iPhone, geradas por scripts/gerar-abertura.mjs (npm run abertura). Não edite à mão.

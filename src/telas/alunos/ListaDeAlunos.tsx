@@ -5,6 +5,7 @@ import { Avatar } from '../../componentes/Avatar'
 import { Botao } from '../../componentes/Botao'
 import { Campo } from '../../componentes/Campo'
 import { EsqueletoDeLista } from '../../componentes/Esqueleto'
+import { useEmPartes } from '../../componentes/emPartes'
 import { EstadoVazio } from '../../componentes/EstadoVazio'
 import { Chevrons } from '../../componentes/Icone'
 import { Chip, Pilula } from '../../componentes/Pilula'
@@ -13,7 +14,6 @@ import { base, cargaRecente, nomeDaUnidade, situacao, unidades } from '../../dad
 import { conferirPlano, filtrarAlunos, NOME_DA_SITUACAO } from '../../dominio/alunos'
 import { plural } from '../../dominio/texto'
 import type { Aluno, SituacaoAluno } from '../../dominio/tipos'
-import { CabecaDeAlunos } from './CabecaDeAlunos'
 import { buscaDeAlunos, situacaoDosAlunos, unidadeDosAlunos } from './estadoDaLista'
 
 // "Ativos" é só quem está vindo às aulas: o mesmo número que o Financeiro mostra como alunos ativos
@@ -46,11 +46,12 @@ export function ListaDeAlunos() {
           .find((s) => s.quantos > 0)
       : undefined
   const carregando = situacao.value !== 'pronto'
+  // a lista entra em partes: os primeiros com a tela, o resto nos quadros seguintes
+  const visiveisAgora = useEmPartes(lista.length)
 
+  // o cabeçalho (título e seções) fica em Alunos.tsx: só este conteúdo troca entre as seções
   return (
-    <section class="tela" aria-labelledby="titulo-alunos">
-      <CabecaDeAlunos atual="lista" idTitulo="titulo-alunos" />
-
+    <div class="tela">
       <div class="pilha">
         <Campo
           rotulo="Buscar aluno"
@@ -114,7 +115,7 @@ export function ListaDeAlunos() {
             {plural(lista.length, 'aluno')}
           </p>
           <ul class={`lista${cargaRecente.value ? ' cascata' : ''}`}>
-            {lista.map((a, i) => (
+            {lista.slice(0, visiveisAgora).map((a, i) => (
               <li key={a.id} style={{ '--i': i } as JSX.CSSProperties}>
                 <LinhaDeAluno aluno={a} mostrarUnidade={!unidadeId && visiveis.length > 1} />
               </li>
@@ -122,7 +123,7 @@ export function ListaDeAlunos() {
           </ul>
         </div>
       )}
-    </section>
+    </div>
   )
 }
 

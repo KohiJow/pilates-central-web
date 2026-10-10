@@ -35,6 +35,11 @@ const escolhido = modo.peek()
 if (escolhido) iniciar(escolhido)
 
 const raiz = document.getElementById('app')
-if (raiz) render(<App />, raiz)
+if (raiz) {
+  // o logo que index.html mostra até aqui sai antes de montar: o Preact não tira nós que já
+  // estavam no contêiner, e a tela de abertura ficaria por cima, empurrando o app para baixo
+  raiz.replaceChildren()
+  render(<App />, raiz)
+}
 
 if (import.meta.env.PROD) registrarServiceWorker()

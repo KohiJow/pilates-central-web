@@ -7,6 +7,7 @@ import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
 import { CabecalhoDeSubtela } from '../../componentes/CabecalhoDeSubtela'
 import { Card } from '../../componentes/Card'
+import { useEmPartes } from '../../componentes/emPartes'
 import { Esqueleto } from '../../componentes/Esqueleto'
 import { EstadoVazio } from '../../componentes/EstadoVazio'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
@@ -83,6 +84,9 @@ function Ficha({ aluno }: { aluno: Aluno }) {
   const plano = conferirPlano(aluno, base.value?.turmas ?? [])
   const ausencias = ausenciasPorAluno.value.get(aluno.id) ?? 0
   const limite = base.value?.configuracao.alertaAusenciasSeguidas ?? 3
+  // a ficha monta em partes: cabeçalho e plano com a tela; frequência e reposições no quadro
+  // seguinte; mensalidade, dados e ações no outro (cada parte abaixo da anterior, nada se move)
+  const partes = useEmPartes(3, 1, 1)
 
   const mudarSituacao = async (nova: SituacaoAluno) => {
     setConfirmando(null)
@@ -172,12 +176,16 @@ function Ficha({ aluno }: { aluno: Aluno }) {
         )}
       </section>
 
-      <Frequencia aluno={aluno} />
+      {partes >= 2 && (
+        <>
+          <Frequencia aluno={aluno} />
+          <Creditos aluno={aluno} aoEncaixar={setCreditoParaEncaixe} />
+        </>
+      )}
 
-      <Creditos aluno={aluno} aoEncaixar={setCreditoParaEncaixe} />
+      {partes >= 3 && pode('ver-financeiro') && <Pagamentos aluno={aluno} competencia={competencia} aoLancar={() => setPagando(true)} />}
 
-      {pode('ver-financeiro') && <Pagamentos aluno={aluno} competencia={competencia} aoLancar={() => setPagando(true)} />}
-
+      {partes >= 3 && (
       <section class="secao" aria-labelledby="titulo-dados">
         <h2 id="titulo-dados" class="micro">
           Dados
@@ -203,10 +211,11 @@ function Ficha({ aluno }: { aluno: Aluno }) {
           )}
         </dl>
       </section>
+      )}
 
-      <AcessoAoApp aluno={aluno} />
+      {partes >= 3 && <AcessoAoApp aluno={aluno} />}
 
-      {ehAdm && (
+      {partes >= 3 && ehAdm && (
         <section class="secao" aria-label="Ações do cadastro">
           <Botao variante="secundario" icone="editar" largo onClick={() => abrir(aluno.id, 'editar')}>
             Editar cadastro
@@ -229,7 +238,7 @@ function Ficha({ aluno }: { aluno: Aluno }) {
         </section>
       )}
 
-      <DadosEPrivacidade aluno={aluno} />
+      {partes >= 3 && <DadosEPrivacidade aluno={aluno} />}
 
       <FolhaDeEncaixe creditoId={creditoParaEncaixe} aoFechar={() => setCreditoParaEncaixe(null)} />
       {pode('registrar-pagamento') && (

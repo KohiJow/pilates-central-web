@@ -9,6 +9,7 @@ import { avisar } from '../../componentes/Avisos'
 import { Botao } from '../../componentes/Botao'
 import { Card } from '../../componentes/Card'
 import { Dinheiro } from '../../componentes/Dinheiro'
+import { useEmPartes } from '../../componentes/emPartes'
 import { Esqueleto, EsqueletoDeLista } from '../../componentes/Esqueleto'
 import { EstadoVazio } from '../../componentes/EstadoVazio'
 import { FolhaInferior } from '../../componentes/FolhaInferior'
@@ -70,6 +71,15 @@ export function Financeiro() {
     void carregarFinanceiro(ultimasCompetencias(competencia, MESES_NO_GRAFICO))
   }, [competencia])
 
+  const pronto = situacaoFinanceira.value === 'pronto' && base.value !== null
+  const todos = [...pagamentos.value.values()]
+  const resumo = pronto && pode('ver-financeiro') ? resumoDoMes(base.value?.alunos ?? [], financeiro.value, todos, competencia, hoje.value, unidadeId) : null
+  // as listas longas entram em partes ("Mostrar todos" põe dezenas de linhas de uma vez)
+  const abertosMostrados = todosAbertos ? (resumo?.abertos ?? []) : (resumo?.abertos ?? []).slice(0, LIMITE_DA_LISTA)
+  const lancamentosMostrados = todosLancamentos ? (resumo?.pagamentos ?? []) : (resumo?.pagamentos ?? []).slice(0, LIMITE_DA_LISTA)
+  const abertosAgora = useEmPartes(abertosMostrados.length, LIMITE_DA_LISTA)
+  const lancamentosAgora = useEmPartes(lancamentosMostrados.length, LIMITE_DA_LISTA)
+
   if (!pode('ver-financeiro')) {
     return (
       <section class="tela">
@@ -78,9 +88,6 @@ export function Financeiro() {
     )
   }
 
-  const pronto = situacaoFinanceira.value === 'pronto' && base.value !== null
-  const todos = [...pagamentos.value.values()]
-  const resumo = pronto ? resumoDoMes(base.value?.alunos ?? [], financeiro.value, todos, competencia, hoje.value, unidadeId) : null
   const historico = historicoRecebido(todos, meses, unidadeId)
   const maiorForma = Math.max(1, ...(resumo?.porForma.map((f) => f.valor) ?? [1]))
   const nomeDoMes = nomeDaCompetencia(competencia)
@@ -176,7 +183,7 @@ export function Financeiro() {
             ) : (
               <>
                 <ul class="lista">
-                  {(todosAbertos ? resumo.abertos : resumo.abertos.slice(0, LIMITE_DA_LISTA)).map((s, i) => (
+                  {abertosMostrados.slice(0, abertosAgora).map((s, i) => (
                     <li key={s.alunoId} style={{ '--i': i } as JSX.CSSProperties}>
                       <LinhaEmAberto situacao={s} competencia={competencia} aoLancar={() => setPagando({ alunoId: s.alunoId })} />
                     </li>
@@ -234,7 +241,7 @@ export function Financeiro() {
               <p class="texto-secundario">Nenhum lançamento.</p>
             ) : (
               <ul class="lista">
-                {(todosLancamentos ? resumo.pagamentos : resumo.pagamentos.slice(0, LIMITE_DA_LISTA)).map((p) => (
+                {lancamentosMostrados.slice(0, lancamentosAgora).map((p) => (
                   <li key={p.id}>
                     <button type="button" class="lista-item tocavel" onClick={() => setDetalhe(p)}>
                       <span class="lista-item-texto">

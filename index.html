@@ -31,7 +31,8 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- o logo no centro até o app carregar: continua a tela de abertura do iPhone sem salto -->
+    <div id="app"><div class="abertura" aria-hidden="true"><span class="abertura-logo"></span></div></div>
     <noscript>Para usar o app, ative o JavaScript do navegador.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

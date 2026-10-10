@@ -31,6 +31,37 @@ test.describe('app instalável', () => {
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', /^#/)
   })
 
+  test('tela de abertura do app instalado no iPhone: uma imagem por tamanho de tela, nos dois temas', async ({ page, request }) => {
+    await abrirApp(page)
+    const links = page.locator('link[rel="apple-touch-startup-image"]')
+    const quantos = await links.count()
+    // onze tamanhos de iPhone (do SE ao Pro Max), claro e escuro
+    expect(quantos).toBe(22)
+    const midias = await links.evaluateAll((els) => els.map((el) => el.getAttribute('media') ?? ''))
+    for (const m of midias) {
+      expect(m).toMatch(/^screen and \(device-width: \d+px\) and \(device-height: \d+px\) and \(-webkit-device-pixel-ratio: [23]\) and \(orientation: portrait\) and \(prefers-color-scheme: (light|dark)\)$/)
+    }
+    expect(midias.filter((m) => m.endsWith('dark)'))).toHaveLength(11)
+    // o iPhone 13 (390 x 844, 3x) tem a dele nos dois temas, e a imagem existe no tamanho certo
+    for (const tema of ['light', 'dark']) {
+      const link = links.filter({ has: page.locator(`:scope[media*="(device-width: 390px)"][media*="${tema}"]`) })
+      const href = await link.getAttribute('href')
+      expect(href, tema).toMatch(/\/abertura\/1170x2532(-escuro)?\.png$/)
+      const r = await request.get(new URL(href ?? '', page.url()).href)
+      expect(r.ok(), href ?? '').toBe(true)
+      expect(r.headers()['content-type']).toContain('image/png')
+    }
+    // até o app montar, a página já mostra o logo no centro (continuação da tela de abertura);
+    // depois de montar, ele sai (o Preact não tira sozinho o que já estava no contêiner)
+    const html = await (await request.get(page.url())).text()
+    expect(html).toContain('class="abertura"')
+    await expect(page.locator('#app > .abertura')).toHaveCount(0)
+    expect(await page.locator('#app > *').count()).toBe(1)
+    // as telas de abertura não vão para o cache do service worker (o iOS guarda ao instalar)
+    const sw = await (await request.get(`${BASE}sw.js`)).text()
+    expect(sw).not.toContain('abertura/')
+  })
+
   test('abre sem erro no console e com a política de segurança', async ({ page }) => {
     const erros: string[] = []
     page.on('console', (m) => {

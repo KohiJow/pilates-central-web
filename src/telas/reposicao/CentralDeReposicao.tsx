@@ -19,7 +19,6 @@ import { resumoDeCreditos } from '../../dominio/reposicao'
 import { plural, primeiroNome } from '../../dominio/texto'
 import type { CreditoReposicao } from '../../dominio/tipos'
 import { nomeDaTurma } from '../../dominio/turmas'
-import { CabecaDeAlunos } from '../alunos/CabecaDeAlunos'
 import { unidadeDasReposicoes } from '../alunos/estadoDaLista'
 import { unidadesVisiveis } from '../alunos/ListaDeAlunos'
 import { FolhaDeEncaixe } from './FolhaDeEncaixe'
@@ -65,10 +64,9 @@ export function CentralDeReposicao() {
     })
   }
 
+  // o cabeçalho (título e seções) fica em Alunos.tsx: só este conteúdo troca entre as seções
   return (
-    <section class="tela" aria-labelledby="titulo-reposicoes">
-      <CabecaDeAlunos atual="reposicoes" idTitulo="titulo-reposicoes" />
-
+    <div class="tela">
       {visiveis.length > 1 && (
         <div class="chips" role="radiogroup" aria-label="Unidade">
           <Chip papel="radio" ativo={!unidadeId} aoTocar={() => (unidadeDasReposicoes.value = null)}>
@@ -218,7 +216,7 @@ export function CentralDeReposicao() {
       )}
 
       <FolhaDeEncaixe creditoId={paraEncaixe} aoFechar={() => setParaEncaixe(null)} />
-    </section>
+    </div>
   )
 }
 

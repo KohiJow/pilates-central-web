@@ -1,7 +1,7 @@
 import { trocarSecao } from '../../app/navegacao'
 import { Secoes } from '../../componentes/Secoes'
 
-type SecaoDeAlunos = 'lista' | 'turmas' | 'reposicoes'
+export type SecaoDeAlunos = 'lista' | 'turmas' | 'reposicoes'
 
 const SECOES = [
   { id: 'lista', rotulo: 'Alunos' },
@@ -18,7 +18,11 @@ const TITULO: Record<SecaoDeAlunos, string> = {
   reposicoes: 'Reposições',
 }
 
-/** Topo da aba Alunos: título da seção e a troca entre alunos, turmas e reposições. */
+/**
+ * Topo da aba Alunos: título da seção e a troca entre alunos, turmas e reposições. Fica no lugar
+ * quando a seção troca (só o conteúdo abaixo entra deslizando), então a marca da seção escolhida
+ * desliza de uma para a outra.
+ */
 export function CabecaDeAlunos({ atual, idTitulo }: { atual: SecaoDeAlunos; idTitulo: string }) {
   return (
     <header class="cabecalho-de-tela">

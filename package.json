@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "icones": "node scripts/gerar-icones.mjs",
+    "abertura": "node scripts/gerar-abertura.mjs",
     "regras": "firebase emulators:exec --only firestore --project demo-pilates \"vitest run --config vitest.regras.config.ts\""
   },
   "dependencies": {

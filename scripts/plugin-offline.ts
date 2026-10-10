@@ -2,9 +2,11 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import type { Plugin } from 'vite'
+import { linksDeAbertura } from './abertura.ts'
 
 // Do que vai em public/, só o essencial para abrir o app sem internet.
-// As fotos do espaço ficam de fora: são da página pública e entram no cache quando usadas.
+// As fotos do espaço e as telas de abertura do iPhone ficam de fora: as fotos são da página
+// pública e entram no cache quando usadas; as telas de abertura o iOS guarda ao instalar.
 const PUBLICOS = /^(favicon\.svg|icones\/[^/]+\.png)$/
 
 const MANIFESTO = 'manifest.webmanifest'
@@ -94,16 +96,21 @@ export function servicoOffline(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
-        if (!ctx.bundle) return html
+        // as telas de abertura do app instalado no iPhone, só na página do app (a que se instala);
+        // uma <link> por tamanho de tela e por tema, com o caminho base (ver scripts/abertura.ts)
+        const comAbertura = html.includes('rel="apple-touch-icon"')
+          ? html.replace(/(<link rel="apple-touch-icon"[^>]*>)/, (tag) => [tag, ...linksDeAbertura(base)].join('\n    '))
+          : html
+        if (!ctx.bundle) return comAbertura
         // pré-carrega as duas fontes latinas para o texto não "pular" na primeira visita
         // (endereço absoluto: as páginas em subpastas, como experimental/, também acham a fonte)
         const fontes = Object.keys(ctx.bundle)
           .filter((nome) => /latin-wght-normal.*\.woff2$/.test(nome) && !FONTE_DE_OUTRO_ALFABETO.test(nome))
           .map((nome) => `${base}${nome}`)
-        if (fontes.length === 0) return html
+        if (fontes.length === 0) return comAbertura
         // logo depois do título, antes das folhas de estilo: um script embutido depois delas só
         // roda quando elas chegam, e a pré-carga atrasaria
-        return html.replace('</title>', `</title>\n    <script>${preCargaDasFontes(fontes)}</script>`)
+        return comAbertura.replace('</title>', `</title>\n    <script>${preCargaDasFontes(fontes)}</script>`)
       },
     },
     generateBundle(_opcoes, bundle) {

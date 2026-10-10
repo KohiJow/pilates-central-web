@@ -108,11 +108,23 @@ export async function esperarTransicao(page: Page): Promise<void> {
   await expect(page.locator('html[data-transicao]')).toHaveCount(0)
 }
 
-/** Troca de seção dentro da aba Alunos (Alunos, Turmas, Reposições). */
+/**
+ * Troca de seção dentro da aba Alunos (Alunos, Turmas, Reposições): o cabeçalho fica, a marca
+ * desliza e só o conteúdo (num quadro próprio) entra deslizando.
+ */
 export async function irParaSecao(page: Page, nome: 'Alunos' | 'Turmas' | 'Reposições'): Promise<void> {
   await page.getByRole('navigation', { name: 'Seções' }).getByRole('button', { name: nome }).click()
   await expect(page.getByRole('navigation', { name: 'Seções' }).getByRole('button', { name: nome })).toHaveAttribute('aria-current', 'page')
-  await esperarParado(page, '.tela-quadro')
+  await esperarSemAnimacao(page, '.secoes-marca')
+  await esperarParado(page, '.secao-quadro')
+}
+
+/** Espera as animações de um elemento acabarem (para peças cujo repouso não é transform zero, como a marca das seções). */
+export async function esperarSemAnimacao(page: Page, seletor: string): Promise<void> {
+  await page.waitForFunction((sel) => {
+    const el = document.querySelector(sel)
+    return Boolean(el) && !el?.getAnimations().some((a) => a.playState === 'running')
+  }, seletor)
 }
 
 /** Abre uma tela pelo endereço (como um link salvo) e espera ela parar de entrar. */
