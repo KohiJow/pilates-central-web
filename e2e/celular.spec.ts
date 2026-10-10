@@ -154,7 +154,10 @@ test.describe('celular', () => {
     test('trocar de dia não mexe a faixa de dias (o título não quebra linha)', async ({ page }) => {
       await entrarComoAdministracao(page)
       await irParaAba(page, 'Agenda')
-      const topoDaFaixa = () => page.evaluate(() => Math.round(document.querySelector('.faixa')?.getBoundingClientRect().top ?? -1))
+      // a posição na página, e não na janela: o toque do Playwright pode rolar a página para
+      // alcançar o dia (no CI, sob carga, rolou 85 px), e o que importa é o título não empurrar a faixa
+      const topoDaFaixa = () =>
+        page.evaluate(() => Math.round((document.querySelector('.faixa')?.getBoundingClientRect().top ?? -1) + window.scrollY))
       const antes = await topoDaFaixa()
       // dias com nome comprido e o botão "Hoje" aparecendo: nada abaixo do título se mexe
       for (const dia of ['2026-10-10', '2026-10-14', '2026-10-05', '2026-09-27', '2026-10-09']) {
